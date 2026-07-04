@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Design tokens. Neutrals taken from the reference design rules
+  (reglas_diseno.md). Brand palette is a NEW gama (teal + amber) instead of
+  the original navy/orange. All brand colors are CSS variables so each tenant
+  can override them at runtime for multitenant theming.
+*/
+:root {
+  --brand: #0f766e;        /* teal-700  — primary brand / CTAs */
+  --brand-dark: #115e59;   /* teal-800  — hover / active */
+  --brand-light: #14b8a6;  /* teal-500  — accents on dark */
+  --accent: #f59e0b;       /* amber-500 — highlights, deals */
+  --accent-dark: #d97706;  /* amber-600 */
+  --topbar: #134e4a;       /* teal-900  — promo bar (replaces maroon) */
+
+  --bg: #f8f9fa;           /* global background */
+  --card: #ffffff;         /* cards / inputs */
+  --text: #222222;         /* primary text / titles */
+  --text-secondary: #666666;
+  --border: #dee2e6;       /* hairline borders */
+}
+
+html {
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.3;
+  letter-spacing: 0.5px;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
