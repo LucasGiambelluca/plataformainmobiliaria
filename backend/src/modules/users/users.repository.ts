@@ -43,19 +43,6 @@ class UsersPrismaRepository extends BaseRepository<TenantUser> implements UsersR
     return prisma.user.findFirst({ where: { email }, select: { id: true } });
   }
 
-  countActive(tenantId: string): Promise<number> {
-    return this.count(tenantId, { isActive: true });
-  }
-
-  async getMaxUsers(tenantId: string): Promise<number | null> {
-    const subscription = await prisma.subscription.findFirst({
-      where: { tenantId },
-      orderBy: { createdAt: "desc" },
-      select: { plan: { select: { maxUsers: true } } },
-    });
-    return subscription?.plan.maxUsers ?? null;
-  }
-
   async createUser(
     tenantId: string,
     data: Omit<CreateUserInput, "password"> & { passwordHash: string },

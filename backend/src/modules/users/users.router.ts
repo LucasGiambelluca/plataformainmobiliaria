@@ -10,6 +10,7 @@ import {
   type CreateUserBody,
   type UpdateUserBody,
 } from "./users.schemas";
+import { limitService } from "@/modules/subscriptions/subscriptions.router";
 import { UsersService } from "./users.service";
 import { usersRepository } from "./users.repository";
 
@@ -63,5 +64,7 @@ export function createUsersRouter(service: UsersService): Router {
   return router;
 }
 
-// Router con el wiring por defecto (repositorio Prisma).
-export const usersRouter = createUsersRouter(new UsersService(usersRepository));
+// Router con el wiring por defecto (repositorio Prisma + LimitService compartido).
+export const usersRouter = createUsersRouter(
+  new UsersService(usersRepository, limitService),
+);

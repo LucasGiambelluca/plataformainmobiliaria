@@ -1,12 +1,7 @@
 import bcrypt from "bcryptjs";
 import type { UserRole } from "@prisma/client";
-import {
-  AppError,
-  BadRequestError,
-  ConflictError,
-  LimitExceededError,
-  NotFoundError,
-} from "@/shared/errors";
+import type { LimitService } from "@/modules/subscriptions/limit.service";
+import { BadRequestError, ConflictError, NotFoundError } from "@/shared/errors";
 
 const BCRYPT_COST = 12;
 
@@ -44,9 +39,6 @@ export interface UsersRepository {
   // Global a propósito: el email es único en toda la plataforma mientras el
   // login no resuelve tenant (misma regla que el provisioning de tenants).
   findByEmailGlobal(email: string): Promise<{ id: string } | null>;
-  countActive(tenantId: string): Promise<number>;
-  // maxUsers del plan de la suscripción vigente; null si no hay suscripción.
-  getMaxUsers(tenantId: string): Promise<number | null>;
   createUser(
     tenantId: string,
     data: Omit<CreateUserInput, "password"> & { passwordHash: string },
@@ -55,7 +47,10 @@ export interface UsersRepository {
 }
 
 export class UsersService {
-  constructor(private readonly repo: UsersRepository) {}
+  constructor(
+    private readonly repo: UsersRepository,
+    private readonly limitService: LimitService,
+  ) {}
 
   list(tenantId: string): Promise<TenantUser[]> {
     return this.repo.listByTenant(tenantId);
@@ -66,15 +61,8 @@ export class UsersService {
       throw new ConflictError("Ese email ya está registrado");
     }
 
-    const maxUsers = await this.repo.getMaxUsers(tenantId);
-    if (maxUsers === null) {
-      // Todo tenant se crea con suscripción; si falta, hay datos rotos.
-      throw new AppError("El tenant no tiene una suscripción vigente");
-    }
-    const activeCount = await this.repo.countActive(tenantId);
-    if (activeCount >= maxUsers) {
-      throw new LimitExceededError("usuarios");
-    }
+    // Enforcement centralizado del límite maxUsers del plan (tarea 1.12).
+    await this.limitService.assertCanAddUser(tenantId);
 
     const { password, ...rest } = input;
     return this.repo.createUser(tenantId, {
