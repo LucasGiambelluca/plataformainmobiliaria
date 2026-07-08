@@ -1,11 +1,18 @@
 import { Router, type Response } from "express";
 import { isProd } from "@/config/env";
 import { authenticate } from "@/shared/middleware/authenticate";
-import { authLimiter } from "@/shared/middleware/rateLimit";
+import { authLimiter, registerLimiter } from "@/shared/middleware/rateLimit";
 import { validate } from "@/shared/middleware/validate";
 import { asyncHandler } from "@/shared/utils/asyncHandler";
 import { UnauthorizedError } from "@/shared/errors";
-import { loginSchema, type LoginInput } from "./auth.schemas";
+import { TenantsService } from "@/modules/tenants/tenants.service";
+import { tenantsRepository } from "@/modules/tenants/tenants.repository";
+import {
+  loginSchema,
+  registerSchema,
+  type LoginInput,
+  type RegisterInput,
+} from "./auth.schemas";
 import { AuthService, type AuthTokens } from "./auth.service";
 import { authRepository } from "./auth.repository";
 
@@ -28,8 +35,34 @@ function clearRefreshCookie(res: Response): void {
   res.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH });
 }
 
-export function createAuthRouter(service: AuthService): Router {
+export function createAuthRouter(
+  service: AuthService,
+  tenantsService: TenantsService,
+): Router {
   const router = Router();
+
+  // Alta self-serve de inmobiliaria + admin, con auto-login (§9.1).
+  router.post(
+    "/register",
+    registerLimiter,
+    validate(registerSchema),
+    asyncHandler(async (req, res) => {
+      const body = req.body as RegisterInput;
+      const { tenant } = await tenantsService.provision({
+        tenantName: body.tenantName,
+        slug: body.slug,
+        adminEmail: body.email,
+        adminPassword: body.password,
+        adminName: body.name,
+      });
+      const { user, accessToken, ...tokens } = await service.login(
+        body.email,
+        body.password,
+      );
+      setRefreshCookie(res, { accessToken, ...tokens });
+      res.status(201).json({ tenant, user, accessToken });
+    }),
+  );
 
   router.post(
     "/login",
@@ -81,4 +114,7 @@ export function createAuthRouter(service: AuthService): Router {
 }
 
 // Router con el wiring por defecto (repositorio Prisma).
-export const authRouter = createAuthRouter(new AuthService(authRepository));
+export const authRouter = createAuthRouter(
+  new AuthService(authRepository),
+  new TenantsService(tenantsRepository),
+);

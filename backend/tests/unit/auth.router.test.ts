@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import request from "supertest";
 import { createAuthRouter, REFRESH_COOKIE } from "@/modules/auth/auth.router";
 import type { AuthService } from "@/modules/auth/auth.service";
+import type { TenantsService } from "@/modules/tenants/tenants.service";
 import { errorHandler, notFoundHandler } from "@/shared/middleware/error";
 import { signAccessToken } from "@/shared/services/jwt.service";
 import { UnauthorizedError } from "@/shared/errors";
@@ -22,7 +23,10 @@ const OK_RESULT = {
   user: SAFE_USER,
 };
 
-function makeApp(overrides: Partial<AuthService> = {}) {
+function makeApp(
+  overrides: Partial<AuthService> = {},
+  tenantsOverrides: Partial<TenantsService> = {},
+) {
   const service = {
     login: jest.fn().mockResolvedValue(OK_RESULT),
     refresh: jest.fn().mockResolvedValue(OK_RESULT),
@@ -30,13 +34,21 @@ function makeApp(overrides: Partial<AuthService> = {}) {
     ...overrides,
   } as unknown as AuthService;
 
+  const tenantsService = {
+    provision: jest.fn().mockResolvedValue({
+      tenant: { id: "t1", name: "Inmo Uno", slug: "inmo-uno", isActive: true },
+      user: SAFE_USER,
+    }),
+    ...tenantsOverrides,
+  } as unknown as TenantsService;
+
   const app = express();
   app.use(express.json());
   app.use(cookieParser());
-  app.use("/api/auth", createAuthRouter(service));
+  app.use("/api/auth", createAuthRouter(service, tenantsService));
   app.use(notFoundHandler);
   app.use(errorHandler);
-  return { app, service };
+  return { app, service, tenantsService };
 }
 
 describe("auth router", () => {
@@ -131,6 +143,48 @@ describe("auth router", () => {
       const res = await request(app).post("/api/auth/logout");
       expect(res.status).toBe(204);
       expect(service.logout).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("POST /api/auth/register", () => {
+    const REGISTER_BODY = {
+      tenantName: "Inmo Uno",
+      slug: "Inmo-Uno",
+      email: "DUENO@inmo.com",
+      password: "secreto-123",
+      name: "Dueño",
+    };
+
+    it("201: provisiona inmobiliaria, auto-loguea y setea cookie", async () => {
+      const { app, service, tenantsService } = makeApp();
+      const res = await request(app).post("/api/auth/register").send(REGISTER_BODY);
+
+      expect(res.status).toBe(201);
+      // Slug y email normalizados a minúsculas.
+      expect(tenantsService.provision).toHaveBeenCalledWith({
+        tenantName: "Inmo Uno",
+        slug: "inmo-uno",
+        adminEmail: "dueno@inmo.com",
+        adminPassword: "secreto-123",
+        adminName: "Dueño",
+      });
+      // Auto-login con las credenciales recién creadas.
+      expect(service.login).toHaveBeenCalledWith("dueno@inmo.com", "secreto-123");
+      expect(res.body).toEqual({
+        tenant: { id: "t1", name: "Inmo Uno", slug: "inmo-uno", isActive: true },
+        user: { ...SAFE_USER },
+        accessToken: "access-abc",
+      });
+      expect(res.headers["set-cookie"]?.[0]).toContain(`${REFRESH_COOKIE}=refresh-abc`);
+    });
+
+    it("422: slug con espacios o password corto no llegan al service", async () => {
+      const { app, tenantsService } = makeApp();
+      const res = await request(app)
+        .post("/api/auth/register")
+        .send({ ...REGISTER_BODY, slug: "inmo uno", password: "corta" });
+      expect(res.status).toBe(422);
+      expect(tenantsService.provision).not.toHaveBeenCalled();
     });
   });
 
