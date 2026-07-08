@@ -1,5 +1,16 @@
 export type Operation = 'venta' | 'alquiler' | 'temporal'
 
+// Categorías especiales del portal (ui.pdf): además de la operación,
+// una propiedad puede pertenecer a emprendimiento / countries / campo.
+export type PropertyCategory = 'emprendimiento' | 'countries' | 'campo'
+
+// Estado de avance de un emprendimiento (sub-filtros de ui.pdf).
+export type DevelopmentStatus =
+  | 'en_pozo'
+  | 'en_construccion'
+  | 'terminado'
+  | 'fideicomiso'
+
 export type PropertyType =
   | 'casa'
   | 'departamento'
@@ -23,6 +34,8 @@ export interface Property {
   image: string
   featured?: boolean
   discounted?: boolean
+  category?: PropertyCategory
+  developmentStatus?: DevelopmentStatus
   agency: string
 }
 

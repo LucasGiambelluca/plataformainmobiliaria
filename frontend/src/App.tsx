@@ -7,6 +7,7 @@ import PropertyDetail from './pages/PropertyDetail'
 import Register from './pages/Register'
 import ComoPublicar from './pages/ComoPublicar'
 import InmobiliariasList from './pages/InmobiliariasList'
+import EnConstruccion from './pages/EnConstruccion'
 import Dashboard from './pages/panel/Dashboard'
 import Properties from './pages/panel/Properties'
 import Leads from './pages/panel/Leads'
@@ -31,6 +32,10 @@ export default function App() {
         <Route path="/registro" element={<Register />} />
         <Route path="/publicar" element={<ComoPublicar />} />
         <Route path="/inmobiliarias" element={<InmobiliariasList />} />
+        <Route path="/calculadoras" element={<EnConstruccion title="Calculadoras" />} />
+        <Route path="/tasaciones" element={<EnConstruccion title="Tasaciones Online" />} />
+        <Route path="/garantias" element={<EnConstruccion title="Garantías de Alquiler" />} />
+        <Route path="/seguros" element={<EnConstruccion title="Seguros" />} />
       </Route>
 
       {/* Panel inmobiliaria (tenant) */}

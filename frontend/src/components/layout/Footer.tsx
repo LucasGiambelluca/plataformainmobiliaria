@@ -1,50 +1,81 @@
 import { Link } from 'react-router-dom'
-import { Facebook, Instagram, Mail } from 'lucide-react'
+import { Facebook, Instagram, Youtube } from 'lucide-react'
+import Logo from '../common/Logo'
+import { WhatsAppIcon } from '../common/BrandIcons'
+
+// Footer blanco con logo, columnas de links y botones sociales, según ui.pdf.
+
+const columns: { label: string; to: string }[][] = [
+  [
+    { label: 'Inicio', to: '/' },
+    { label: 'Tasaciones Online', to: '/tasaciones' },
+    { label: 'Términos y condiciones', to: '#' },
+    { label: 'WhatsApp', to: '#' },
+  ],
+  [
+    { label: 'Inmobiliarias', to: '/inmobiliarias' },
+    { label: 'Garantías de alquiler', to: '/garantias' },
+    { label: 'Política de privacidad', to: '#' },
+    { label: 'E-Mail administración', to: '#' },
+  ],
+  [
+    { label: 'Calculadoras', to: '/calculadoras' },
+    { label: 'Política de cookies', to: '#' },
+    { label: 'E-Mail comercial', to: '#' },
+    { label: 'Cuenta cliente', to: '/registro' },
+  ],
+]
+
+const socials = [
+  { label: 'Facebook', href: '#', icon: <Facebook className="h-3.5 w-3.5" /> },
+  { label: 'Instagram', href: '#', icon: <Instagram className="h-3.5 w-3.5" /> },
+  { label: 'YouTube', href: '#', icon: <Youtube className="h-3.5 w-3.5" /> },
+  { label: 'WhatsApp', href: '#', icon: <WhatsAppIcon className="h-3.5 w-3.5" /> },
+]
 
 export default function Footer() {
   return (
-    <footer className="mt-16 bg-topbar text-white/80">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 md:grid-cols-4">
+    <footer className="mt-16 border-t border-line bg-surface">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-10 md:grid-cols-[1.2fr_2fr_1fr]">
         <div>
-          <span className="text-xl font-bold text-white">
-            Inmo<span className="text-brand-light">Hub</span>
-          </span>
-          <p className="mt-3 text-sm leading-relaxed">
-            El portal que conecta tu búsqueda con todas las inmobiliarias de la
-            red.
+          <Logo subtitle="es un producto de Hernández & asociados" />
+          <p className="mt-6 text-[11px] tracking-wide text-muted">
+            ©Copyright 2026 – Hernández & asociados – Todos los derechos
+            reservados
           </p>
         </div>
 
-        <div>
-          <h4 className="mb-3 text-sm font-semibold text-white">Operaciones</h4>
-          <ul className="space-y-2 text-sm">
-            <li><Link to="/buscar?op=venta" className="hover:text-white">Venta</Link></li>
-            <li><Link to="/buscar?op=alquiler" className="hover:text-white">Alquiler</Link></li>
-            <li><Link to="/buscar?op=temporal" className="hover:text-white">Temporal</Link></li>
-          </ul>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3">
+          {columns.map((col, i) => (
+            <ul key={i} className="space-y-3">
+              {col.map((l) => (
+                <li key={l.label}>
+                  <Link
+                    to={l.to}
+                    className="font-serif text-sm text-ink transition-colors hover:text-accent-dark"
+                  >
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ))}
         </div>
 
-        <div>
-          <h4 className="mb-3 text-sm font-semibold text-white">Plataforma</h4>
-          <ul className="space-y-2 text-sm">
-            <li><Link to="/inmobiliarias" className="hover:text-white">Inmobiliarias</Link></li>
-            <li><Link to="/publicar" className="hover:text-white">Publicar</Link></li>
-            <li><Link to="/registro" className="hover:text-white">Registrarse</Link></li>
-          </ul>
+        <div className="space-y-3">
+          {socials.map((s) => (
+            <a
+              key={s.label}
+              href={s.href}
+              className="flex items-center gap-3 border border-ink px-2 py-1 transition-colors hover:bg-canvas"
+            >
+              <span className="grid h-6 w-6 place-items-center bg-ink text-white">
+                {s.icon}
+              </span>
+              <span className="font-serif text-sm text-ink">{s.label}</span>
+            </a>
+          ))}
         </div>
-
-        <div>
-          <h4 className="mb-3 text-sm font-semibold text-white">Seguinos</h4>
-          <div className="flex gap-3">
-            <a href="#" className="grid h-9 w-9 place-items-center rounded-full bg-white/10 hover:bg-white/20" aria-label="Facebook"><Facebook className="h-4 w-4" /></a>
-            <a href="#" className="grid h-9 w-9 place-items-center rounded-full bg-white/10 hover:bg-white/20" aria-label="Instagram"><Instagram className="h-4 w-4" /></a>
-            <a href="#" className="grid h-9 w-9 place-items-center rounded-full bg-white/10 hover:bg-white/20" aria-label="Email"><Mail className="h-4 w-4" /></a>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-t border-white/10 py-4 text-center text-xs text-white/60">
-        © 2026 InmoHub — Plataforma inmobiliaria multitenant.
       </div>
     </footer>
   )

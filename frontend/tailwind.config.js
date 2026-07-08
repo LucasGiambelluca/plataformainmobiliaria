@@ -4,10 +4,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Poppins', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        serif: ['Lora', 'Georgia', 'serif'],
       },
       colors: {
-        // Mapped to CSS variables so each tenant can re-theme at runtime.
+        // Mapeados a CSS variables para re-tematizar por tenant en runtime.
         brand: {
           DEFAULT: 'var(--brand)',
           dark: 'var(--brand-dark)',
@@ -16,8 +17,11 @@ export default {
         accent: {
           DEFAULT: 'var(--accent)',
           dark: 'var(--accent-dark)',
+          deep: 'var(--accent-deep)',
         },
         topbar: 'var(--topbar)',
+        'hero-overlay': 'var(--hero-overlay)',
+        ad: 'var(--ad)',
         ink: 'var(--text)',
         muted: 'var(--text-secondary)',
         line: 'var(--border)',

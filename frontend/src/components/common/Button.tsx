@@ -8,7 +8,7 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const base =
-  'inline-flex items-center justify-center gap-2 rounded-pill px-6 py-2.5 text-sm font-medium tracking-base transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
+  'inline-flex items-center justify-center gap-2 rounded px-6 py-2.5 text-sm font-medium tracking-base transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
 
 const variants: Record<Variant, string> = {
   primary: 'bg-brand text-white hover:bg-brand-dark',

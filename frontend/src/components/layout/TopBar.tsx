@@ -1,22 +1,30 @@
-import { Link } from 'react-router-dom'
-import { Search } from 'lucide-react'
+import { Facebook, Instagram, Mail, Youtube } from 'lucide-react'
+import { TikTokIcon, WhatsAppIcon } from '../common/BrandIcons'
 
-// Promo / announcement bar — equivalent to the reference's top strip but in the
-// new brand palette (teal-900 instead of maroon).
+const socials = [
+  { label: 'WhatsApp', href: '#', icon: <WhatsAppIcon className="h-3.5 w-3.5" /> },
+  { label: 'Facebook', href: '#', icon: <Facebook className="h-3.5 w-3.5" /> },
+  { label: 'Instagram', href: '#', icon: <Instagram className="h-3.5 w-3.5" /> },
+  { label: 'YouTube', href: '#', icon: <Youtube className="h-3.5 w-3.5" /> },
+  { label: 'Tik Tok', href: '#', icon: <TikTokIcon className="h-3.5 w-3.5" /> },
+  { label: 'E-mail', href: 'mailto:', icon: <Mail className="h-3.5 w-3.5" /> },
+]
+
+// Franja superior navy con redes sociales, según ui.pdf.
 export default function TopBar() {
   return (
     <div className="bg-topbar text-white">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-3 px-4 py-2.5 text-sm">
-        <span className="flex items-center gap-2 font-medium">
-          <Search className="h-4 w-4 text-brand-light" />
-          ¡Buscamos por vos! Tu búsqueda llega a todas las inmobiliarias.
-        </span>
-        <Link
-          to="/publicar"
-          className="rounded-pill border border-white/40 px-4 py-1 text-xs font-medium transition-colors hover:bg-white/10"
-        >
-          Quiero probarlo
-        </Link>
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-8 gap-y-1 px-4 py-1.5 text-[11px] tracking-[0.25em]">
+        {socials.map((s) => (
+          <a
+            key={s.label}
+            href={s.href}
+            className="flex items-center gap-2 transition-opacity hover:opacity-75"
+          >
+            {s.icon}
+            {s.label}
+          </a>
+        ))}
       </div>
     </div>
   )

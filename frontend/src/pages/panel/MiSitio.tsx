@@ -10,8 +10,8 @@ const initialImages = [
 ]
 
 export default function MiSitio() {
-  const [primary, setPrimary] = useState('#0f766e')
-  const [secondary, setSecondary] = useState('#f59e0b')
+  const [primary, setPrimary] = useState('#0f3359')
+  const [secondary, setSecondary] = useState('#baa67a')
   const [images, setImages] = useState(initialImages)
   const [published, setPublished] = useState(true)
 

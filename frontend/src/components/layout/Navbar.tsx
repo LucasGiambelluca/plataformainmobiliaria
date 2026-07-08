@@ -1,70 +1,68 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-import { ChevronDown, LogIn, Menu, X } from 'lucide-react'
-import Button from '../common/Button'
+import { Menu, X } from 'lucide-react'
+import Logo from '../common/Logo'
 
 interface Props {
   onLogin: () => void
 }
 
 const navItems = [
-  { label: 'Venta', to: '/buscar?op=venta' },
-  { label: 'Alquiler', to: '/buscar?op=alquiler' },
-  { label: 'Temporal', to: '/buscar?op=temporal' },
+  { label: 'Inicio', to: '/' },
   { label: 'Inmobiliarias', to: '/inmobiliarias' },
+  { label: 'Calculadoras', to: '/calculadoras' },
+  { label: 'Tasaciones Online', to: '/tasaciones' },
+  { label: 'Garantías de Alquiler', to: '/garantias' },
+  { label: 'Seguros', to: '/seguros' },
 ]
 
+// Header blanco con nav serif separada por barras verticales, según ui.pdf.
 export default function Navbar({ onLogin }: Props) {
   const [open, setOpen] = useState(false)
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-surface">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Link to="/" className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand text-sm font-bold text-white">
-            iH
-          </span>
-          <span className="text-xl font-bold tracking-base text-ink">
-            Inmo<span className="text-brand">Hub</span>
-          </span>
-        </Link>
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
+        <Logo />
 
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-7 md:flex">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.label}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-1 text-sm font-medium tracking-base transition-colors hover:text-brand ${
-                  isActive ? 'text-brand' : 'text-ink'
-                }`
-              }
-            >
-              {item.label}
-              {['Venta', 'Alquiler', 'Temporal'].includes(item.label) && (
-                <ChevronDown className="h-3.5 w-3.5" />
-              )}
-            </NavLink>
+        {/* Nav desktop */}
+        <nav className="hidden items-center lg:flex">
+          {navItems.map((item, i) => (
+            <Fragment key={item.label}>
+              {i > 0 && <span className="mx-3 h-4 w-px bg-line" aria-hidden />}
+              <NavLink
+                to={item.to}
+                end={item.to === '/'}
+                className={({ isActive }) =>
+                  `font-serif text-[15px] transition-colors hover:text-accent-dark ${
+                    isActive ? 'text-accent-dark' : 'text-ink'
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            </Fragment>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-4 md:flex">
+        <div className="hidden items-center gap-5 lg:flex">
           <Link
-            to="/publicar"
-            className="text-sm font-medium text-ink transition-colors hover:text-brand"
+            to="/registro"
+            className="font-serif text-[15px] text-ink transition-colors hover:text-accent-dark"
           >
-            Publicar
+            Registrarse
           </Link>
-          <Button variant="accent" onClick={onLogin}>
-            <LogIn className="h-4 w-4" />
-            Iniciar sesión
-          </Button>
+          <button
+            onClick={onLogin}
+            className="rounded bg-accent px-5 py-1.5 font-serif text-[15px] text-ink transition-colors hover:bg-accent-dark hover:text-white"
+          >
+            Ingresar
+          </button>
         </div>
 
-        {/* Mobile toggle */}
+        {/* Toggle mobile */}
         <button
-          className="text-ink md:hidden"
+          className="text-ink lg:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-label="Menú"
         >
@@ -72,37 +70,36 @@ export default function Navbar({ onLogin }: Props) {
         </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Menú mobile */}
       {open && (
-        <nav className="border-t border-line bg-surface px-4 py-3 md:hidden">
+        <nav className="border-t border-line bg-surface px-4 py-3 lg:hidden">
           {navItems.map((item) => (
             <NavLink
               key={item.label}
               to={item.to}
+              end={item.to === '/'}
               onClick={() => setOpen(false)}
-              className="block py-2 text-sm font-medium text-ink"
+              className="block py-2 font-serif text-[15px] text-ink"
             >
               {item.label}
             </NavLink>
           ))}
           <Link
-            to="/publicar"
+            to="/registro"
             onClick={() => setOpen(false)}
-            className="block py-2 text-sm font-medium text-ink"
+            className="block py-2 font-serif text-[15px] text-ink"
           >
-            Publicar
+            Registrarse
           </Link>
-          <Button
-            variant="accent"
-            className="mt-2 w-full"
+          <button
             onClick={() => {
               setOpen(false)
               onLogin()
             }}
+            className="mt-2 w-full rounded bg-accent px-5 py-2 font-serif text-[15px] text-ink"
           >
-            <LogIn className="h-4 w-4" />
-            Iniciar sesión
-          </Button>
+            Ingresar
+          </button>
         </nav>
       )}
     </header>

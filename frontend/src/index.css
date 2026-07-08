@@ -3,28 +3,31 @@
 @tailwind utilities;
 
 /*
-  Design tokens. Neutrals taken from the reference design rules
-  (reglas_diseno.md). Brand palette is a NEW gama (teal + amber) instead of
-  the original navy/orange. All brand colors are CSS variables so each tenant
-  can override them at runtime for multitenant theming.
+  Design tokens. Paleta tomada del diseño oficial del cliente (ui.pdf, raíz
+  del repo): navy + dorado con tipografía serif en títulos/navegación.
+  Todos los colores de marca son CSS variables para que cada tenant pueda
+  sobreescribirlos en runtime (theming multitenant).
 */
 :root {
-  --brand: #0f766e;        /* teal-700  — primary brand / CTAs */
-  --brand-dark: #115e59;   /* teal-800  — hover / active */
-  --brand-light: #14b8a6;  /* teal-500  — accents on dark */
-  --accent: #f59e0b;       /* amber-500 — highlights, deals */
-  --accent-dark: #d97706;  /* amber-600 */
-  --topbar: #134e4a;       /* teal-900  — promo bar (replaces maroon) */
+  --brand: #0f3359;        /* navy — marca principal, topbar, títulos */
+  --brand-dark: #0a2440;   /* navy oscuro — hover / active */
+  --brand-light: #35598a;  /* navy claro — acentos sobre oscuro */
+  --accent: #baa67a;       /* dorado — botones, tabs, highlights */
+  --accent-dark: #9a8759;  /* dorado activo / hover */
+  --accent-deep: #7f6f49;  /* dorado profundo — botón Buscar */
+  --topbar: #0f3359;       /* franja superior de redes */
+  --hero-overlay: #07345d; /* overlay azul sobre foto del hero */
+  --ad: #b5acac;           /* placeholder de espacios publicitarios */
 
-  --bg: #f8f9fa;           /* global background */
+  --bg: #ffffff;           /* fondo global */
   --card: #ffffff;         /* cards / inputs */
-  --text: #222222;         /* primary text / titles */
+  --text: #222222;         /* texto principal */
   --text-secondary: #666666;
-  --border: #dee2e6;       /* hairline borders */
+  --border: #dee2e6;       /* bordes finos */
 }
 
 html {
-  font-family: 'Poppins', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 body {
@@ -32,8 +35,7 @@ body {
   background-color: var(--bg);
   color: var(--text);
   font-size: 16px;
-  line-height: 1.3;
-  letter-spacing: 0.5px;
+  line-height: 1.4;
   -webkit-font-smoothing: antialiased;
 }
 
