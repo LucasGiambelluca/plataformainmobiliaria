@@ -1,0 +1,84 @@
+import { Router, type Response } from "express";
+import { isProd } from "@/config/env";
+import { authenticate } from "@/shared/middleware/authenticate";
+import { authLimiter } from "@/shared/middleware/rateLimit";
+import { validate } from "@/shared/middleware/validate";
+import { asyncHandler } from "@/shared/utils/asyncHandler";
+import { UnauthorizedError } from "@/shared/errors";
+import { loginSchema, type LoginInput } from "./auth.schemas";
+import { AuthService, type AuthTokens } from "./auth.service";
+import { authRepository } from "./auth.repository";
+
+export const REFRESH_COOKIE = "refresh_token";
+
+// La cookie solo viaja a los endpoints de auth: menor superficie de CSRF.
+const COOKIE_PATH = "/api/auth";
+
+function setRefreshCookie(res: Response, tokens: AuthTokens): void {
+  res.cookie(REFRESH_COOKIE, tokens.refreshToken, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    path: COOKIE_PATH,
+    expires: tokens.refreshExpiresAt,
+  });
+}
+
+function clearRefreshCookie(res: Response): void {
+  res.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH });
+}
+
+export function createAuthRouter(service: AuthService): Router {
+  const router = Router();
+
+  router.post(
+    "/login",
+    authLimiter,
+    validate(loginSchema),
+    asyncHandler(async (req, res) => {
+      const { email, password } = req.body as LoginInput;
+      const { user, accessToken, ...tokens } = await service.login(email, password);
+      setRefreshCookie(res, { accessToken, ...tokens });
+      // El refresh token nunca va en el body: solo cookie httpOnly.
+      res.json({ user, accessToken });
+    }),
+  );
+
+  router.post(
+    "/refresh",
+    authLimiter,
+    asyncHandler(async (req, res) => {
+      const current = (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE];
+      if (!current) throw new UnauthorizedError("Falta el refresh token");
+      try {
+        const { user, accessToken, ...tokens } = await service.refresh(current);
+        setRefreshCookie(res, { accessToken, ...tokens });
+        res.json({ user, accessToken });
+      } catch (err) {
+        // Token inválido/revocado: se borra la cookie para cortar reintentos.
+        clearRefreshCookie(res);
+        throw err;
+      }
+    }),
+  );
+
+  router.post(
+    "/logout",
+    asyncHandler(async (req, res) => {
+      const current = (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE];
+      if (current) await service.logout(current);
+      clearRefreshCookie(res);
+      res.status(204).end();
+    }),
+  );
+
+  // Identidad del access token vigente (el frontend la usa al rehidratar).
+  router.get("/me", authenticate, (req, res) => {
+    res.json({ user: req.user });
+  });
+
+  return router;
+}
+
+// Router con el wiring por defecto (repositorio Prisma).
+export const authRouter = createAuthRouter(new AuthService(authRepository));

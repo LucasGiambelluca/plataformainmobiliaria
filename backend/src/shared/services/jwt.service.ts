@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { env } from "@/config/env";
 import type { JwtPayload } from "@/types/auth";
@@ -12,7 +13,9 @@ export function signAccessToken(payload: JwtPayload): string {
 }
 
 export function signRefreshToken(userId: string): string {
-  return jwt.sign({ sub: userId }, env.JWT_REFRESH_SECRET, {
+  // jti único: dos tokens del mismo usuario firmados en el mismo segundo
+  // serían idénticos y romperían la rotación (mismo hash persistido).
+  return jwt.sign({ sub: userId, jti: randomUUID() }, env.JWT_REFRESH_SECRET, {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN,
   } as SignOptions);
 }

@@ -193,11 +193,28 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  tenant            Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdProperties Property[] @relation("PropertyCreatedBy")
+  tenant            Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdProperties Property[]     @relation("PropertyCreatedBy")
+  refreshTokens     RefreshToken[]
 
   @@unique([tenantId, email])
   @@map("users")
+}
+
+// Refresh tokens persistidos (hash SHA-256, nunca el token en claro) para
+// soportar rotación en /auth/refresh y revocación en /auth/logout (§8.1).
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
 // ─────────────────────────────────────────────────────────────
