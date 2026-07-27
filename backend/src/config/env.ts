@@ -30,8 +30,23 @@ const envSchema = z.object({
     .min(32, "JWT_REFRESH_SECRET debe tener al menos 32 caracteres"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
 
-  STORAGE_PROVIDER: z.enum(["cloudinary", "s3"]).default("cloudinary"),
+  // "fake" no sube nada: sirve para tests y para levantar el backend sin
+  // storage configurado. Cualquier intento de firmar un upload avisa.
+  STORAGE_PROVIDER: z.enum(["s3", "cloudinary", "fake"]).default("fake"),
   CLOUDINARY_URL: z.string().optional().default(""),
+
+  // S3 / MinIO. S3_ENDPOINT solo hace falta para S3-compatibles (MinIO, R2);
+  // vacío usa el endpoint real de AWS para la región.
+  S3_ENDPOINT: z.string().optional().default(""),
+  S3_REGION: z.string().default("us-east-1"),
+  S3_BUCKET: z.string().optional().default(""),
+  S3_ACCESS_KEY_ID: z.string().optional().default(""),
+  S3_SECRET_ACCESS_KEY: z.string().optional().default(""),
+  // Base pública desde donde el navegador lee los archivos (Caddy delante de
+  // MinIO). Sin esto las URLs guardadas apuntarían a un host interno.
+  S3_PUBLIC_URL: z.string().optional().default(""),
+  // Minutos de validez de la URL de subida firmada.
+  S3_UPLOAD_URL_TTL_MIN: z.coerce.number().int().positive().default(10),
 
   EMAIL_PROVIDER: z.enum(["resend", "sendgrid"]).default("resend"),
   EMAIL_API_KEY: z.string().optional().default(""),
@@ -42,7 +57,28 @@ const envSchema = z.object({
   PAYMENT_WEBHOOK_SECRET: z.string().optional().default(""),
 });
 
-const parsed = envSchema.safeParse(process.env);
+// Con STORAGE_PROVIDER=s3 las credenciales dejan de ser opcionales: es
+// preferible no arrancar a descubrirlo cuando alguien intenta subir una foto.
+const envWithStorageRules = envSchema.superRefine((env, ctx) => {
+  if (env.STORAGE_PROVIDER !== "s3") return;
+  const required = [
+    "S3_BUCKET",
+    "S3_ACCESS_KEY_ID",
+    "S3_SECRET_ACCESS_KEY",
+    "S3_PUBLIC_URL",
+  ] as const;
+  for (const key of required) {
+    if (!env[key]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `Requerida cuando STORAGE_PROVIDER=s3`,
+      });
+    }
+  }
+});
+
+const parsed = envWithStorageRules.safeParse(process.env);
 
 if (!parsed.success) {
   const issues = parsed.error.issues
