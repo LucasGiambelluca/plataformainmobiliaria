@@ -11,7 +11,10 @@ Plataforma SaaS multitenant para inmobiliarias. Monorepo: `backend/` (Express + 
 Todo el backend se corre desde `backend/`:
 
 ```bash
-docker compose up -d          # PostgreSQL 16 (contenedor inmobiliaria_pg, puerto 5432)
+docker compose up -d          # PostgreSQL 16 (inmobiliaria_pg :5432) + MinIO (inmobiliaria_minio :9000, consola :9001)
+.\scripts\pg.ps1 start        # alternativa sin Docker: Postgres portable (start|stop|status|psql)
+.\scripts\minio.ps1 start     # alternativa sin Docker: MinIO portable (start|stop|status|init)
+node scripts/init-bucket.cjs  # crea el bucket y le pone lectura pública (idempotente)
 npm run dev                   # tsx watch, servidor en http://localhost:3000
 npm run typecheck             # tsc --noEmit
 npm run lint                  # eslint src/
@@ -37,6 +40,10 @@ El frontend habla con el backend, así que para levantarlo hace falta el backend
 
 Requiere `backend/.env` (copiar de `.env.example`). `src/config/env.ts` valida con Zod y **aborta el proceso** si falta algo: `DATABASE_URL`, `JWT_SECRET` y `JWT_REFRESH_SECRET` (mínimo 32 chars) son obligatorias.
 
+**La PC de desarrollo no tiene Docker.** Postgres y MinIO corren desde binarios portables en el perfil del usuario (`%USERPROFILE%\pgsql16` + cluster en `pgdata16`; `%USERPROFILE%\minio` + datos en `miniodata`), manejados por `backend/scripts/pg.ps1` y `backend/scripts/minio.ps1`. No hay servicios de Windows ni entradas de registro: para desinstalar alcanza con borrar esas carpetas. En el VPS va PostgreSQL como servicio y MinIO por `docker-compose.yml`, que sigue siendo la referencia. Ojo: existe un directorio huérfano en `C:\Program Files\PostgreSQL\16\data` de una instalación vieja **sin binarios** — no es el cluster que usamos, no tocarlo.
+
+Los tests unitarios no necesitan base: mockean los repositorios.
+
 ## Arquitectura
 
 ### Multitenancy — la regla central
@@ -46,10 +53,17 @@ Shared database con `tenant_id` en toda tabla de negocio. El aislamiento se gara
 ### Backend (`backend/src/`)
 
 - `app.ts` monta helmet, cors, rate limit y el router raíz; `server.ts` levanta y conecta Prisma.
-- `routes/index.ts` es el router raíz de la API (`/api`). Los módulos de negocio (auth, tenants, subscriptions…) se montan ahí como sub-routers — hoy están comentados, se construyen en Fase 1. Convención de módulos: `src/modules/<nombre>/` con router + service + repository.
+- `routes/index.ts` es el router raíz de la API (`/api`). Convención de módulos: `src/modules/<nombre>/` con router + service + repository + schemas. Cada router exporta una factory (`createXRouter(service)`) más una instancia con el wiring por defecto: los tests inyectan un service falso por la factory.
+- Módulos construidos: `auth`, `tenants`, `users`, `subscriptions`, `properties`, `media`. Faltan `sites`, `domains`, `billing`, `notifications`, `inquiries`, `audit`.
+- `media` se monta anidado bajo `properties` (`/api/properties/:propertyId/media`), por eso su router usa `mergeParams` y repite `authorize`/`requireTenant` en vez de confiar en dónde lo montan.
+- Subida de multimedia en dos pasos: `POST .../media/upload-url` firma la URL y reserva el cupo con el tamaño **declarado**; `POST .../media/:id/confirm` contrasta contra el tamaño **real** del objeto (`head`) y ajusta. Sin ese contraste, declarar 1 byte y subir 4 GB saltearía el límite del plan.
+- **El presigner necesita `signableHeaders: new Set(["content-type"])` sí o sí.** Sin eso firma solo el host y el storage acepta cualquier Content-Type en el PUT (verificado contra MinIO). Como el bucket es de lectura pública, permitiría alojar HTML arbitrario en el dominio del CDN. `confirm` además vuelve a contrastar el Content-Type almacenado contra el que corresponde a la extensión de la clave.
 - `shared/middleware/`: `authenticate` (verifica JWT access), `authorize` (roles: enum `UserRole` — super_admin, tenant_admin, agent), `requireTenant`, `rateLimit`, `error` (handler global con `AppError`).
 - Auth: JWT access de 15min + refresh token en cookie httpOnly (secrets separados). `shared/services/jwt.service.ts` ya implementado.
 - Errores: tirar subclases de `AppError` (`shared/errors/`); el middleware `error.ts` las serializa a JSON `{ error: { code, message } }`.
+- Storage de multimedia: `shared/services/storage/` con interfaz `StorageProvider` (mismo patrón que `PaymentProvider`). Implementación S3-compatible contra el MinIO del docker-compose; `FakeStorageProvider` para tests y para arrancar sin storage. `STORAGE_PROVIDER=s3` exige las `S3_*` — `env.ts` no deja arrancar sin ellas.
+- **La clave del objeto no se guarda**: se deriva de `url` con `keyFromPublicUrl`. Si cambia `S3_PUBLIC_URL` las URLs viejas dejan de resolver a una clave y sus archivos quedan huérfanos. Al migrar de dominio hay que reescribir las `url` guardadas.
+- Serialización: los `Decimal` de Prisma se pasan a string y los `BigInt` a number **en el repositorio**. `res.json()` tira una excepción con BigInt.
 - Path alias `@/` → `src/` (tsconfig + tsc-alias en build).
 - Schema Prisma (`prisma/schema.prisma`): Plan, Tenant, Subscription, Payment, User, Property, PropertyMedia, PropertyFeature, Inquiry, TenantDomain, TenantSiteConfig, SiteCarouselImage, AuditLog.
 
