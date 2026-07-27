@@ -7,15 +7,28 @@ interface Props {
   title: string
   children: ReactNode
   footer?: ReactNode
+  /**
+   * Cerrar tocando el fondo. Conviene desactivarlo cuando adentro hay un
+   * formulario largo o una subida en curso: un click al costado no debería
+   * hacer perder lo cargado.
+   */
+  dismissOnBackdrop?: boolean
 }
 
-export default function Modal({ open, onClose, title, children, footer }: Props) {
+export default function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  dismissOnBackdrop = true,
+}: Props) {
   if (!open) return null
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 py-10"
-      onClick={onClose}
+      onClick={dismissOnBackdrop ? onClose : undefined}
     >
       <div
         className="w-full max-w-lg rounded-xl bg-surface shadow-card-hover"

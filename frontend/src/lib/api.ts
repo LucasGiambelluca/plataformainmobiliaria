@@ -130,6 +130,15 @@ export async function patchJson<S extends ZodTypeAny>(
   return parse(schema, res.data)
 }
 
+export async function putJson<S extends ZodTypeAny>(
+  url: string,
+  schema: S,
+  body?: unknown,
+): Promise<output<S>> {
+  const res = await api.put(url, body)
+  return parse(schema, res.data)
+}
+
 /** Para endpoints 204 sin cuerpo. */
 export async function postVoid(url: string, body?: unknown): Promise<void> {
   await api.post(url, body)
