@@ -4,6 +4,7 @@ import { tenantsRouter } from "@/modules/tenants/tenants.router";
 import { usersRouter } from "@/modules/users/users.router";
 import { subscriptionsRouter } from "@/modules/subscriptions/subscriptions.router";
 import { plansRouter } from "@/modules/subscriptions/plans.router";
+import { propertiesRouter } from "@/modules/properties/properties.router";
 
 // Router raíz de la API. Cada módulo monta su sub-router acá.
 export const apiRouter = Router();
@@ -17,3 +18,5 @@ apiRouter.use("/admin/tenants", tenantsRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/subscription", subscriptionsRouter);
 apiRouter.use("/admin/plans", plansRouter);
+// Multimedia va anidada: /api/properties/:propertyId/media
+apiRouter.use("/properties", propertiesRouter);
