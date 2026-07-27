@@ -8,6 +8,7 @@ import SearchResults from './pages/SearchResults'
 import PropertyDetail from './pages/PropertyDetail'
 import Register from './pages/Register'
 import Login from './pages/Login'
+import AgencySite from './pages/AgencySite'
 import ComoPublicar from './pages/ComoPublicar'
 import InmobiliariasList from './pages/InmobiliariasList'
 import EnConstruccion from './pages/EnConstruccion'
@@ -52,6 +53,11 @@ export default function App() {
 
       {/* Login: pantalla propia, sin el chrome del sitio público */}
       <Route path="/login" element={<Login />} />
+
+      {/* Web propia de cada inmobiliaria: marca y colores del tenant, fuera
+          del chrome del portal. Mañana la misma pantalla se sirve por
+          subdominio o dominio propio, resolviendo el tenant por Host. */}
+      <Route path="/inmobiliaria/:slug" element={<AgencySite />} />
 
       {/* Panel inmobiliaria (tenant) */}
       <Route element={<RequireAuth roles={['tenant_admin', 'agent']} />}>

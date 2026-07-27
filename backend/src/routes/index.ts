@@ -6,6 +6,7 @@ import { subscriptionsRouter } from "@/modules/subscriptions/subscriptions.route
 import { plansRouter } from "@/modules/subscriptions/plans.router";
 import { propertiesRouter } from "@/modules/properties/properties.router";
 import { publicRouter } from "@/modules/public/public.router";
+import { publicSitesRouter, sitesRouter } from "@/modules/sites/sites.router";
 
 // Router raíz de la API. Cada módulo monta su sub-router acá.
 export const apiRouter = Router();
@@ -21,5 +22,9 @@ apiRouter.use("/subscription", subscriptionsRouter);
 apiRouter.use("/admin/plans", plansRouter);
 // Multimedia va anidada: /api/properties/:propertyId/media
 apiRouter.use("/properties", propertiesRouter);
+// "Mi Sitio Web" de la inmobiliaria autenticada.
+apiRouter.use("/site", sitesRouter);
 // Catálogo abierto: sin login y cruzando inmobiliarias.
 apiRouter.use("/public", publicRouter);
+// Web pública de cada inmobiliaria: /api/public/sites/:slug
+apiRouter.use("/public/sites", publicSitesRouter);

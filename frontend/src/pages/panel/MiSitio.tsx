@@ -1,158 +1,286 @@
-import { useState } from 'react'
-import { GripVertical, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { ExternalLink, Eye, EyeOff, Loader2 } from 'lucide-react'
 import Button from '../../components/common/Button'
 import Input from '../../components/common/Input'
+import Badge from '../../components/common/Badge'
+import { ErrorState, Spinner } from '../../components/common/AsyncState'
+import CarouselUploader from '../../components/properties/CarouselUploader'
+import { useResource } from '../../hooks/useResource'
+import { getOwnSite, setSitePublished, updateOwnSite } from '../../api/sites'
+import {
+  siteFormSchema,
+  type CarouselImage,
+  type OwnSite,
+  type SiteForm,
+} from '../../api/schemas'
+import { ApiError } from '../../lib/apiError'
 
-const initialImages = [
-  'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=400&q=60',
-  'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=400&q=60',
-  'https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=400&q=60',
-]
+/** Los campos vienen null cuando la inmobiliaria nunca los tocó. */
+function defaults(site: OwnSite): SiteForm {
+  return {
+    heroTitle: site.heroTitle ?? '',
+    heroSubtitle: site.heroSubtitle ?? '',
+    aboutText: site.aboutText ?? '',
+    primaryColor: site.primaryColor ?? '',
+    secondaryColor: site.secondaryColor ?? '',
+    socialFacebook: site.socialFacebook ?? '',
+    socialInstagram: site.socialInstagram ?? '',
+    socialWhatsapp: site.socialWhatsapp ?? '',
+    showFeaturedOnly: site.showFeaturedOnly,
+  }
+}
 
-export default function MiSitio() {
-  const [primary, setPrimary] = useState('#0f3359')
-  const [secondary, setSecondary] = useState('#baa67a')
-  const [images, setImages] = useState(initialImages)
-  const [published, setPublished] = useState(true)
-
+function ColorPreview({ value }: { value?: string }) {
+  if (!value || !/^#[0-9a-fA-F]{6}$/.test(value)) return null
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-base text-ink">
-            Mi Sitio Web
-          </h1>
-          <p className="text-muted">Branding y contenido de tu web propia.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-ink">
-            <input
-              type="checkbox"
-              checked={published}
-              onChange={(e) => setPublished(e.target.checked)}
-              className="h-4 w-4 accent-[var(--brand)]"
-            />
-            Publicado
-          </label>
-          <Button>Guardar cambios</Button>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Branding */}
-        <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
-          <h2 className="text-lg font-semibold tracking-base text-ink">Branding</h2>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <ColorField label="Color primario" value={primary} onChange={setPrimary} />
-            <ColorField label="Color secundario" value={secondary} onChange={setSecondary} />
-          </div>
-          <div className="mt-4 space-y-4">
-            <Input label="Título del hero" defaultValue="Tu próxima propiedad te espera" />
-            <Input label="Subtítulo" defaultValue="Más de 30 años acompañando a familias." />
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-ink">
-                Sobre nosotros
-              </span>
-              <textarea
-                rows={3}
-                defaultValue="Somos una inmobiliaria de zona sur con foco en atención personalizada."
-                className="w-full rounded-md border border-line bg-surface px-4 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-              />
-            </label>
-          </div>
-        </div>
-
-        {/* Redes + preview */}
-        <div className="space-y-6">
-          <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
-            <h2 className="text-lg font-semibold tracking-base text-ink">
-              Redes sociales
-            </h2>
-            <div className="mt-4 space-y-3">
-              <Input label="Facebook" placeholder="https://facebook.com/tu-inmobiliaria" />
-              <Input label="Instagram" placeholder="https://instagram.com/tu-inmobiliaria" />
-              <Input label="WhatsApp" placeholder="+54 9 11 ..." />
-            </div>
-          </div>
-
-          {/* Theme preview */}
-          <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
-            <h2 className="mb-3 text-lg font-semibold tracking-base text-ink">
-              Vista previa del tema
-            </h2>
-            <div
-              className="rounded-lg p-6 text-white"
-              style={{ background: primary }}
-            >
-              <p className="text-lg font-bold">Inmobiliaria Norte</p>
-              <p className="text-sm text-white/80">Tu próxima propiedad te espera</p>
-              <button
-                className="mt-3 rounded-pill px-4 py-1.5 text-sm font-medium text-white"
-                style={{ background: secondary }}
-              >
-                Ver propiedades
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Carrousel editor */}
-      <div className="mt-6 rounded-lg border border-line bg-surface p-6 shadow-card">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold tracking-base text-ink">
-            Carrousel hero
-          </h2>
-          <Button variant="secondary">
-            <Plus className="h-4 w-4" />
-            Agregar imagen
-          </Button>
-        </div>
-        <ul className="space-y-3">
-          {images.map((src, i) => (
-            <li
-              key={src}
-              className="flex items-center gap-3 rounded-lg border border-line p-2"
-            >
-              <GripVertical className="h-5 w-5 cursor-grab text-muted" />
-              <img src={src} alt="" className="h-14 w-20 rounded object-cover" />
-              <span className="text-sm text-muted">Imagen {i + 1}</span>
-              <button
-                onClick={() => setImages((im) => im.filter((s) => s !== src))}
-                className="ml-auto rounded-md p-2 text-muted hover:bg-red-50 hover:text-red-600"
-                aria-label="Eliminar"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+    <div className="mt-2 flex items-center gap-2">
+      <span
+        className="h-6 w-6 rounded border border-line"
+        style={{ backgroundColor: value }}
+        aria-hidden
+      />
+      <span className="text-xs text-muted">{value.toUpperCase()}</span>
     </div>
   )
 }
 
-function ColorField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-}) {
+export default function MiSitio() {
+  const recurso = useResource(() => getOwnSite(), [])
+  const [site, setSite] = useState<OwnSite | null>(null)
+  const [guardado, setGuardado] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const [publicando, setPublicando] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors, isSubmitting, isDirty },
+  } = useForm<SiteForm>({ resolver: zodResolver(siteFormSchema) })
+
+  useEffect(() => {
+    if (recurso.data) {
+      setSite(recurso.data)
+      reset(defaults(recurso.data))
+    }
+  }, [recurso.data, reset])
+
+  const onSubmit = handleSubmit(async (values) => {
+    setFailure(null)
+    setGuardado(false)
+    try {
+      const actualizado = await updateOwnSite(values)
+      setSite(actualizado)
+      reset(defaults(actualizado))
+      setGuardado(true)
+    } catch (err) {
+      setFailure(err instanceof ApiError ? err.message : 'No se pudo guardar')
+    }
+  })
+
+  const togglePublicado = async () => {
+    if (!site) return
+    setFailure(null)
+    setPublicando(true)
+    try {
+      setSite(await setSitePublished(!site.isPublished))
+    } catch (err) {
+      setFailure(err instanceof ApiError ? err.message : 'No se pudo cambiar el estado')
+    } finally {
+      setPublicando(false)
+    }
+  }
+
+  const onCarouselChange = (carousel: CarouselImage[]) =>
+    setSite((s) => (s ? { ...s, carousel } : s))
+
+  if (recurso.error) return <ErrorState error={recurso.error} onRetry={recurso.reload} />
+  if (!site) return <Spinner label="Cargando tu sitio…" />
+
+  const url = `/inmobiliaria/${site.slug}`
+
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-ink">{label}</span>
-      <div className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-2">
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0"
-        />
-        <span className="text-sm uppercase text-ink">{value}</span>
+    <div>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-base text-ink">Mi Sitio Web</h1>
+          <p className="text-muted">Así te ve el público, con tu marca.</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Badge tone={site.isPublished ? 'success' : 'neutral'}>
+            {site.isPublished ? 'Publicado' : 'Sin publicar'}
+          </Badge>
+          <Button
+            variant="secondary"
+            disabled={publicando}
+            onClick={() => void togglePublicado()}
+          >
+            {publicando ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : site.isPublished ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+            {site.isPublished ? 'Despublicar' : 'Publicar sitio'}
+          </Button>
+        </div>
       </div>
-    </label>
+
+      {!site.isPublished && (
+        <p className="mb-6 rounded-md border border-line bg-canvas px-4 py-3 text-sm text-muted">
+          Mientras esté sin publicar, tu sitio responde 404 a cualquier visitante.
+          Configuralo tranquilo y publicalo cuando esté listo.
+        </p>
+      )}
+
+      {failure && (
+        <p role="alert" className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {failure}
+        </p>
+      )}
+      {guardado && (
+        <p className="mb-4 rounded-md bg-brand/10 px-3 py-2 text-sm text-brand-dark">
+          Cambios guardados.
+        </p>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <form onSubmit={onSubmit} className="space-y-6" noValidate>
+          <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
+            <h2 className="mb-4 text-lg font-semibold tracking-base text-ink">Portada</h2>
+            <div className="space-y-4">
+              <Input
+                label="Título principal"
+                placeholder={site.tenantName}
+                error={errors.heroTitle?.message}
+                {...register('heroTitle')}
+              />
+              <Input
+                label="Subtítulo"
+                placeholder="Más de 20 años en Entre Ríos"
+                error={errors.heroSubtitle?.message}
+                {...register('heroSubtitle')}
+              />
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-ink">
+                  Sobre nosotros
+                </span>
+                <textarea
+                  rows={4}
+                  placeholder="Contá quiénes son y qué los diferencia."
+                  className="w-full rounded-md border border-line bg-surface px-4 py-2.5 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                  {...register('aboutText')}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
+            <h2 className="mb-4 text-lg font-semibold tracking-base text-ink">Colores</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Input
+                  label="Principal"
+                  placeholder="#0F3258"
+                  error={errors.primaryColor?.message}
+                  {...register('primaryColor')}
+                />
+                <ColorPreview value={watch('primaryColor')} />
+              </div>
+              <div>
+                <Input
+                  label="Secundario"
+                  placeholder="#BAA67A"
+                  error={errors.secondaryColor?.message}
+                  {...register('secondaryColor')}
+                />
+                <ColorPreview value={watch('secondaryColor')} />
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-muted">
+              Si los dejás vacíos, tu sitio usa los colores del portal.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
+            <h2 className="mb-4 text-lg font-semibold tracking-base text-ink">Redes</h2>
+            <div className="space-y-4">
+              <Input
+                label="Facebook"
+                placeholder="https://facebook.com/tuinmobiliaria"
+                error={errors.socialFacebook?.message}
+                {...register('socialFacebook')}
+              />
+              <Input
+                label="Instagram"
+                placeholder="https://instagram.com/tuinmobiliaria"
+                error={errors.socialInstagram?.message}
+                {...register('socialInstagram')}
+              />
+              <Input
+                label="WhatsApp"
+                placeholder="+54 343 400 0000"
+                error={errors.socialWhatsapp?.message}
+                {...register('socialWhatsapp')}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 accent-brand"
+                {...register('showFeaturedOnly')}
+              />
+              <span>
+                <span className="block text-sm font-medium text-ink">
+                  Mostrar solo destacadas
+                </span>
+                <span className="block text-xs text-muted">
+                  Tu sitio lista únicamente las propiedades que marcaste como
+                  destacadas, en vez de toda la cartera.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <Button type="submit" disabled={isSubmitting || !isDirty}>
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+            Guardar cambios
+          </Button>
+        </form>
+
+        <div className="space-y-6">
+          <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
+            <h2 className="mb-4 text-lg font-semibold tracking-base text-ink">Carrousel</h2>
+            <CarouselUploader carousel={site.carousel} onChange={onCarouselChange} />
+          </div>
+
+          <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
+            <h2 className="text-lg font-semibold tracking-base text-ink">Tu dirección</h2>
+            <p className="mt-1 text-sm text-muted">
+              {site.isPublished
+                ? 'Tu sitio está online. Compartí este enlace.'
+                : 'Publicalo para que este enlace funcione.'}
+            </p>
+            <Link
+              to={url}
+              target="_blank"
+              className="mt-3 inline-flex items-center gap-2 font-medium text-brand hover:underline"
+            >
+              <ExternalLink className="h-4 w-4" />
+              {url}
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
