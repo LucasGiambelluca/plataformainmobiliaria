@@ -7,26 +7,31 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         serif: ['Lora', 'Georgia', 'serif'],
       },
+      // Mapeados a CSS variables para re-tematizar por tenant en runtime.
+      //
+      // El envoltorio rgb(... / <alpha-value>) no es decorativo: es lo que
+      // permite que funcionen los modificadores de opacidad. Con 'var(--brand)'
+      // a secas, Tailwind emite la clase bg-brand/80 SIN la transparencia y no
+      // avisa. Por eso las variables de index.css guardan canales, no hex.
       colors: {
-        // Mapeados a CSS variables para re-tematizar por tenant en runtime.
         brand: {
-          DEFAULT: 'var(--brand)',
-          dark: 'var(--brand-dark)',
-          light: 'var(--brand-light)',
+          DEFAULT: 'rgb(var(--brand) / <alpha-value>)',
+          dark: 'rgb(var(--brand-dark) / <alpha-value>)',
+          light: 'rgb(var(--brand-light) / <alpha-value>)',
         },
         accent: {
-          DEFAULT: 'var(--accent)',
-          dark: 'var(--accent-dark)',
-          deep: 'var(--accent-deep)',
+          DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
+          dark: 'rgb(var(--accent-dark) / <alpha-value>)',
+          deep: 'rgb(var(--accent-deep) / <alpha-value>)',
         },
-        topbar: 'var(--topbar)',
-        'hero-overlay': 'var(--hero-overlay)',
-        ad: 'var(--ad)',
-        ink: 'var(--text)',
-        muted: 'var(--text-secondary)',
-        line: 'var(--border)',
-        surface: 'var(--card)',
-        canvas: 'var(--bg)',
+        topbar: 'rgb(var(--topbar) / <alpha-value>)',
+        'hero-overlay': 'rgb(var(--hero-overlay) / <alpha-value>)',
+        ad: 'rgb(var(--ad) / <alpha-value>)',
+        ink: 'rgb(var(--text) / <alpha-value>)',
+        muted: 'rgb(var(--text-secondary) / <alpha-value>)',
+        line: 'rgb(var(--border) / <alpha-value>)',
+        surface: 'rgb(var(--card) / <alpha-value>)',
+        canvas: 'rgb(var(--bg) / <alpha-value>)',
       },
       borderRadius: {
         pill: '200px',

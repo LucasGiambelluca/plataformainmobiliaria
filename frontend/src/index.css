@@ -3,27 +3,36 @@
 @tailwind utilities;
 
 /*
-  Design tokens. Paleta tomada del diseño oficial del cliente (ui.pdf, raíz
-  del repo): navy + dorado con tipografía serif en títulos/navegación.
-  Todos los colores de marca son CSS variables para que cada tenant pueda
-  sobreescribirlos en runtime (theming multitenant).
+  Design tokens. Paleta tomada del diseño oficial del cliente (ui.pdf y los
+  recursos que pasó la diseñadora): navy + dorado con tipografía serif en
+  títulos y navegación. El navy está muestreado del logo ER original.
+
+  ── IMPORTANTE: el formato es "R G B", no hexadecimal ──
+  Tailwind necesita los canales sueltos para poder inyectar alfa en los
+  modificadores de opacidad (bg-brand/80, from-brand-dark/90…). Con un hex
+  dentro de var(), Tailwind descarta la opacidad en silencio: la clase se
+  genera igual pero sin transparencia, y el bug es invisible hasta que alguien
+  mira el CSS compilado.
+
+  Un tenant que sobreescriba estos colores en runtime también tiene que
+  escribirlos como canales: `--brand: 15 50 88`.
 */
 :root {
-  --brand: #0f3359;        /* navy — marca principal, topbar, títulos */
-  --brand-dark: #0a2440;   /* navy oscuro — hover / active */
-  --brand-light: #35598a;  /* navy claro — acentos sobre oscuro */
-  --accent: #baa67a;       /* dorado — botones, tabs, highlights */
-  --accent-dark: #9a8759;  /* dorado activo / hover */
-  --accent-deep: #7f6f49;  /* dorado profundo — botón Buscar */
-  --topbar: #0f3359;       /* franja superior de redes */
-  --hero-overlay: #07345d; /* overlay azul sobre foto del hero */
-  --ad: #b5acac;           /* placeholder de espacios publicitarios */
+  --brand: 15 50 88;         /* #0F3258 navy — marca principal, topbar, títulos */
+  --brand-dark: 10 36 64;    /* #0A2440 navy oscuro — hover / fondos sólidos */
+  --brand-light: 53 89 138;  /* #35598A navy claro — acentos sobre oscuro */
+  --accent: 186 166 122;     /* #BAA67A dorado — botones, tabs, highlights */
+  --accent-dark: 154 135 89; /* #9A8759 dorado activo / hover */
+  --accent-deep: 127 111 73; /* #7F6F49 dorado profundo — botón Buscar */
+  --topbar: 15 50 88;        /* franja superior de redes */
+  --hero-overlay: 7 52 93;   /* #07345D velo azul sobre la foto del hero */
+  --ad: 181 172 172;         /* placeholder de espacios publicitarios */
 
-  --bg: #ffffff;           /* fondo global */
-  --card: #ffffff;         /* cards / inputs */
-  --text: #222222;         /* texto principal */
-  --text-secondary: #666666;
-  --border: #dee2e6;       /* bordes finos */
+  --bg: 255 255 255;         /* fondo global */
+  --card: 255 255 255;       /* cards / inputs */
+  --text: 34 34 34;          /* texto principal */
+  --text-secondary: 102 102 102;
+  --border: 222 226 230;     /* bordes finos */
 }
 
 html {
@@ -32,8 +41,8 @@ html {
 
 body {
   margin: 0;
-  background-color: var(--bg);
-  color: var(--text);
+  background-color: rgb(var(--bg));
+  color: rgb(var(--text));
   font-size: 16px;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
