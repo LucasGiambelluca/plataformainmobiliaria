@@ -1,28 +1,35 @@
 import { useState } from 'react'
-import { Outlet } from 'react-router-dom'
-import { Bell, Menu, UserCircle } from 'lucide-react'
+import { Outlet, useNavigate } from 'react-router-dom'
+import { Bell, LogOut, Menu, UserCircle } from 'lucide-react'
 import Sidebar, { type NavItem } from './Sidebar'
+import { useAuth } from '../../store/auth'
+import type { UserRole } from '../../api/schemas'
 
 interface Props {
   brandHome: string
   title: string
   subtitle: string
   items: NavItem[]
-  userName: string
-  userRole: string
 }
 
-// Shared dashboard chrome (sidebar + top header) used by both the tenant panel
-// and the Super Admin panel.
-export default function DashShell({
-  brandHome,
-  title,
-  subtitle,
-  items,
-  userName,
-  userRole,
-}: Props) {
+const roleLabels: Record<UserRole, string> = {
+  super_admin: 'Super Admin',
+  tenant_admin: 'Administrador',
+  agent: 'Agente',
+}
+
+// Chrome compartido de dashboard (sidebar + header) que usan el panel de
+// inmobiliaria y el de Super Admin.
+export default function DashShell({ brandHome, title, subtitle, items }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const navigate = useNavigate()
+  const user = useAuth((s) => s.user)
+  const logout = useAuth((s) => s.logout)
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="flex min-h-screen bg-canvas">
@@ -54,10 +61,19 @@ export default function DashShell({
             <div className="flex items-center gap-2">
               <UserCircle className="h-7 w-7 text-muted" />
               <div className="hidden text-sm leading-tight sm:block">
-                <p className="font-medium text-ink">{userName}</p>
-                <p className="text-xs text-muted">{userRole}</p>
+                <p className="font-medium text-ink">{user?.name ?? user?.email ?? '—'}</p>
+                <p className="text-xs text-muted">
+                  {user ? roleLabels[user.role] : ''}
+                </p>
               </div>
             </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted hover:bg-canvas hover:text-ink"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Salir</span>
+            </button>
           </div>
         </header>
 

@@ -27,8 +27,13 @@ Frontend desde `frontend/`:
 
 ```bash
 npm run dev                   # Vite en http://localhost:5173
-npm run build                 # tsc -b && vite build
+npm run build                 # tsc -b && vite build (typechequea src/ y tests/)
+npm test                      # vitest run
+npm run test:watch            # vitest en watch
+npx vitest run tests/unit/api.test.ts   # un solo archivo
 ```
+
+El frontend habla con el backend, así que para levantarlo hace falta el backend corriendo (`docker compose up -d` + `npm run dev` en `backend/`) y `frontend/.env` con `VITE_API_URL` (copiar de `.env.example`). El backend solo acepta credenciales desde su `FRONTEND_URL`.
 
 Requiere `backend/.env` (copiar de `.env.example`). `src/config/env.ts` valida con Zod y **aborta el proceso** si falta algo: `DATABASE_URL`, `JWT_SECRET` y `JWT_REFRESH_SECRET` (mínimo 32 chars) son obligatorias.
 
@@ -54,8 +59,13 @@ Cada inmobiliaria tiene web propia accesible por slug, subdominio (`*.plataforma
 
 ### Frontend (`frontend/src/`)
 
-**Estado actual: UI completa pero 100% mock, sin conexión al backend.** Datos hardcodeados en `src/data/mock.ts`, `panelMock.ts`, `adminMock.ts`. Sin axios/zustand/react-hook-form/zod todavía (previstos en el plan). Al conectar un módulo al backend, reemplazar el mock correspondiente.
+**Estado actual: parcialmente conectado.** Auth, inmobiliarias, planes y suscripción usan el backend real; el resto sigue con datos hardcodeados en `src/data/mock.ts`, `panelMock.ts`, `adminMock.ts` porque todavía no existe el módulo backend correspondiente (propiedades, leads, dominios, auditoría). Al conectar un módulo, reemplazar el mock correspondiente.
 
+- Capa de acceso a datos: `src/lib/api.ts` (cliente axios con `withCredentials`, refresh automático ante 401 y helpers `getJson`/`postJson`/`patchJson` que validan la respuesta con Zod), `src/api/*` (un archivo por módulo del backend), `src/api/schemas.ts` (espejo de los contratos y schemas de formularios). Errores normalizados en `src/lib/apiError.ts` como `ApiError`.
+- Sesión: `src/store/auth.ts` (Zustand). El access token vive **solo en memoria** (`src/lib/session.ts`), nunca en localStorage; la sesión sobrevive al F5 por la cookie httpOnly de refresh. El refresh es single-flight a propósito: el backend rota los refresh tokens y trata la reutilización como robo, revocando todas las sesiones.
+- Rutas privadas con `RequireAuth` (por rol). `VITE_API_URL` configura la API (ver `.env.example`).
+- Fetching en pantallas con `useResource` (`src/hooks/useResource.ts`): estados `loading`/`error`/`reload`, sin caché. Si hace falta caché compartida, el reemplazo natural es TanStack Query.
+- Tests con Vitest en `frontend/tests/` (config propia en `vitest.config.ts`, entorno `node`). Las peticiones se interceptan con un adapter falso de axios (`tests/helpers/mockServer.ts`) instalado desde `tests/setup.ts` **antes** de que `lib/api.ts` cree sus instancias — por eso no hace falta exportar el cliente interno del refresh. Los interceptores corren de verdad. `src/lib/api.ts` y `src/lib/session.ts` guardan estado a nivel de módulo (token y refresh en vuelo): resetearlo en `beforeEach`.
 - Tres áreas: sitio público (`/`), panel inmobiliaria (`/panel/*`, layout `PanelLayout`), panel super admin (`/admin/*`, layout `AdminLayout`). `PanelLayout` y `AdminLayout` comparten `DashShell` (sidebar + header); `Sidebar` es parametrizable.
 - Theming multitenant: todos los colores en CSS variables en `src/index.css` (`--brand` teal #0F766E, `--accent` amber #F59E0B, `--topbar`…). No hardcodear colores — el re-tematizado por inmobiliaria depende de esas variables. Fuente Poppins. Reglas de diseño en `screenshotsUI/reglas_diseno.md`.
 - Precios siempre en ARS con el helper `formatARS`.

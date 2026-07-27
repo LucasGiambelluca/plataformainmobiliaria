@@ -1,46 +1,49 @@
 import { useState } from 'react'
-import { Pencil, Plus, Trash2, Users, Building2, HardDrive } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  Building2,
+  HardDrive,
+  Loader2,
+  Pencil,
+  Plus,
+  Power,
+  Users,
+} from 'lucide-react'
 import Button from '../../components/common/Button'
 import Input from '../../components/common/Input'
 import Badge from '../../components/common/Badge'
 import Modal from '../../components/common/Modal'
-import { plans as seed, type Plan } from '../../data/adminMock'
+import { EmptyState, ErrorState, Spinner } from '../../components/common/AsyncState'
+import { useResource } from '../../hooks/useResource'
+import { activatePlan, createPlan, deactivatePlan, listPlans, updatePlan } from '../../api/plans'
+import { planFormSchema, type Plan, type PlanForm } from '../../api/schemas'
+import { ApiError } from '../../lib/apiError'
 import { formatARS } from '../../data/mock'
 
+const intervalLabels = { monthly: 'mes', yearly: 'año' } as const
+
+/** El backend guarda MB; la UI habla en GB. */
+const mbToGb = (mb: number) => Math.round((mb / 1024) * 10) / 10
+
 export default function Plans() {
-  const [rows, setRows] = useState<Plan[]>(seed)
-  const [modal, setModal] = useState(false)
+  const plans = useResource(() => listPlans(), [])
+  const [modal, setModal] = useState<'new' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Plan | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  const openNew = () => {
-    setEditing(null)
-    setModal(true)
-  }
-  const openEdit = (p: Plan) => {
-    setEditing(p)
-    setModal(true)
-  }
-  const remove = (id: string) => setRows((rs) => rs.filter((r) => r.id !== id))
-
-  const save = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const f = new FormData(e.currentTarget)
-    const data = {
-      name: String(f.get('name')),
-      price: Number(f.get('price')),
-      maxProperties: Number(f.get('maxProperties')),
-      maxUsers: Number(f.get('maxUsers')),
-      maxStorageGb: Number(f.get('maxStorageGb')),
+  const toggleActive = async (plan: Plan) => {
+    setActionError(null)
+    setBusyId(plan.id)
+    try {
+      await (plan.isActive ? deactivatePlan(plan.id) : activatePlan(plan.id))
+      plans.reload()
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'No se pudo actualizar el plan')
+    } finally {
+      setBusyId(null)
     }
-    if (editing) {
-      setRows((rs) => rs.map((r) => (r.id === editing.id ? { ...r, ...data } : r)))
-    } else {
-      setRows((rs) => [
-        ...rs,
-        { id: String(Date.now()), interval: 'mes', active: true, tenants: 0, ...data },
-      ])
-    }
-    setModal(false)
   }
 
   return (
@@ -50,76 +53,215 @@ export default function Plans() {
           <h1 className="text-2xl font-semibold tracking-base text-ink">Planes</h1>
           <p className="text-muted">Catálogo de suscripciones.</p>
         </div>
-        <Button onClick={openNew}>
+        <Button
+          onClick={() => {
+            setEditing(null)
+            setModal('new')
+          }}
+        >
           <Plus className="h-4 w-4" />
           Nuevo plan
         </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {rows.map((p) => (
-          <div key={p.id} className="rounded-xl border border-line bg-surface p-6 shadow-card">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold tracking-base text-ink">{p.name}</h3>
-              <Badge tone={p.active ? 'success' : 'neutral'}>
-                {p.active ? 'Activo' : 'Inactivo'}
-              </Badge>
+      {actionError && (
+        <p role="alert" className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {actionError}
+        </p>
+      )}
+
+      {plans.error ? (
+        <ErrorState error={plans.error} onRetry={plans.reload} />
+      ) : plans.loading && !plans.data ? (
+        <Spinner label="Cargando planes…" />
+      ) : plans.data && plans.data.length === 0 ? (
+        <EmptyState>Todavía no hay planes cargados. Creá el primero.</EmptyState>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-3">
+          {plans.data?.map((p) => (
+            <div
+              key={p.id}
+              className={`rounded-xl border bg-surface p-6 shadow-card ${
+                p.isActive ? 'border-line' : 'border-dashed border-line opacity-75'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold tracking-base text-ink">{p.name}</h3>
+                <Badge tone={p.isActive ? 'success' : 'neutral'}>
+                  {p.isActive ? 'Activo' : 'Inactivo'}
+                </Badge>
+              </div>
+              <p className="mt-2 text-2xl font-bold tracking-base text-ink">
+                {formatARS(Number(p.priceAmount))}
+                <span className="text-sm font-normal text-muted">
+                  {' '}
+                  / {intervalLabels[p.billingInterval]}
+                </span>
+              </p>
+              <p className="mt-1 text-xs text-muted">/{p.slug}</p>
+
+              <ul className="mt-4 space-y-2 text-sm text-ink">
+                <li className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-brand" />
+                  {p.maxProperties} propiedades
+                </li>
+                <li className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-brand" />
+                  {p.maxUsers} usuarios
+                </li>
+                <li className="flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-brand" />
+                  {mbToGb(p.maxStorageMb)} GB de almacenamiento
+                </li>
+              </ul>
+
+              <div className="mt-5 flex gap-2">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => {
+                    setEditing(p)
+                    setModal('edit')
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editar
+                </Button>
+                <button
+                  onClick={() => void toggleActive(p)}
+                  disabled={busyId === p.id}
+                  className="rounded-pill border border-line p-2.5 text-muted hover:bg-canvas hover:text-ink disabled:opacity-50"
+                  aria-label={p.isActive ? `Desactivar ${p.name}` : `Activar ${p.name}`}
+                  title={
+                    p.isActive
+                      ? 'Desactivar: deja de ofrecerse sin romper las suscripciones vigentes'
+                      : 'Volver a ofrecer este plan'
+                  }
+                >
+                  {busyId === p.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Power className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold tracking-base text-ink">
-              {formatARS(p.price)}
-              <span className="text-sm font-normal text-muted"> / {p.interval}</span>
-            </p>
-            <p className="mt-1 text-xs text-muted">{p.tenants} inmobiliarias usan este plan</p>
+          ))}
+        </div>
+      )}
 
-            <ul className="mt-4 space-y-2 text-sm text-ink">
-              <li className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-brand" />
-                {p.maxProperties >= 9999 ? 'Propiedades ilimitadas' : `${p.maxProperties} propiedades`}
-              </li>
-              <li className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-brand" />
-                {p.maxUsers >= 9999 ? 'Agentes ilimitados' : `${p.maxUsers} agentes`}
-              </li>
-              <li className="flex items-center gap-2">
-                <HardDrive className="h-4 w-4 text-brand" />
-                {p.maxStorageGb} GB de almacenamiento
-              </li>
-            </ul>
-
-            <div className="mt-5 flex gap-2">
-              <Button variant="secondary" className="flex-1" onClick={() => openEdit(p)}>
-                <Pencil className="h-4 w-4" />
-                Editar
-              </Button>
-              <button
-                onClick={() => remove(p.id)}
-                className="rounded-pill border border-line p-2.5 text-muted hover:bg-red-50 hover:text-red-600"
-                aria-label="Eliminar"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Editar plan' : 'Nuevo plan'}>
-        <form onSubmit={save} className="space-y-4">
-          <Input name="name" label="Nombre" defaultValue={editing?.name} required />
-          <Input name="price" label="Precio (ARS / mes)" type="number" defaultValue={editing?.price ?? 0} required />
-          <div className="grid grid-cols-3 gap-3">
-            <Input name="maxProperties" label="Máx. props" type="number" defaultValue={editing?.maxProperties ?? 30} />
-            <Input name="maxUsers" label="Máx. usuarios" type="number" defaultValue={editing?.maxUsers ?? 2} />
-            <Input name="maxStorageGb" label="GB" type="number" defaultValue={editing?.maxStorageGb ?? 5} />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setModal(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit">{editing ? 'Guardar' : 'Crear'}</Button>
-          </div>
-        </form>
-      </Modal>
+      {modal && (
+        <PlanModal
+          plan={modal === 'edit' ? editing : null}
+          onClose={() => setModal(null)}
+          onSaved={() => {
+            setModal(null)
+            plans.reload()
+          }}
+        />
+      )}
     </div>
+  )
+}
+
+interface PlanModalProps {
+  plan: Plan | null
+  onClose: () => void
+  onSaved: () => void
+}
+
+function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
+  const [failure, setFailure] = useState<string | null>(null)
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<PlanForm>({
+    resolver: zodResolver(planFormSchema),
+    defaultValues: plan
+      ? {
+          name: plan.name,
+          slug: plan.slug,
+          priceAmount: plan.priceAmount,
+          maxProperties: plan.maxProperties,
+          maxUsers: plan.maxUsers,
+          maxStorageMb: plan.maxStorageMb,
+        }
+      : { maxProperties: 30, maxUsers: 2, maxStorageMb: 5120 },
+  })
+
+  const onSubmit = handleSubmit(async (values) => {
+    setFailure(null)
+    try {
+      if (plan) await updatePlan(plan.id, values)
+      else await createPlan(values)
+      onSaved()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const slugIssue = err.issueFor('slug')
+        if (slugIssue) setError('slug', { message: slugIssue })
+        else setFailure(err.message)
+        return
+      }
+      setFailure('No se pudo guardar el plan')
+    }
+  })
+
+  return (
+    <Modal open onClose={onClose} title={plan ? `Editar ${plan.name}` : 'Nuevo plan'}>
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        {failure && (
+          <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            {failure}
+          </p>
+        )}
+
+        <Input label="Nombre" error={errors.name?.message} {...register('name')} />
+        <Input
+          label="Slug"
+          placeholder="pro"
+          error={errors.slug?.message}
+          {...register('slug')}
+        />
+        <Input
+          label="Precio (ARS / mes)"
+          inputMode="decimal"
+          placeholder="59900"
+          error={errors.priceAmount?.message}
+          {...register('priceAmount')}
+        />
+        <div className="grid grid-cols-3 gap-3">
+          <Input
+            label="Máx. props"
+            type="number"
+            error={errors.maxProperties?.message}
+            {...register('maxProperties')}
+          />
+          <Input
+            label="Máx. usuarios"
+            type="number"
+            error={errors.maxUsers?.message}
+            {...register('maxUsers')}
+          />
+          <Input
+            label="Storage (MB)"
+            type="number"
+            error={errors.maxStorageMb?.message}
+            {...register('maxStorageMb')}
+          />
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+            {plan ? 'Guardar' : 'Crear'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   )
 }

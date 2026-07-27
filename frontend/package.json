@@ -7,13 +7,20 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@hookform/resolvers": "^3.10.0",
+    "axios": "^1.18.1",
     "lucide-react": "^0.456.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react-hook-form": "^7.83.0",
+    "react-router-dom": "^6.28.0",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
@@ -23,6 +30,7 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^4.1.10"
   }
 }

@@ -23,8 +23,6 @@ export default function AdminLayout() {
       title="Super Admin"
       subtitle="Plataforma · Global"
       items={items}
-      userName="Lucas R."
-      userRole="Super Admin"
     />
   )
 }

@@ -18,14 +18,14 @@ const items: NavItem[] = [
 ]
 
 export default function PanelLayout() {
+  // El nombre de la inmobiliaria todavía no se puede mostrar: no existe un
+  // endpoint que devuelva el perfil del tenant de la sesión (módulo sites).
   return (
     <DashShell
       brandHome="/panel"
       title="Inmobiliaria"
-      subtitle="Inmobiliaria Norte"
+      subtitle="Panel de gestión"
       items={items}
-      userName="Ana Gómez"
-      userRole="Admin · Inmobiliaria Norte"
     />
   )
 }

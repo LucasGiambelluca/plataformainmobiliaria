@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import Logo from '../common/Logo'
+import { homeFor, useAuth } from '../../store/auth'
 
 interface Props {
   onLogin: () => void
@@ -19,6 +20,7 @@ const navItems = [
 // Header blanco con nav serif separada por barras verticales, según ui.pdf.
 export default function Navbar({ onLogin }: Props) {
   const [open, setOpen] = useState(false)
+  const user = useAuth((s) => s.user)
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-surface">
@@ -46,18 +48,29 @@ export default function Navbar({ onLogin }: Props) {
         </nav>
 
         <div className="hidden items-center gap-5 lg:flex">
-          <Link
-            to="/registro"
-            className="font-serif text-[15px] text-ink transition-colors hover:text-accent-dark"
-          >
-            Registrarse
-          </Link>
-          <button
-            onClick={onLogin}
-            className="rounded bg-accent px-5 py-1.5 font-serif text-[15px] text-ink transition-colors hover:bg-accent-dark hover:text-white"
-          >
-            Ingresar
-          </button>
+          {user ? (
+            <Link
+              to={homeFor(user)}
+              className="rounded bg-accent px-5 py-1.5 font-serif text-[15px] text-ink transition-colors hover:bg-accent-dark hover:text-white"
+            >
+              Mi panel
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/registro"
+                className="font-serif text-[15px] text-ink transition-colors hover:text-accent-dark"
+              >
+                Registrarse
+              </Link>
+              <button
+                onClick={onLogin}
+                className="rounded bg-accent px-5 py-1.5 font-serif text-[15px] text-ink transition-colors hover:bg-accent-dark hover:text-white"
+              >
+                Ingresar
+              </button>
+            </>
+          )}
         </div>
 
         {/* Toggle mobile */}
@@ -84,22 +97,34 @@ export default function Navbar({ onLogin }: Props) {
               {item.label}
             </NavLink>
           ))}
-          <Link
-            to="/registro"
-            onClick={() => setOpen(false)}
-            className="block py-2 font-serif text-[15px] text-ink"
-          >
-            Registrarse
-          </Link>
-          <button
-            onClick={() => {
-              setOpen(false)
-              onLogin()
-            }}
-            className="mt-2 w-full rounded bg-accent px-5 py-2 font-serif text-[15px] text-ink"
-          >
-            Ingresar
-          </button>
+          {user ? (
+            <Link
+              to={homeFor(user)}
+              onClick={() => setOpen(false)}
+              className="mt-2 block rounded bg-accent px-5 py-2 text-center font-serif text-[15px] text-ink"
+            >
+              Mi panel
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/registro"
+                onClick={() => setOpen(false)}
+                className="block py-2 font-serif text-[15px] text-ink"
+              >
+                Registrarse
+              </Link>
+              <button
+                onClick={() => {
+                  setOpen(false)
+                  onLogin()
+                }}
+                className="mt-2 w-full rounded bg-accent px-5 py-2 font-serif text-[15px] text-ink"
+              >
+                Ingresar
+              </button>
+            </>
+          )}
         </nav>
       )}
     </header>
