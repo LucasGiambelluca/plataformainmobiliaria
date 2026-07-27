@@ -86,6 +86,8 @@ export const tenantsRepository: TenantsRepository = {
             take: 1,
             include: { plan: { select: { id: true, name: true, slug: true } } },
           },
+          // El listado del super admin muestra propiedades y usuarios por tenant.
+          _count: { select: { properties: true, users: true } },
         },
       }),
       prisma.tenant.count({ where }),
