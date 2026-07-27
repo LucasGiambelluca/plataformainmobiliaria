@@ -39,13 +39,14 @@ export default function Sidebar({
         }`}
       >
         <div className="flex items-center justify-between px-5 py-4">
-          <Link to={brandHome} className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-sm font-bold text-white">
-              iH
-            </span>
-            <span className="text-lg font-bold text-white">
-              Inmo<span className="text-brand-light">Hub</span>
-            </span>
+          {/* Mismo logo que el sitio público: el cliente pidió que quede igual
+              en todas las secciones. */}
+          <Link to={brandHome}>
+            <img
+              src="/brand/logo-blanco.png"
+              alt="ER Entreriosprop"
+              className="h-8 w-auto"
+            />
           </Link>
           <button onClick={onClose} className="text-white/70 lg:hidden" aria-label="Cerrar">
             <X className="h-5 w-5" />

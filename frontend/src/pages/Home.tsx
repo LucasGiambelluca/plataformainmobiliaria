@@ -25,6 +25,11 @@ const searchTabs: { key: OperationType; label: string }[] = [
 
 const CAROUSEL_SIZE = 3
 
+// El cliente pidió que la sección de destacadas muestre siempre 6. Como ahora
+// salen de la base, puede haber menos destacadas que eso: se completa con las
+// últimas publicadas para no dejar la grilla coja.
+const DESTACADAS_OBJETIVO = 6
+
 export default function Home() {
   const navigate = useNavigate()
 
@@ -40,10 +45,25 @@ export default function Home() {
   // ofrecer una ciudad donde no hay nada para mostrar.
   const ciudades = useResource(() => getCities(), [])
 
-  const destacadas = useResource(
-    () => getCatalog({ onlyFeatured: true, pageSize: 12 }),
-    [],
-  )
+  const destacadas = useResource(async () => {
+    const featured = await getCatalog({
+      onlyFeatured: true,
+      pageSize: DESTACADAS_OBJETIVO,
+    })
+    if (featured.items.length >= DESTACADAS_OBJETIVO) return featured.items
+
+    // Relleno: se piden algunas de más y se descartan las que ya vinieron
+    // como destacadas, para no repetir tarjetas.
+    const relleno = await getCatalog({
+      sort: 'recent',
+      pageSize: DESTACADAS_OBJETIVO * 2,
+    })
+    const yaEstan = new Set(featured.items.map((p) => p.id))
+    return [
+      ...featured.items,
+      ...relleno.items.filter((p) => !yaEstan.has(p.id)),
+    ].slice(0, DESTACADAS_OBJETIVO)
+  }, [])
 
   const grilla = useResource(
     () =>
@@ -54,7 +74,7 @@ export default function Home() {
     [filter],
   )
 
-  const items = destacadas.data?.items ?? []
+  const items = destacadas.data ?? []
   const pages = Math.max(1, Math.ceil(items.length / CAROUSEL_SIZE))
   const carousel = items.slice(page * CAROUSEL_SIZE, page * CAROUSEL_SIZE + CAROUSEL_SIZE)
 
@@ -75,29 +95,39 @@ export default function Home() {
       {/* Hero */}
       <section className="relative overflow-hidden bg-brand">
         <div className="absolute inset-0">
+          {/* La foto ya viene con el tinte azul aplicado por diseño, así que no
+              se le agrega grayscale ni se le baja la opacidad: solo un velo
+              navy para que el texto tenga contraste. */}
           <img
-            src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1600&q=70"
+            src="/brand/hero-llaves.jpg"
             alt=""
-            className="h-full w-full object-cover opacity-40 grayscale"
+            className="h-full w-full object-cover object-center"
           />
-          <div className="absolute inset-0 bg-hero-overlay/60" />
+          <div className="absolute inset-0 bg-hero-overlay/70" />
+          {/* Degradado extra hacia la izquierda: la foto aclara mucho de ese
+              lado y el título perdía contraste sobre el celeste. */}
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-dark/90 via-brand-dark/45 to-transparent" />
         </div>
 
         <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-10 md:pb-20">
-          <h1 className="font-serif text-4xl text-white/90 md:text-6xl">
+          {/* Las dos líneas comparten tamaño y tipografía, como pidió el
+              cliente: una sola voz, sin jerarquía entre título y bajada. */}
+          <h1 className="font-serif text-3xl leading-tight text-white md:text-4xl">
             Vivi donde siempre soñaste
           </h1>
-          <p className="mt-1 font-serif text-xl text-white/75 md:text-2xl">
+          <p className="font-serif text-3xl leading-tight text-white/85 md:text-4xl">
             Con el respaldo del sector inmobiliario
           </p>
 
-          <div className="mt-10 max-w-2xl">
+          {/* Toda la columna comparte ancho: tabs, buscador y CTAs quedan del
+              mismo largo, que es lo que pedía la corrección. */}
+          <div className="mt-10 w-full max-w-xl">
             <div className="flex">
               {searchTabs.map((t) => (
                 <button
                   key={t.key}
                   onClick={() => setOp(t.key)}
-                  className={`rounded-t-lg px-8 py-2.5 font-serif text-[15px] transition-colors ${
+                  className={`flex-1 rounded-t-lg py-2.5 font-serif text-[15px] transition-colors ${
                     op === t.key
                       ? 'bg-surface text-ink'
                       : 'bg-accent text-ink hover:bg-accent-dark hover:text-white'
@@ -108,7 +138,7 @@ export default function Home() {
               ))}
             </div>
 
-            <div className="rounded-b-xl rounded-tr-xl bg-surface p-6 shadow-card-hover">
+            <div className="rounded-b-xl bg-surface p-6 shadow-card-hover">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Select
                   label="Tipo de propiedad"
@@ -146,24 +176,26 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-8 max-w-2xl space-y-4">
+          {/* Mismo ancho que las tabs y el buscador, y fondo navy sólido en vez
+              del brand translúcido que se veía lavado sobre la foto. */}
+          <div className="mt-8 w-full max-w-xl space-y-3">
             <Link
               to="/garantias"
-              className="flex items-center justify-between rounded-md border border-accent bg-brand/80 px-5 py-2.5 transition-colors hover:bg-brand"
+              className="flex items-center justify-between gap-3 rounded-md border border-accent bg-brand-dark px-4 py-2 transition-colors hover:bg-brand"
             >
-              <span className="font-serif text-[15px] font-semibold text-white">
+              <span className="font-serif text-sm font-semibold text-white">
                 Necesita una garantía para alquilar?
               </span>
-              <ChevronRight className="h-4 w-4 text-accent" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-accent" />
             </Link>
             <Link
               to="/seguros"
-              className="flex items-center justify-between rounded-md border border-accent bg-brand/80 px-5 py-2.5 transition-colors hover:bg-brand"
+              className="flex items-center justify-between gap-3 rounded-md border border-accent bg-brand-dark px-4 py-2 transition-colors hover:bg-brand"
             >
-              <span className="font-serif text-[15px] font-semibold text-white">
+              <span className="font-serif text-sm font-semibold text-white">
                 Asegure lo que tanto le costo conseguir
               </span>
-              <ChevronRight className="h-4 w-4 text-accent" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-accent" />
             </Link>
           </div>
         </div>

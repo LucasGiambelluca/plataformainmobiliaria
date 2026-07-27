@@ -311,9 +311,117 @@ export const publicPropertyResponseSchema = z.object({
   property: publicPropertyDetailSchema,
 })
 
+export const publicAgenciesResponseSchema = z.object({
+  agencies: z.array(
+    publicAgencySchema.extend({
+      id: z.string(),
+      description: z.string().nullable(),
+      contactEmail: z.string().nullable(),
+      contactPhone: z.string().nullable(),
+      propertiesCount: z.number(),
+    }),
+  ),
+})
+export type PublicAgency = z.infer<
+  typeof publicAgenciesResponseSchema
+>['agencies'][number]
+
 export const publicCitiesResponseSchema = z.object({
   cities: z.array(z.object({ city: z.string(), count: z.number() })),
 })
+
+/* ----------------------- web de la inmobiliaria ----------------------- */
+
+export const carouselImageSchema = z.object({
+  id: z.string(),
+  imageUrl: z.string(),
+  linkUrl: z.string().nullable(),
+  caption: z.string().nullable(),
+  sortOrder: z.number(),
+  isActive: z.boolean(),
+})
+export type CarouselImage = z.infer<typeof carouselImageSchema>
+
+const siteAppearanceSchema = z.object({
+  primaryColor: z.string().nullable(),
+  secondaryColor: z.string().nullable(),
+  heroTitle: z.string().nullable(),
+  heroSubtitle: z.string().nullable(),
+  aboutText: z.string().nullable(),
+  socialFacebook: z.string().nullable(),
+  socialInstagram: z.string().nullable(),
+  socialWhatsapp: z.string().nullable(),
+  showFeaturedOnly: z.boolean(),
+  template: z.string().nullable(),
+})
+
+export const publicSiteSchema = z.object({
+  tenant: z.object({
+    id: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    logoUrl: z.string().nullable(),
+    description: z.string().nullable(),
+    contactEmail: z.string().nullable(),
+    contactPhone: z.string().nullable(),
+  }),
+  site: siteAppearanceSchema,
+  carousel: z.array(carouselImageSchema),
+})
+export type PublicSite = z.infer<typeof publicSiteSchema>
+
+/** Config propia: agrega los campos que solo ve la inmobiliaria. */
+export const ownSiteSchema = siteAppearanceSchema.extend({
+  id: z.string(),
+  tenantId: z.string(),
+  // El slug no viaja en el JWT: viene con la config para armar el enlace.
+  slug: z.string(),
+  tenantName: z.string(),
+  isPublished: z.boolean(),
+  carousel: z.array(carouselImageSchema),
+})
+export type OwnSite = z.infer<typeof ownSiteSchema>
+
+export const ownSiteResponseSchema = z.object({ site: ownSiteSchema })
+export const carouselImageResponseSchema = z.object({ image: carouselImageSchema })
+export const carouselListResponseSchema = z.object({
+  carousel: z.array(carouselImageSchema),
+})
+
+export const carouselUploadResponseSchema = z.object({
+  image: carouselImageSchema,
+  upload: z.object({
+    uploadUrl: z.string(),
+    contentType: z.string(),
+    expiresAt: z.string(),
+  }),
+})
+
+export const siteFormSchema = z.object({
+  heroTitle: z.string().trim().max(160).optional().or(z.literal('')),
+  heroSubtitle: z.string().trim().max(240).optional().or(z.literal('')),
+  aboutText: z.string().trim().max(4000).optional().or(z.literal('')),
+  primaryColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Usá formato #RRGGBB')
+    .optional()
+    .or(z.literal('')),
+  secondaryColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Usá formato #RRGGBB')
+    .optional()
+    .or(z.literal('')),
+  socialFacebook: z.string().trim().url('URL inválida').optional().or(z.literal('')),
+  socialInstagram: z.string().trim().url('URL inválida').optional().or(z.literal('')),
+  socialWhatsapp: z
+    .string()
+    .trim()
+    .regex(/^[0-9+\s-]{6,30}$/, 'Teléfono inválido')
+    .optional()
+    .or(z.literal('')),
+  showFeaturedOnly: z.boolean().optional(),
+})
+export type SiteForm = z.infer<typeof siteFormSchema>
 
 /* ------------------------- entradas (forms) ------------------------- */
 

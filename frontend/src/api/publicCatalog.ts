@@ -1,10 +1,12 @@
 import { getJson } from '../lib/api'
 import {
+  publicAgenciesResponseSchema,
   publicCatalogResponseSchema,
   publicCitiesResponseSchema,
   publicPropertyResponseSchema,
   type OperationType,
   type PropertyType,
+  type PublicAgency,
   type PublicCatalogResponse,
   type PublicPropertyDetail,
 } from './schemas'
@@ -50,4 +52,10 @@ export async function getPublicProperty(id: string): Promise<PublicPropertyDetai
 export async function getCities(): Promise<{ city: string; count: number }[]> {
   const { cities } = await getJson('/public/cities', publicCitiesResponseSchema)
   return cities
+}
+
+/** Inmobiliarias activas, con cuántas propiedades visibles publica cada una. */
+export async function getAgencies(): Promise<PublicAgency[]> {
+  const { agencies } = await getJson('/public/agencies', publicAgenciesResponseSchema)
+  return agencies
 }

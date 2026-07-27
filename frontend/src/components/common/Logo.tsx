@@ -1,30 +1,42 @@
 import { Link } from 'react-router-dom'
 
 interface Props {
-  /** Texto secundario debajo del nombre. */
+  /** Bajada opcional debajo del logo. */
   subtitle?: string
+  /** Sobre fondo oscuro se usa la versión blanca. */
+  variant?: 'navy' | 'white'
+  /** Alto del logo; el ancho acompaña. */
+  size?: 'sm' | 'md'
   className?: string
 }
 
-// Logo del portal según ui.pdf: monograma serif "ER" + wordmark navy.
+/**
+ * Logo del portal. Es la imagen que entregó la diseñadora, no texto: el
+ * cliente pidió que el logo quede idéntico en todas las secciones, y
+ * reconstruirlo con fuentes del sistema nunca da el mismo trazo.
+ */
 export default function Logo({
-  subtitle = 'El Portal Inmobiliario de Entre Rios',
+  subtitle,
+  variant = 'navy',
+  size = 'md',
   className = '',
 }: Props) {
   return (
-    <Link to="/" className={`flex items-center gap-3 ${className}`}>
-      <span
-        aria-hidden
-        className="font-serif text-5xl font-medium leading-none text-brand"
-      >
-        <span className="-mr-2">E</span>R
-      </span>
-      <span className="leading-tight">
-        <span className="block font-serif text-xl font-semibold text-brand">
-          Entre Rios Propiedades
+    <Link to="/" className={`inline-flex flex-col gap-1 ${className}`}>
+      <img
+        src={variant === 'white' ? '/brand/logo-blanco.png' : '/brand/logo-navy.png'}
+        alt="ER Entreriosprop"
+        className={`w-auto ${size === 'sm' ? 'h-8' : 'h-12'}`}
+      />
+      {subtitle && (
+        <span
+          className={`font-serif text-xs ${
+            variant === 'white' ? 'text-white/70' : 'text-brand/70'
+          }`}
+        >
+          {subtitle}
         </span>
-        <span className="block font-serif text-xs text-brand">{subtitle}</span>
-      </span>
+      )}
     </Link>
   )
 }

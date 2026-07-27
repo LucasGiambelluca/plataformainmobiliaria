@@ -26,6 +26,8 @@ export default function SearchResults() {
   const op = (params.get('op') ?? '') as OperationType | ''
   const type = (params.get('type') ?? '') as PropertyType | ''
   const q = params.get('q') ?? ''
+  // Llega desde el desplegable de Inmobiliarias del header.
+  const agency = params.get('agency') ?? ''
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params)
@@ -43,10 +45,11 @@ export default function SearchResults() {
         search: qDebounced || undefined,
         operationType: op || undefined,
         propertyType: type || undefined,
+        agency: agency || undefined,
         sort: sort as 'relevance',
         pageSize: 24,
       }),
-    [qDebounced, op, type, sort],
+    [qDebounced, op, type, agency, sort],
   )
 
   const total = catalogo.data?.total ?? 0
@@ -62,6 +65,15 @@ export default function SearchResults() {
           </h2>
 
           <div className="mt-5 space-y-5">
+            {agency && (
+              <button
+                onClick={() => setParam('agency', '')}
+                className="w-full rounded-md border border-brand px-3 py-2 text-xs font-medium text-brand transition-colors hover:bg-brand hover:text-white"
+              >
+                Quitar filtro de inmobiliaria
+              </button>
+            )}
+
             <div>
               <span className="mb-1.5 block text-sm font-medium text-ink">Operación</span>
               <div className="flex flex-wrap gap-2">
@@ -109,6 +121,9 @@ export default function SearchResults() {
                 ? 'Buscando…'
                 : `${total} ${total === 1 ? 'propiedad' : 'propiedades'}`}
               {op && ` en ${operationLabels[op].toLowerCase()}`}
+              {agency && catalogo.data?.items[0]
+                ? ` de ${catalogo.data.items[0].agency.name}`
+                : ''}
             </h1>
             <div className="w-52">
               <Select
