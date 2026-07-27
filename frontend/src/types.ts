@@ -43,3 +43,14 @@ export interface AgencyZone {
   zone: string
   cities: { name: string; count: number }[]
 }
+
+// Inmobiliaria del directorio público (a futuro: tenant de la plataforma).
+export interface Agency {
+  id: string
+  name: string
+  city: string
+  zone: string
+  address: string
+  phone: string
+  propertiesCount: number
+}

@@ -1,4 +1,4 @@
-import type { AgencyZone, Property } from '../types'
+import type { Agency, AgencyZone, Property } from '../types'
 
 // Placeholder images from a free CDN (Unsplash). Swap for tenant media later.
 const img = (id: string) =>
@@ -184,6 +184,132 @@ export const properties: Property[] = [
     agency: 'Entre Rios Country',
   },
   {
+    id: '13',
+    title: 'Departamento 2 amb. frente al parque',
+    operation: 'alquiler',
+    type: 'departamento',
+    price: 420000,
+    currency: 'ARS',
+    address: 'Rivadavia 340',
+    city: 'Paraná',
+    rooms: 2,
+    bathrooms: 1,
+    area: 58,
+    image: img('photo-1522708323590-d24dbb6b0267'),
+    featured: true,
+    agency: 'Paraná Propiedades',
+  },
+  {
+    id: '14',
+    title: 'Casa céntrica con cochera doble',
+    operation: 'venta',
+    type: 'casa',
+    price: 185000000,
+    currency: 'ARS',
+    address: 'San Martín 1520',
+    city: 'Concordia',
+    rooms: 4,
+    bathrooms: 2,
+    area: 165,
+    image: img('photo-1580587771525-78b9dba3b914'),
+    featured: true,
+    agency: 'Concordia Propiedades',
+  },
+  {
+    id: '15',
+    title: 'Cabaña para 4 cerca de las termas',
+    operation: 'temporal',
+    type: 'casa',
+    price: 95000,
+    currency: 'ARS',
+    address: 'Los Lapachos 220',
+    city: 'Federación',
+    rooms: 2,
+    bathrooms: 1,
+    area: 60,
+    image: img('photo-1449158743715-0a90ebb6d2d8'),
+    featured: true,
+    agency: 'Termas Alquileres',
+  },
+  {
+    id: '16',
+    title: 'Dúplex a estrenar en Colón',
+    operation: 'temporal',
+    type: 'departamento',
+    price: 110000,
+    currency: 'ARS',
+    address: '12 de Abril 85',
+    city: 'Colón',
+    rooms: 3,
+    bathrooms: 2,
+    area: 88,
+    image: img('photo-1512915922686-57c11dde9b6b'),
+    agency: 'Colón Inversiones',
+  },
+  {
+    id: '17',
+    title: 'Oficina premium en torre céntrica',
+    operation: 'alquiler',
+    type: 'oficina',
+    price: 650000,
+    currency: 'ARS',
+    address: 'Urquiza 1100',
+    city: 'Paraná',
+    rooms: 0,
+    bathrooms: 1,
+    area: 75,
+    image: img('photo-1497366216548-37526070297c'),
+    agency: 'Paraná Propiedades',
+  },
+  {
+    id: '18',
+    title: 'PH con patio y parrillero',
+    operation: 'venta',
+    type: 'ph',
+    price: 92000000,
+    currency: 'ARS',
+    address: '3 de Febrero 640',
+    city: 'Gualeguaychú',
+    rooms: 3,
+    bathrooms: 1,
+    area: 95,
+    image: img('photo-1583608205776-bfd35f0d9f83'),
+    discounted: true,
+    agency: 'Gualeguaychú Hogar',
+  },
+  {
+    id: '19',
+    title: 'Casa en country Las Magnolias',
+    operation: 'venta',
+    type: 'casa',
+    price: 310000000,
+    currency: 'ARS',
+    address: 'Las Magnolias, lote 7',
+    city: 'Paraná',
+    rooms: 4,
+    bathrooms: 3,
+    area: 280,
+    image: img('photo-1600596542815-ffad4c1539a9'),
+    category: 'countries',
+    agency: 'Entre Rios Country',
+  },
+  {
+    id: '20',
+    title: 'Chacra 15 ha con casco y arroyo',
+    operation: 'venta',
+    type: 'terreno',
+    price: 220000000,
+    currency: 'ARS',
+    address: 'Camino a la costa km 12',
+    city: 'Concepción del Uruguay',
+    rooms: 3,
+    bathrooms: 1,
+    area: 150000,
+    image: img('photo-1444858291040-58f756a3bdd6'),
+    category: 'campo',
+    agency: 'Campos del Litoral',
+  },
+  {
     id: '12',
     title: 'Campo mixto 120 ha',
     operation: 'venta',
@@ -205,35 +331,58 @@ export const featuredProperties = properties.filter(
   (p) => p.featured || p.discounted,
 )
 
+// Zonas y localidades de la provincia de Entre Ríos.
 export const agencyZones: AgencyZone[] = [
   {
-    zone: 'Zona Sur',
+    zone: 'Costa del Paraná',
     cities: [
-      { name: 'Almirante Brown', count: 101 },
-      { name: 'Berazategui', count: 14 },
-      { name: 'Avellaneda', count: 31 },
-      { name: 'Esteban Echeverría', count: 90 },
-      { name: 'Lanús', count: 85 },
-      { name: 'Lomas de Zamora', count: 120 },
-      { name: 'Quilmes', count: 15 },
-      { name: 'Florencio Varela', count: 8 },
-      { name: 'San Vicente', count: 12 },
-      { name: 'Ezeiza', count: 35 },
+      { name: 'Paraná', count: 84 },
+      { name: 'Diamante', count: 11 },
+      { name: 'Victoria', count: 14 },
+      { name: 'La Paz', count: 9 },
+      { name: 'Crespo', count: 16 },
+      { name: 'María Grande', count: 4 },
+      { name: 'Cerrito', count: 3 },
+      { name: 'Hernandarias', count: 2 },
     ],
   },
   {
-    zone: 'Costa Atlántica',
+    zone: 'Costa del Uruguay',
     cities: [
-      { name: 'Costa Azul', count: 2 },
-      { name: 'La Lucila del Mar', count: 4 },
-      { name: 'Mar de Ajó', count: 21 },
-      { name: 'Pinamar', count: 8 },
-      { name: 'San Bernardo', count: 35 },
-      { name: 'Santa Teresita', count: 9 },
-      { name: 'Mar del Tuyú', count: 15 },
-      { name: 'Villa Gesell', count: 3 },
-      { name: 'Las Toninas', count: 4 },
-      { name: 'San Clemente', count: 4 },
+      { name: 'Concordia', count: 38 },
+      { name: 'Concepción del Uruguay', count: 27 },
+      { name: 'Gualeguaychú', count: 31 },
+      { name: 'Colón', count: 19 },
+      { name: 'San José', count: 8 },
+      { name: 'Villa Elisa', count: 7 },
+      { name: 'Federación', count: 12 },
+      { name: 'Chajarí', count: 10 },
+    ],
+  },
+  {
+    zone: 'Centro',
+    cities: [
+      { name: 'Villaguay', count: 9 },
+      { name: 'Nogoyá', count: 7 },
+      { name: 'Rosario del Tala', count: 4 },
+      { name: 'Basavilbaso', count: 3 },
+      { name: 'Urdinarrain', count: 3 },
+      { name: 'Larroque', count: 2 },
+      { name: 'San Salvador', count: 3 },
+      { name: 'Villa Clara', count: 1 },
+    ],
+  },
+  {
+    zone: 'Norte y Sur entrerriano',
+    cities: [
+      { name: 'Federal', count: 4 },
+      { name: 'San José de Feliciano', count: 2 },
+      { name: 'Los Conquistadores', count: 1 },
+      { name: 'Gualeguay', count: 11 },
+      { name: 'Islas del Ibicuy', count: 2 },
+      { name: 'Villa Paranacito', count: 3 },
+      { name: 'Ceibas', count: 1 },
+      { name: 'Ibicuy', count: 2 },
     ],
   },
 ]
@@ -265,6 +414,77 @@ export const typeLabels: Record<string, string> = {
   local: 'Local',
   oficina: 'Oficina',
 }
+
+// Directorio ficticio de inmobiliarias por ciudad. Cuando exista el módulo
+// de tenants, esto sale del backend (cada inmobiliaria = tenant).
+export const agencies: Agency[] = [
+  // Costa del Paraná
+  { id: 'parana-propiedades', name: 'Paraná Propiedades', city: 'Paraná', zone: 'Costa del Paraná', address: 'San Martín 745', phone: '0343 422-1840', propertiesCount: 32 },
+  { id: 'litoral-desarrollos', name: 'Litoral Desarrollos', city: 'Paraná', zone: 'Costa del Paraná', address: 'Costanera 1200', phone: '0343 431-5522', propertiesCount: 18 },
+  { id: 'costanera-bienes-raices', name: 'Costanera Bienes Raíces', city: 'Paraná', zone: 'Costa del Paraná', address: 'Buenos Aires 214', phone: '0343 423-7761', propertiesCount: 15 },
+  { id: 'urquiza-inmuebles', name: 'Urquiza Inmuebles', city: 'Paraná', zone: 'Costa del Paraná', address: 'Urquiza 980', phone: '0343 420-3318', propertiesCount: 11 },
+  { id: 'entre-rios-country', name: 'Entre Rios Country', city: 'Paraná', zone: 'Costa del Paraná', address: 'Av. Almafuerte 2450', phone: '0343 436-9004', propertiesCount: 8 },
+  { id: 'del-puerto-propiedades', name: 'Del Puerto Propiedades', city: 'Paraná', zone: 'Costa del Paraná', address: 'Güemes 350', phone: '0343 424-6152', propertiesCount: 7 },
+  { id: 'diamante-inmuebles', name: 'Diamante Inmuebles', city: 'Diamante', zone: 'Costa del Paraná', address: 'Echagüe 120', phone: '0343 498-1277', propertiesCount: 11 },
+  { id: 'abadia-propiedades', name: 'Abadía Propiedades', city: 'Victoria', zone: 'Costa del Paraná', address: 'Congreso 485', phone: '03436 42-3390', propertiesCount: 14 },
+  { id: 'rio-arriba-propiedades', name: 'Río Arriba Propiedades', city: 'La Paz', zone: 'Costa del Paraná', address: 'Italia 66', phone: '03437 42-2015', propertiesCount: 9 },
+  { id: 'crespo-propiedades', name: 'Crespo Propiedades', city: 'Crespo', zone: 'Costa del Paraná', address: 'Av. Ramírez 1130', phone: '0343 495-6644', propertiesCount: 16 },
+  // Costa del Uruguay
+  { id: 'concordia-propiedades', name: 'Concordia Propiedades', city: 'Concordia', zone: 'Costa del Uruguay', address: 'Entre Ríos 640', phone: '0345 421-7788', propertiesCount: 21 },
+  { id: 'salto-grande-inmobiliaria', name: 'Salto Grande Inmobiliaria', city: 'Concordia', zone: 'Costa del Uruguay', address: 'Pellegrini 1020', phone: '0345 422-4451', propertiesCount: 12 },
+  { id: 'citrus-propiedades', name: 'Citrus Propiedades', city: 'Concordia', zone: 'Costa del Uruguay', address: 'Urquiza 315', phone: '0345 425-9083', propertiesCount: 5 },
+  { id: 'historica-inmobiliaria', name: 'Histórica Inmobiliaria', city: 'Concepción del Uruguay', zone: 'Costa del Uruguay', address: 'Galarza 870', phone: '03442 42-5566', propertiesCount: 17 },
+  { id: 'campos-del-litoral', name: 'Campos del Litoral', city: 'Concepción del Uruguay', zone: 'Costa del Uruguay', address: 'Rocamora 133', phone: '03442 43-1209', propertiesCount: 10 },
+  { id: 'gualeguaychu-hogar', name: 'Gualeguaychú Hogar', city: 'Gualeguaychú', zone: 'Costa del Uruguay', address: '25 de Mayo 921', phone: '03446 42-6634', propertiesCount: 19 },
+  { id: 'nandubaysal-propiedades', name: 'Ñandubaysal Propiedades', city: 'Gualeguaychú', zone: 'Costa del Uruguay', address: 'Av. Costanera 540', phone: '03446 43-8812', propertiesCount: 12 },
+  { id: 'colon-inversiones', name: 'Colón Inversiones', city: 'Colón', zone: 'Costa del Uruguay', address: '12 de Abril 85', phone: '03447 42-1904', propertiesCount: 13 },
+  { id: 'termas-y-rio-propiedades', name: 'Termas & Río Propiedades', city: 'Colón', zone: 'Costa del Uruguay', address: 'Alejo Peyret 220', phone: '03447 42-3377', propertiesCount: 6 },
+  { id: 'termas-alquileres', name: 'Termas Alquileres', city: 'Federación', zone: 'Costa del Uruguay', address: 'Las Camelias 310', phone: '0345 449-4020', propertiesCount: 12 },
+  { id: 'norte-citricola-propiedades', name: 'Norte Citrícola Propiedades', city: 'Chajarí', zone: 'Costa del Uruguay', address: 'Sarmiento 2280', phone: '03456 42-0761', propertiesCount: 10 },
+  { id: 'villa-elisa-propiedades', name: 'Villa Elisa Propiedades', city: 'Villa Elisa', zone: 'Costa del Uruguay', address: 'Av. Urquiza 1550', phone: '03447 48-0233', propertiesCount: 7 },
+  // Centro
+  { id: 'centro-entrerriano-inmuebles', name: 'Centro Entrerriano Inmuebles', city: 'Villaguay', zone: 'Centro', address: 'Bartolomé Mitre 447', phone: '03455 42-1128', propertiesCount: 9 },
+  { id: 'nogoya-bienes-raices', name: 'Nogoyá Bienes Raíces', city: 'Nogoyá', zone: 'Centro', address: 'Av. Iturraspe 890', phone: '03435 42-2740', propertiesCount: 7 },
+  // Norte y Sur entrerriano
+  { id: 'federal-campos', name: 'Federal Campos', city: 'Federal', zone: 'Norte y Sur entrerriano', address: 'Donovan 155', phone: '03454 42-1066', propertiesCount: 4 },
+  { id: 'gualeguay-inmobiliaria', name: 'Gualeguay Inmobiliaria', city: 'Gualeguay', zone: 'Norte y Sur entrerriano', address: 'San Antonio 380', phone: '03444 42-3915', propertiesCount: 11 },
+  { id: 'delta-propiedades', name: 'Delta Propiedades', city: 'Villa Paranacito', zone: 'Norte y Sur entrerriano', address: 'Ruta 46 km 2', phone: '03446 49-5108', propertiesCount: 3 },
+]
+
+// Avisos ficticios para los espacios publicitarios vendibles (ui.pdf).
+// Cuando exista el módulo de publicidad, esto sale del backend.
+export interface Ad {
+  advertiser: string
+  headline: string
+  tagline: string
+  cta: string
+  /** Clases tailwind del fondo del banner. */
+  bg: string
+}
+
+export const ads: Ad[] = [
+  {
+    advertiser: 'Banco del Litoral',
+    headline: 'Créditos hipotecarios UVA',
+    tagline: 'Tu casa propia está más cerca de lo que pensás.',
+    cta: 'Simulá tu cuota',
+    bg: 'bg-gradient-to-r from-brand-dark via-brand to-brand-light',
+  },
+  {
+    advertiser: 'Litoral Seguros',
+    headline: 'Protegé tu hogar desde $12.900/mes',
+    tagline: 'Incendio, robo y responsabilidad civil en un solo plan.',
+    cta: 'Cotizar ahora',
+    bg: 'bg-gradient-to-r from-accent-deep via-accent-dark to-accent',
+  },
+  {
+    advertiser: 'Corralón El Cimiento',
+    headline: 'Todo para construir o refaccionar',
+    tagline: 'Envíos sin cargo a toda la provincia de Entre Ríos.',
+    cta: 'Ver catálogo',
+    bg: 'bg-gradient-to-r from-ink via-[#3a3a3a] to-[#555555]',
+  },
+]
 
 export function formatPrice(p: Property): string {
   const n = p.price.toLocaleString('es-AR')

@@ -194,7 +194,7 @@ export default function Home() {
 
       {/* Espacio publicitario */}
       <div className="mx-auto max-w-7xl px-4 pt-8">
-        <AdSlot />
+        <AdSlot adIndex={0} />
       </div>
 
       {/* Propiedades super destacadas */}
@@ -283,8 +283,8 @@ export default function Home() {
 
       {/* Espacios publicitarios dobles */}
       <div className="mx-auto grid max-w-7xl gap-4 px-4 pt-12 md:grid-cols-2">
-        <AdSlot />
-        <AdSlot />
+        <AdSlot adIndex={1} />
+        <AdSlot adIndex={2} />
       </div>
     </div>
   )
