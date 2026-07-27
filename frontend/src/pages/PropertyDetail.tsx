@@ -4,134 +4,204 @@ import {
   Bath,
   BedDouble,
   Building2,
+  Car,
   ChevronRight,
+  Eye,
   Maximize,
   MapPin,
 } from 'lucide-react'
 import Button from '../components/common/Button'
 import Input from '../components/common/Input'
-import {
-  formatPrice,
-  operationLabels,
-  properties,
-  typeLabels,
-} from '../data/mock'
-
-const gallery = [
-  'photo-1568605114967-8130f3a36994',
-  'photo-1505691938895-1758d7feb511',
-  'photo-1484154218962-a197022b5858',
-  'photo-1502672260266-1c1ef2d93688',
-]
+import { ErrorState, Spinner } from '../components/common/AsyncState'
+import { useResource } from '../hooks/useResource'
+import { getPublicProperty } from '../api/publicCatalog'
+import { formatPrice, operationLabels, typeLabels } from '../lib/propertyLabels'
 
 export default function PropertyDetail() {
   const { id } = useParams()
-  const property = properties.find((p) => p.id === id) ?? properties[0]
   const [active, setActive] = useState(0)
   const [sent, setSent] = useState(false)
 
+  const recurso = useResource(() => getPublicProperty(id as string), [id])
+
+  if (recurso.error) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16">
+        <ErrorState error={recurso.error} onRetry={recurso.reload} />
+        <p className="mt-4 text-center">
+          <Link to="/buscar" className="text-brand hover:underline">
+            Ver otras propiedades
+          </Link>
+        </p>
+      </div>
+    )
+  }
+
+  if (recurso.loading || !recurso.data) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-16">
+        <Spinner label="Cargando propiedad…" />
+      </div>
+    )
+  }
+
+  const property = recurso.data
+  const ubicacion = [property.address, property.city, property.state]
+    .filter(Boolean)
+    .join(', ')
+  const galeria = property.media
+  const principal = galeria[active] ?? galeria[0]
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
-      {/* Breadcrumb */}
       <nav className="flex flex-wrap items-center gap-1 text-sm text-muted">
-        <Link to="/" className="hover:text-brand">Inicio</Link>
+        <Link to="/" className="hover:text-brand">
+          Inicio
+        </Link>
         <ChevronRight className="h-3.5 w-3.5" />
-        <Link to={`/buscar?op=${property.operation}`} className="hover:text-brand">
-          {operationLabels[property.operation]}
+        <Link to={`/buscar?op=${property.operationType}`} className="hover:text-brand">
+          {operationLabels[property.operationType]}
         </Link>
         <ChevronRight className="h-3.5 w-3.5" />
         <span className="text-ink">{property.title}</span>
       </nav>
 
       <div className="mt-5 grid gap-8 lg:grid-cols-[1.6fr_1fr]">
-        {/* Gallery + info */}
         <div>
           <div className="overflow-hidden rounded-lg border border-line">
-            <img
-              src={`https://images.unsplash.com/${gallery[active]}?auto=format&fit=crop&w=1000&q=75`}
-              alt={property.title}
-              className="aspect-[16/10] w-full object-cover"
-            />
+            {principal ? (
+              <img
+                src={principal.url}
+                alt={property.title}
+                className="aspect-[16/10] w-full object-cover"
+              />
+            ) : (
+              <div className="grid aspect-[16/10] w-full place-items-center bg-canvas">
+                <Building2 className="h-12 w-12 text-muted" aria-hidden />
+              </div>
+            )}
           </div>
-          <div className="mt-3 grid grid-cols-4 gap-3">
-            {gallery.map((g, i) => (
-              <button
-                key={g}
-                onClick={() => setActive(i)}
-                className={`overflow-hidden rounded-md border-2 transition-colors ${
-                  active === i ? 'border-brand' : 'border-transparent'
-                }`}
-              >
-                <img
-                  src={`https://images.unsplash.com/${g}?auto=format&fit=crop&w=240&q=60`}
-                  alt=""
-                  className="aspect-[4/3] w-full object-cover"
-                />
-              </button>
-            ))}
-          </div>
+
+          {galeria.length > 1 && (
+            <div className="mt-3 grid grid-cols-4 gap-3">
+              {galeria.map((m, i) => (
+                <button
+                  key={m.id}
+                  onClick={() => setActive(i)}
+                  className={`overflow-hidden rounded-md border-2 transition-colors ${
+                    active === i ? 'border-brand' : 'border-transparent'
+                  }`}
+                >
+                  <img
+                    src={m.thumbnailUrl ?? m.url}
+                    alt=""
+                    loading="lazy"
+                    className="aspect-[4/3] w-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="mt-6 rounded-lg border border-line bg-surface p-6 shadow-card">
             <span className="rounded-pill bg-brand px-3 py-1 text-xs font-medium text-white">
-              {operationLabels[property.operation]} · {typeLabels[property.type]}
+              {operationLabels[property.operationType]} ·{' '}
+              {typeLabels[property.propertyType]}
             </span>
             <h1 className="mt-3 text-2xl font-bold tracking-base text-ink">
               {property.title}
             </h1>
-            <p className="mt-1 flex items-center gap-1 text-muted">
-              <MapPin className="h-4 w-4" />
-              {property.address}, {property.city}
-            </p>
+            {ubicacion && (
+              <p className="mt-1 flex items-center gap-1 text-muted">
+                <MapPin className="h-4 w-4" />
+                {ubicacion}
+              </p>
+            )}
             <p className="mt-4 text-3xl font-bold tracking-base text-ink">
-              {formatPrice(property)}
+              {formatPrice(property.price, property.currency)}
             </p>
 
             <div className="mt-6 flex flex-wrap gap-6 border-t border-line pt-5 text-sm text-ink">
-              {property.rooms > 0 && (
+              {property.rooms !== null && property.rooms > 0 && (
                 <span className="flex items-center gap-2">
                   <BedDouble className="h-5 w-5 text-brand" />
                   {property.rooms} ambientes
                 </span>
               )}
-              <span className="flex items-center gap-2">
-                <Bath className="h-5 w-5 text-brand" />
-                {property.bathrooms} baños
-              </span>
-              <span className="flex items-center gap-2">
-                <Maximize className="h-5 w-5 text-brand" />
-                {property.area} m²
-              </span>
+              {property.bathrooms !== null && property.bathrooms > 0 && (
+                <span className="flex items-center gap-2">
+                  <Bath className="h-5 w-5 text-brand" />
+                  {property.bathrooms} baños
+                </span>
+              )}
+              {property.parking !== null && property.parking > 0 && (
+                <span className="flex items-center gap-2">
+                  <Car className="h-5 w-5 text-brand" />
+                  {property.parking} cocheras
+                </span>
+              )}
+              {property.areaM2 !== null && (
+                <span className="flex items-center gap-2">
+                  <Maximize className="h-5 w-5 text-brand" />
+                  {Number(property.areaM2)} m²
+                </span>
+              )}
             </div>
 
-            <div className="mt-6 border-t border-line pt-5">
-              <h2 className="text-lg font-semibold tracking-base text-ink">
-                Descripción
-              </h2>
-              <p className="mt-2 leading-relaxed text-muted">
-                Excelente {typeLabels[property.type].toLowerCase()} ubicada en{' '}
-                {property.city}. Espacios amplios y luminosos, ideal para
-                familias. Cercana a comercios, transporte y escuelas. Consultá
-                disponibilidad para coordinar una visita.
-              </p>
-            </div>
+            {property.description && (
+              <div className="mt-6 border-t border-line pt-5">
+                <h2 className="text-lg font-semibold tracking-base text-ink">
+                  Descripción
+                </h2>
+                <p className="mt-2 whitespace-pre-line leading-relaxed text-muted">
+                  {property.description}
+                </p>
+              </div>
+            )}
 
-            <div className="mt-6 flex items-center gap-2 border-t border-line pt-5 text-sm text-muted">
-              <Building2 className="h-4 w-4" />
-              Publicado por <span className="font-medium text-ink">{property.agency}</span>
+            {property.features.length > 0 && (
+              <div className="mt-6 border-t border-line pt-5">
+                <h2 className="text-lg font-semibold tracking-base text-ink">
+                  Características
+                </h2>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {property.features.map((f) => (
+                    <li
+                      key={f}
+                      className="rounded-pill border border-line px-3 py-1 text-sm text-ink"
+                    >
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5 text-sm text-muted">
+              <span className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Publicado por{' '}
+                <span className="font-medium text-ink">{property.agency.name}</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Eye className="h-4 w-4" />
+                {property.viewsCount} vistas
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Contact form */}
         <aside className="h-fit lg:sticky lg:top-24">
           <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
             <h2 className="text-lg font-semibold tracking-base text-ink">
               Contactar a la inmobiliaria
             </h2>
+            {/* El formulario todavía no envía nada: falta el módulo de consultas
+                en el backend, que es lo que convierte esto en un lead. */}
             {sent ? (
               <p className="mt-4 rounded-md bg-brand/10 p-4 text-sm text-brand-dark">
-                ¡Consulta enviada! La inmobiliaria se pondrá en contacto a la
-                brevedad.
+                El envío de consultas todavía no está habilitado. Mientras tanto,
+                escribile directo a la inmobiliaria.
               </p>
             ) : (
               <form
@@ -153,6 +223,14 @@ export default function PropertyDetail() {
                   Enviar consulta
                 </Button>
               </form>
+            )}
+
+            {(property.agencyContact.email || property.agencyContact.phone) && (
+              <div className="mt-5 border-t border-line pt-4 text-sm text-muted">
+                <p className="font-medium text-ink">{property.agency.name}</p>
+                {property.agencyContact.email && <p>{property.agencyContact.email}</p>}
+                {property.agencyContact.phone && <p>{property.agencyContact.phone}</p>}
+              </div>
             )}
           </div>
         </aside>

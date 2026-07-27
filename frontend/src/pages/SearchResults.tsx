@@ -1,22 +1,31 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal } from 'lucide-react'
 import PropertyCard from '../components/properties/PropertyCard'
 import Select from '../components/common/Select'
-import { operationLabels, properties, typeLabels } from '../data/mock'
-import type { Operation, PropertyType } from '../types'
+import { EmptyState, ErrorState, Spinner } from '../components/common/AsyncState'
+import { useResource } from '../hooks/useResource'
+import { useDebounced } from '../hooks/useDebounced'
+import { getCatalog } from '../api/publicCatalog'
+import type { OperationType, PropertyType } from '../api/schemas'
+import { operationLabels, typeOptions } from '../lib/propertyLabels'
 
-const typeOptions = Object.entries(typeLabels).map(([value, label]) => ({
-  value,
-  label,
-}))
+const operaciones: OperationType[] = ['sale', 'rent', 'temporary_rental']
+
+const sortOptions = [
+  { value: 'relevance', label: 'Más relevantes' },
+  { value: 'price_asc', label: 'Menor precio' },
+  { value: 'price_desc', label: 'Mayor precio' },
+  { value: 'recent', label: 'Más recientes' },
+]
 
 export default function SearchResults() {
   const [params, setParams] = useSearchParams()
-  const op = (params.get('op') ?? '') as Operation | ''
+  const [sort, setSort] = useState('relevance')
+
+  const op = (params.get('op') ?? '') as OperationType | ''
   const type = (params.get('type') ?? '') as PropertyType | ''
   const q = params.get('q') ?? ''
-  const [sort, setSort] = useState('relevance')
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params)
@@ -25,23 +34,27 @@ export default function SearchResults() {
     setParams(next)
   }
 
-  const results = useMemo(() => {
-    let list = properties.slice()
-    if (op) list = list.filter((p) => p.operation === op)
-    if (type) list = list.filter((p) => p.type === type)
-    if (q)
-      list = list.filter((p) =>
-        `${p.city} ${p.address}`.toLowerCase().includes(q.toLowerCase()),
-      )
-    if (sort === 'price-asc') list.sort((a, b) => a.price - b.price)
-    if (sort === 'price-desc') list.sort((a, b) => b.price - a.price)
-    return list
-  }, [op, type, q, sort])
+  // El filtro de ubicación se escribe letra por letra: no conviene pedir en cada tecla.
+  const qDebounced = useDebounced(q)
+
+  const catalogo = useResource(
+    () =>
+      getCatalog({
+        search: qDebounced || undefined,
+        operationType: op || undefined,
+        propertyType: type || undefined,
+        sort: sort as 'relevance',
+        pageSize: 24,
+      }),
+    [qDebounced, op, type, sort],
+  )
+
+  const total = catalogo.data?.total ?? 0
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="grid gap-8 md:grid-cols-[300px_1fr]">
-        {/* Filters */}
+        {/* Filtros */}
         <aside className="h-fit rounded-lg border border-line bg-surface p-5 shadow-card">
           <h2 className="flex items-center gap-2 text-lg font-semibold tracking-base text-ink">
             <SlidersHorizontal className="h-4 w-4 text-brand" />
@@ -50,11 +63,9 @@ export default function SearchResults() {
 
           <div className="mt-5 space-y-5">
             <div>
-              <span className="mb-1.5 block text-sm font-medium text-ink">
-                Operación
-              </span>
+              <span className="mb-1.5 block text-sm font-medium text-ink">Operación</span>
               <div className="flex flex-wrap gap-2">
-                {(['venta', 'alquiler', 'temporal'] as Operation[]).map((o) => (
+                {operaciones.map((o) => (
                   <button
                     key={o}
                     onClick={() => setParam('op', op === o ? '' : o)}
@@ -79,9 +90,7 @@ export default function SearchResults() {
             />
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-ink">
-                Ubicación
-              </span>
+              <span className="mb-1.5 block text-sm font-medium text-ink">Ubicación</span>
               <input
                 value={q}
                 onChange={(e) => setParam('q', e.target.value)}
@@ -92,33 +101,33 @@ export default function SearchResults() {
           </div>
         </aside>
 
-        {/* Results */}
+        {/* Resultados */}
         <section>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-xl font-semibold tracking-base text-ink">
-              {results.length} propiedades
+              {catalogo.loading && !catalogo.data
+                ? 'Buscando…'
+                : `${total} ${total === 1 ? 'propiedad' : 'propiedades'}`}
               {op && ` en ${operationLabels[op].toLowerCase()}`}
             </h1>
             <div className="w-52">
               <Select
-                options={[
-                  { value: 'relevance', label: 'Más relevantes' },
-                  { value: 'price-asc', label: 'Menor precio' },
-                  { value: 'price-desc', label: 'Mayor precio' },
-                ]}
+                options={sortOptions}
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
               />
             </div>
           </div>
 
-          {results.length === 0 ? (
-            <p className="rounded-lg border border-line bg-surface p-8 text-center text-muted">
-              No hay resultados con esos filtros.
-            </p>
+          {catalogo.error ? (
+            <ErrorState error={catalogo.error} onRetry={catalogo.reload} />
+          ) : catalogo.loading && !catalogo.data ? (
+            <Spinner label="Buscando propiedades…" />
+          ) : catalogo.data && catalogo.data.items.length === 0 ? (
+            <EmptyState>No hay resultados con esos filtros.</EmptyState>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-              {results.map((p) => (
+              {catalogo.data?.items.map((p) => (
                 <PropertyCard key={p.id} property={p} />
               ))}
             </div>

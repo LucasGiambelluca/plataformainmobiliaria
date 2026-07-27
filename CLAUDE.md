@@ -54,7 +54,9 @@ Shared database con `tenant_id` en toda tabla de negocio. El aislamiento se gara
 
 - `app.ts` monta helmet, cors, rate limit y el router raíz; `server.ts` levanta y conecta Prisma.
 - `routes/index.ts` es el router raíz de la API (`/api`). Convención de módulos: `src/modules/<nombre>/` con router + service + repository + schemas. Cada router exporta una factory (`createXRouter(service)`) más una instancia con el wiring por defecto: los tests inyectan un service falso por la factory.
-- Módulos construidos: `auth`, `tenants`, `users`, `subscriptions`, `properties`, `media`. Faltan `sites`, `domains`, `billing`, `notifications`, `inquiries`, `audit`.
+- Módulos construidos: `auth`, `tenants`, `users`, `subscriptions`, `properties`, `media`, `public`. Faltan `sites`, `domains`, `billing`, `notifications`, `inquiries`, `audit`.
+- **`public` es la única excepción a la regla de `BaseRepository`**: el catálogo abierto lee a través de todos los tenants a propósito, que es justo lo que `BaseRepository` prohíbe. Lo que reemplaza al aislamiento es la constante `visibilidad` de `public.repository.ts` — solo `published`/`featured` de tenants activos — que **toda** consulta del archivo tiene que incluir. Si una query nueva la olvida, se filtran borradores o propiedades de una inmobiliaria suspendida. `tests/unit/public.repository.test.ts` mockea Prisma justamente para verificar que ningún `where` salga sin ella.
+- El catálogo público no expone filtro de estado: qué es visible lo decide el servidor. `onlyFeatured` restringe dentro de lo visible, nunca lo amplía.
 - `media` se monta anidado bajo `properties` (`/api/properties/:propertyId/media`), por eso su router usa `mergeParams` y repite `authorize`/`requireTenant` en vez de confiar en dónde lo montan.
 - Subida de multimedia en dos pasos: `POST .../media/upload-url` firma la URL y reserva el cupo con el tamaño **declarado**; `POST .../media/:id/confirm` contrasta contra el tamaño **real** del objeto (`head`) y ajusta. Sin ese contraste, declarar 1 byte y subir 4 GB saltearía el límite del plan.
 - **El presigner necesita `signableHeaders: new Set(["content-type"])` sí o sí.** Sin eso firma solo el host y el storage acepta cualquier Content-Type en el PUT (verificado contra MinIO). Como el bucket es de lectura pública, permitiría alojar HTML arbitrario en el dominio del CDN. `confirm` además vuelve a contrastar el Content-Type almacenado contra el que corresponde a la extensión de la clave.
@@ -73,7 +75,9 @@ Cada inmobiliaria tiene web propia accesible por slug, subdominio (`*.plataforma
 
 ### Frontend (`frontend/src/`)
 
-**Estado actual: parcialmente conectado.** Auth, inmobiliarias, planes y suscripción usan el backend real; el resto sigue con datos hardcodeados en `src/data/mock.ts`, `panelMock.ts`, `adminMock.ts` porque todavía no existe el módulo backend correspondiente (propiedades, leads, dominios, auditoría). Al conectar un módulo, reemplazar el mock correspondiente.
+**Estado actual: parcialmente conectado.** Usan el backend real: auth, inmobiliarias, planes, suscripción, el panel de propiedades con carga de fotos, y el sitio público (home, buscador y ficha). Siguen con datos hardcodeados en `src/data/mock.ts`, `panelMock.ts`, `adminMock.ts`: leads, mi sitio, dominios, auditoría, los dashboards y el directorio de inmobiliarias — todos esperan su módulo de backend. Al conectar un módulo, reemplazar el mock correspondiente.
+
+Las etiquetas en español de los enums del backend viven en `src/lib/propertyLabels.ts`, no en un componente: las comparten el panel, el catálogo y la ficha.
 
 - Capa de acceso a datos: `src/lib/api.ts` (cliente axios con `withCredentials`, refresh automático ante 401 y helpers `getJson`/`postJson`/`patchJson` que validan la respuesta con Zod), `src/api/*` (un archivo por módulo del backend), `src/api/schemas.ts` (espejo de los contratos y schemas de formularios). Errores normalizados en `src/lib/apiError.ts` como `ApiError`.
 - Sesión: `src/store/auth.ts` (Zustand). El access token vive **solo en memoria** (`src/lib/session.ts`), nunca en localStorage; la sesión sobrevive al F5 por la cookie httpOnly de refresh. El refresh es single-flight a propósito: el backend rota los refresh tokens y trata la reutilización como robo, revocando todas las sesiones.

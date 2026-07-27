@@ -1,53 +1,26 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, ChevronRight, SlidersHorizontal } from 'lucide-react'
 import Select from '../components/common/Select'
 import AdSlot from '../components/common/AdSlot'
 import PropertyCard from '../components/properties/PropertyCard'
-import {
-  categoryLabels,
-  developmentStatusLabels,
-  featuredProperties,
-  operationLabels,
-  properties,
-  typeLabels,
-} from '../data/mock'
-import type { DevelopmentStatus, Operation } from '../types'
+import { EmptyState, ErrorState, Spinner } from '../components/common/AsyncState'
+import { useResource } from '../hooks/useResource'
+import { getCatalog, getCities } from '../api/publicCatalog'
+import type { OperationType } from '../api/schemas'
+import { operationLabels, typeOptions } from '../lib/propertyLabels'
 
 // Home del portal según ui.pdf: hero con buscador, CTAs de garantía/seguro,
-// espacios publicitarios, carrusel de super destacadas y grilla filtrable.
+// espacios publicitarios, carrusel de destacadas y grilla filtrable.
+//
+// Los filtros de "emprendimiento / countries / campo" y los de estado de obra
+// que tenía el prototipo se quitaron: son conceptos que el modelo de datos no
+// tiene, así que no había forma de que devolvieran algo real.
 
-const searchTabs: { key: Operation; label: string }[] = [
-  { key: 'venta', label: 'Venta' },
-  { key: 'alquiler', label: 'Alquiler' },
-  { key: 'temporal', label: 'Temporario' },
-]
-
-const typeOptions = Object.entries(typeLabels).map(([value, label]) => ({
-  value,
-  label,
-}))
-
-const localityOptions = [
-  'Paraná',
-  'Concordia',
-  'Gualeguaychú',
-  'Concepción del Uruguay',
-  'Colón',
-  'Villaguay',
-].map((c) => ({ value: c, label: c }))
-
-// Filtros de la sección "Propiedades destacadas": operaciones + categorías.
-const featuredFilters = [
-  ...searchTabs.map((t) => ({ key: t.key as string, label: t.label })),
-  ...Object.entries(categoryLabels).map(([key, label]) => ({ key, label })),
-]
-
-const developmentFilters: { key: DevelopmentStatus | 'todo'; label: string }[] = [
-  { key: 'todo', label: 'Todo' },
-  ...(
-    Object.entries(developmentStatusLabels) as [DevelopmentStatus, string][]
-  ).map(([key, label]) => ({ key, label })),
+const searchTabs: { key: OperationType; label: string }[] = [
+  { key: 'sale', label: 'Venta' },
+  { key: 'rent', label: 'Alquiler' },
+  { key: 'temporary_rental', label: 'Temporario' },
 ]
 
 const CAROUSEL_SIZE = 3
@@ -56,34 +29,39 @@ export default function Home() {
   const navigate = useNavigate()
 
   // Buscador del hero
-  const [op, setOp] = useState<Operation>('venta')
+  const [op, setOp] = useState<OperationType>('sale')
   const [type, setType] = useState('')
-  const [location, setLocation] = useState('Paraná')
+  const [location, setLocation] = useState('')
 
-  // Carrusel de super destacadas
   const [page, setPage] = useState(0)
-  const pages = Math.max(1, Math.ceil(featuredProperties.length / CAROUSEL_SIZE))
-  const carousel = featuredProperties.slice(
-    page * CAROUSEL_SIZE,
-    page * CAROUSEL_SIZE + CAROUSEL_SIZE,
+  const [filter, setFilter] = useState<OperationType | 'all'>('all')
+
+  // Las localidades salen de las propiedades publicadas: no tiene sentido
+  // ofrecer una ciudad donde no hay nada para mostrar.
+  const ciudades = useResource(() => getCities(), [])
+
+  const destacadas = useResource(
+    () => getCatalog({ onlyFeatured: true, pageSize: 12 }),
+    [],
   )
 
-  // Filtros de destacadas
-  const [filter, setFilter] = useState('emprendimiento')
-  const [devStatus, setDevStatus] = useState<DevelopmentStatus | 'todo'>('todo')
+  const grilla = useResource(
+    () =>
+      getCatalog({
+        operationType: filter === 'all' ? undefined : filter,
+        pageSize: 12,
+      }),
+    [filter],
+  )
 
-  const filtered = useMemo(() => {
-    let list = properties
-    if (filter in operationLabels) {
-      list = list.filter((p) => p.operation === filter && !p.category)
-    } else {
-      list = list.filter((p) => p.category === filter)
-      if (filter === 'emprendimiento' && devStatus !== 'todo') {
-        list = list.filter((p) => p.developmentStatus === devStatus)
-      }
-    }
-    return list
-  }, [filter, devStatus])
+  const items = destacadas.data?.items ?? []
+  const pages = Math.max(1, Math.ceil(items.length / CAROUSEL_SIZE))
+  const carousel = items.slice(page * CAROUSEL_SIZE, page * CAROUSEL_SIZE + CAROUSEL_SIZE)
+
+  const localityOptions = (ciudades.data ?? []).map((c) => ({
+    value: c.city,
+    label: `${c.city} (${c.count})`,
+  }))
 
   const search = () => {
     const params = new URLSearchParams({ op })
@@ -113,7 +91,6 @@ export default function Home() {
             Con el respaldo del sector inmobiliario
           </p>
 
-          {/* Buscador */}
           <div className="mt-10 max-w-2xl">
             <div className="flex">
               {searchTabs.map((t) => (
@@ -143,6 +120,7 @@ export default function Home() {
                 />
                 <Select
                   label="Localidad"
+                  placeholder="Todas las localidades"
                   options={localityOptions}
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
@@ -168,7 +146,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* CTAs garantía / seguro */}
           <div className="mt-8 max-w-2xl space-y-4">
             <Link
               to="/garantias"
@@ -192,49 +169,67 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Espacio publicitario */}
       <div className="mx-auto max-w-7xl px-4 pt-8">
         <AdSlot adIndex={0} />
       </div>
 
-      {/* Propiedades super destacadas */}
+      {/* Super destacadas */}
       <section className="mx-auto max-w-7xl px-4 pt-12">
         <h2 className="border-l-4 border-accent pl-3 font-serif text-2xl text-ink">
           Propiedades super destacadas
         </h2>
 
-        <div className="relative mt-8">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {carousel.map((p) => (
-              <PropertyCard key={p.id} property={p} />
-            ))}
+        {destacadas.error ? (
+          <div className="mt-8">
+            <ErrorState error={destacadas.error} onRetry={destacadas.reload} />
           </div>
+        ) : destacadas.loading && !destacadas.data ? (
+          <Spinner />
+        ) : items.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState>
+              Todavía no hay propiedades destacadas. Las inmobiliarias pueden
+              destacar sus publicaciones desde su panel.
+            </EmptyState>
+          </div>
+        ) : (
+          <div className="relative mt-8">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {carousel.map((p) => (
+                <PropertyCard key={p.id} property={p} />
+              ))}
+            </div>
 
-          <button
-            onClick={() => setPage((page - 1 + pages) % pages)}
-            aria-label="Anterior"
-            className="absolute -left-4 top-1/2 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-muted bg-surface text-ink shadow-card transition-colors hover:bg-canvas lg:grid"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setPage((page + 1) % pages)}
-            aria-label="Siguiente"
-            className="absolute -right-4 top-1/2 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-muted bg-surface text-ink shadow-card transition-colors hover:bg-canvas lg:grid"
-          >
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
+            {pages > 1 && (
+              <>
+                <button
+                  onClick={() => setPage((page - 1 + pages) % pages)}
+                  aria-label="Anterior"
+                  className="absolute -left-4 top-1/2 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-muted bg-surface text-ink shadow-card transition-colors hover:bg-canvas lg:grid"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setPage((page + 1) % pages)}
+                  aria-label="Siguiente"
+                  className="absolute -right-4 top-1/2 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-muted bg-surface text-ink shadow-card transition-colors hover:bg-canvas lg:grid"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </section>
 
-      {/* Propiedades destacadas */}
+      {/* Grilla filtrable por operación */}
       <section className="mx-auto max-w-7xl px-4 pt-12">
         <h2 className="border-l-4 border-accent pl-3 font-serif text-2xl text-ink">
-          Propiedades destacadas
+          Últimas publicaciones
         </h2>
 
         <div className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-3">
-          {featuredFilters.map((f) => (
+          {[{ key: 'all' as const, label: 'Todas' }, ...searchTabs].map((f) => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
@@ -249,39 +244,40 @@ export default function Home() {
           ))}
         </div>
 
-        {filter === 'emprendimiento' && (
-          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-3">
-            {developmentFilters.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setDevStatus(f.key)}
-                className={`rounded-pill px-4 py-1.5 font-serif text-[15px] transition-colors ${
-                  devStatus === f.key
-                    ? 'bg-brand text-white'
-                    : 'text-ink hover:text-accent-dark'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+        {grilla.error ? (
+          <div className="mt-6">
+            <ErrorState error={grilla.error} onRetry={grilla.reload} />
           </div>
+        ) : grilla.loading && !grilla.data ? (
+          <Spinner />
+        ) : (
+          <>
+            <p className="mt-6 font-serif text-sm font-semibold text-muted">
+              {grilla.data?.total ?? 0}{' '}
+              {grilla.data?.total === 1
+                ? 'propiedad encontrada'
+                : 'propiedades encontradas'}
+            </p>
+
+            {grilla.data && grilla.data.items.length === 0 ? (
+              <div className="mt-4">
+                <EmptyState>
+                  {filter === 'all'
+                    ? 'Todavía no hay propiedades publicadas en el portal.'
+                    : `No hay propiedades en ${operationLabels[filter].toLowerCase()}.`}
+                </EmptyState>
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                {grilla.data?.items.map((p) => (
+                  <PropertyCard key={p.id} property={p} compact />
+                ))}
+              </div>
+            )}
+          </>
         )}
-
-        <p className="mt-6 font-serif text-sm font-semibold text-muted">
-          {filtered.length}{' '}
-          {filtered.length === 1
-            ? 'propiedad encontrada'
-            : 'propiedades encontradas'}
-        </p>
-
-        <div className="mt-4 grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-          {filtered.map((p) => (
-            <PropertyCard key={p.id} property={p} compact />
-          ))}
-        </div>
       </section>
 
-      {/* Espacios publicitarios dobles */}
       <div className="mx-auto grid max-w-7xl gap-4 px-4 pt-12 md:grid-cols-2">
         <AdSlot adIndex={1} />
         <AdSlot adIndex={2} />
