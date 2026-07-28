@@ -17,12 +17,17 @@ import {
   type CreatePropertyBody,
   type UpdatePropertyBody,
 } from "./properties.schemas";
+import { auditService } from "@/modules/audit/audit.router";
+import type { Auditor } from "@/modules/audit/audit.service";
 import { PropertiesService } from "./properties.service";
 import { propertiesRepository } from "./properties.repository";
 
 // Propiedades de la inmobiliaria (§9.4). tenant_admin y agent: cargar y editar
 // publicaciones es el trabajo diario de un agente.
-export function createPropertiesRouter(service: PropertiesService): Router {
+export function createPropertiesRouter(
+  service: PropertiesService,
+  auditor: Auditor,
+): Router {
   const router = Router();
 
   router.use(authenticate, authorize("tenant_admin", "agent"), requireTenant);
@@ -89,6 +94,18 @@ export function createPropertiesRouter(service: PropertiesService): Router {
     "/:id",
     asyncHandler(async (req, res) => {
       await service.remove(req.params.id, req.tenantId as string);
+
+      // Borrar una publicación destruye también sus fotos: conviene saber
+      // quién lo hizo.
+      await auditor.record({
+        tenantId: req.tenantId as string,
+        userId: req.user?.id ?? null,
+        action: "property.delete",
+        entityType: "property",
+        entityId: req.params.id,
+        ipAddress: req.ip,
+      });
+
       res.status(204).end();
     }),
   );
@@ -102,4 +119,5 @@ export function createPropertiesRouter(service: PropertiesService): Router {
 // Router con el wiring por defecto (repositorio Prisma + servicios compartidos).
 export const propertiesRouter = createPropertiesRouter(
   new PropertiesService(propertiesRepository, limitService, storageProvider),
+  auditService,
 );

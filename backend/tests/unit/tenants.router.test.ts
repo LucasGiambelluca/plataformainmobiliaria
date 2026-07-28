@@ -29,11 +29,70 @@ function makeApp(overrides: Partial<TenantsService> = {}) {
 
   const app = express();
   app.use(express.json());
-  app.use("/api/admin/tenants", createTenantsRouter(service));
+  // Auditor espía: verifica el registro sin escribir en la base.
+  const auditor = { record: jest.fn().mockResolvedValue(undefined) };
+  app.use("/api/admin/tenants", createTenantsRouter(service, auditor));
   app.use(notFoundHandler);
   app.use(errorHandler);
-  return { app, service };
+  return { app, service, auditor };
 }
+
+describe("auditoría de acciones sobre inmobiliarias", () => {
+  it("suspender queda registrado como tenant.suspend", async () => {
+    // Es la acción que uno busca cuando pregunta quién dejó a una
+    // inmobiliaria sin servicio: no puede quedar como un "update" genérico.
+    const { app, auditor } = makeApp();
+    await request(app)
+      .patch(`/api/admin/tenants/${TENANT.id}`)
+      .set("Authorization", `Bearer ${superAdminToken()}`)
+      .send({ isActive: false });
+
+    expect(auditor.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "tenant.suspend", entityId: TENANT.id }),
+    );
+  });
+
+  it("reactivar queda registrado como tenant.activate", async () => {
+    const { app, auditor } = makeApp();
+    await request(app)
+      .patch(`/api/admin/tenants/${TENANT.id}`)
+      .set("Authorization", `Bearer ${superAdminToken()}`)
+      .send({ isActive: true });
+
+    expect(auditor.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "tenant.activate" }),
+    );
+  });
+
+  it("otros cambios quedan como tenant.update", async () => {
+    const { app, auditor } = makeApp();
+    await request(app)
+      .patch(`/api/admin/tenants/${TENANT.id}`)
+      .set("Authorization", `Bearer ${superAdminToken()}`)
+      .send({ name: "Nombre nuevo" });
+
+    expect(auditor.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "tenant.update" }),
+    );
+  });
+
+  it("el alta registra quién la hizo", async () => {
+    const { app, auditor } = makeApp();
+    await request(app)
+      .post("/api/admin/tenants")
+      .set("Authorization", `Bearer ${superAdminToken()}`)
+      .send({
+        tenantName: "Nueva Inmo",
+        slug: "nueva-inmo",
+        adminEmail: "admin@nueva.com",
+        adminPassword: "secreto-123",
+      });
+
+    expect(auditor.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "tenant.create", userId: "sa-1" }),
+    );
+  });
+});
 
 describe("tenants router (super admin)", () => {
   it("401 sin token en cualquier endpoint", async () => {
@@ -146,3 +205,4 @@ describe("tenants router (super admin)", () => {
     expect(service.update).not.toHaveBeenCalled();
   });
 });
+

@@ -12,6 +12,11 @@ import {
   publicInquiriesRouter,
 } from "@/modules/inquiries/inquiries.router";
 import { billingRouter } from "@/modules/billing/billing.router";
+import { auditRouter } from "@/modules/audit/audit.router";
+import {
+  platformMetricsRouter,
+  tenantMetricsRouter,
+} from "@/modules/analytics/analytics.router";
 
 // Router raíz de la API. Cada módulo monta su sub-router acá.
 export const apiRouter = Router();
@@ -37,5 +42,10 @@ apiRouter.use("/public/sites", publicSitesRouter);
 apiRouter.use("/inquiries", inquiriesRouter);
 // Cobros: checkout del tenant + webhook público de la pasarela.
 apiRouter.use("/billing", billingRouter);
+// Auditoría y métricas globales: solo super admin.
+apiRouter.use("/admin/audit", auditRouter);
+apiRouter.use("/admin/metrics", platformMetricsRouter);
+// Métricas propias de la inmobiliaria.
+apiRouter.use("/metrics", tenantMetricsRouter);
 // Alta de consulta desde la ficha pública, sin login.
 apiRouter.use("/public/properties/:propertyId/inquiries", publicInquiriesRouter);

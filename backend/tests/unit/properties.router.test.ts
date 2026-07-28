@@ -38,10 +38,11 @@ function makeApp(overrides: Partial<PropertiesService> = {}) {
 
   const app = express();
   app.use(express.json());
-  app.use("/api/properties", createPropertiesRouter(service));
+  const auditor = { record: jest.fn().mockResolvedValue(undefined) };
+  app.use("/api/properties", createPropertiesRouter(service, auditor));
   app.use(notFoundHandler);
   app.use(errorHandler);
-  return { app, service };
+  return { app, service, auditor };
 }
 
 const CREATE_BODY = {

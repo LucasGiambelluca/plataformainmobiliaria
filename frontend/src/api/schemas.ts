@@ -491,6 +491,77 @@ export const contactFormSchema = z.object({
 })
 export type ContactForm = z.infer<typeof contactFormSchema>
 
+/* --------------------------- métricas --------------------------- */
+
+export const platformMetricsSchema = z.object({
+  tenants: z.object({ total: z.number(), active: z.number(), suspended: z.number() }),
+  subscriptions: z.object({
+    active: z.number(),
+    trialing: z.number(),
+    pastDue: z.number(),
+    canceled: z.number(),
+  }),
+  mrr: decimalString,
+  revenueLast6Months: decimalString,
+  properties: z.object({ total: z.number(), published: z.number() }),
+  inquiriesLast30Days: z.number(),
+  revenueSeries: z.array(z.object({ month: z.string(), amount: decimalString })),
+  topAgencies: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      slug: z.string(),
+      properties: z.number(),
+    }),
+  ),
+})
+export type PlatformMetrics = z.infer<typeof platformMetricsSchema>
+
+export const tenantMetricsSchema = z.object({
+  properties: z.object({
+    total: z.number(),
+    published: z.number(),
+    draft: z.number(),
+    featured: z.number(),
+  }),
+  viewsTotal: z.number(),
+  inquiries: z.object({ total: z.number(), new: z.number(), last30Days: z.number() }),
+  topProperties: z.array(
+    z.object({ id: z.string(), title: z.string(), viewsCount: z.number() }),
+  ),
+})
+export type TenantMetrics = z.infer<typeof tenantMetricsSchema>
+
+export const platformMetricsResponseSchema = z.object({ metrics: platformMetricsSchema })
+export const tenantMetricsResponseSchema = z.object({ metrics: tenantMetricsSchema })
+
+/* --------------------------- auditoría --------------------------- */
+
+export const auditRecordSchema = z.object({
+  id: z.string(),
+  tenantId: z.string().nullable(),
+  tenantName: z.string().nullable(),
+  userId: z.string().nullable(),
+  userEmail: z.string().nullable(),
+  action: z.string(),
+  entityType: z.string().nullable(),
+  entityId: z.string().nullable(),
+  ipAddress: z.string().nullable(),
+  metadata: z.unknown(),
+  createdAt: z.string(),
+})
+export type AuditRecord = z.infer<typeof auditRecordSchema>
+
+export const auditListResponseSchema = z.object({
+  items: z.array(auditRecordSchema),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+})
+export type AuditListResponse = z.infer<typeof auditListResponseSchema>
+
+export const auditActionsResponseSchema = z.object({ actions: z.array(z.string()) })
+
 /* ------------------------- entradas (forms) ------------------------- */
 
 // Mismas reglas que backend/src/modules/**/**.schemas.ts: el usuario ve el

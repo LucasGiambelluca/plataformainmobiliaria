@@ -1,17 +1,39 @@
 import { Link } from 'react-router-dom'
-import { Building2, CircleDollarSign, CreditCard, TrendingUp } from 'lucide-react'
-import StatCard from '../../components/panel/StatCard'
-import Badge from '../../components/common/Badge'
 import {
-  revenueSeries,
-  tenants,
-  tenantStatusLabels,
-  tenantStatusTone,
-} from '../../data/adminMock'
+  Building2,
+  CircleDollarSign,
+  CreditCard,
+  Inbox,
+  TrendingUp,
+} from 'lucide-react'
+import StatCard from '../../components/panel/StatCard'
+import { EmptyState, ErrorState, Spinner } from '../../components/common/AsyncState'
+import { useResource } from '../../hooks/useResource'
+import { getPlatformMetrics } from '../../api/metrics'
+import { formatARS } from '../../data/mock'
+
+/** Montos grandes: en las tarjetas se muestran abreviados para que entren. */
+function compacto(monto: string): string {
+  const n = Number(monto)
+  if (n >= 1_000_000) return `$ ${(n / 1_000_000).toFixed(1)}M`
+  return formatARS(n)
+}
 
 export default function AdminDashboard() {
-  const max = Math.max(...revenueSeries.map((r) => r.value))
-  const active = tenants.filter((t) => t.status === 'active').length
+  const resource = useResource(getPlatformMetrics)
+
+  if (resource.error) {
+    return <ErrorState error={resource.error} onRetry={resource.reload} />
+  }
+  if (!resource.data) {
+    return <Spinner label="Cargando métricas…" />
+  }
+
+  const m = resource.data
+  // La escala del gráfico se calcula sobre el máximo real; con todo en cero no
+  // se puede dividir, así que se usa 1 y las barras quedan al ras.
+  const max = Math.max(1, ...m.revenueSeries.map((r) => Number(r.amount)))
+  const conIngresos = m.revenueSeries.some((r) => Number(r.amount) > 0)
 
   return (
     <div>
@@ -23,55 +45,101 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={Building2} label="Inmobiliarias" value={String(tenants.length)} delta={`${active} activas`} />
-        <StatCard icon={CreditCard} label="Suscripciones activas" value={String(active)} delta="+1 este mes" tone="accent" />
-        <StatCard icon={CircleDollarSign} label="MRR" value="$ 7.776.000" delta="+7%" />
-        <StatCard icon={TrendingUp} label="Ingresos (6 meses)" value="$ 38.2M" delta="+12%" tone="accent" />
+        <StatCard
+          icon={Building2}
+          label="Inmobiliarias"
+          value={String(m.tenants.total)}
+          delta={`${m.tenants.active} activas`}
+        />
+        <StatCard
+          icon={CreditCard}
+          label="Suscripciones activas"
+          value={String(m.subscriptions.active)}
+          delta={
+            m.subscriptions.pastDue > 0
+              ? `${m.subscriptions.pastDue} con pago pendiente`
+              : undefined
+          }
+          tone="accent"
+        />
+        <StatCard icon={CircleDollarSign} label="MRR" value={compacto(m.mrr)} />
+        <StatCard
+          icon={TrendingUp}
+          label="Ingresos (6 meses)"
+          value={compacto(m.revenueLast6Months)}
+          tone="accent"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          icon={Building2}
+          label="Propiedades publicadas"
+          value={String(m.properties.published)}
+          delta={`${m.properties.total} en total`}
+        />
+        <StatCard
+          icon={Inbox}
+          label="Consultas (30 días)"
+          value={String(m.inquiriesLast30Days)}
+          tone="accent"
+        />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        {/* Revenue chart */}
         <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
           <h2 className="text-lg font-semibold tracking-base text-ink">
             Ingresos mensuales (ARS)
           </h2>
-          <div className="mt-6 flex h-48 items-end gap-3">
-            {revenueSeries.map((r) => (
-              <div key={r.month} className="flex flex-1 flex-col items-center gap-2">
-                <div
-                  className="w-full rounded-t-md bg-brand transition-all hover:bg-brand-dark"
-                  style={{ height: `${(r.value / max) * 100}%` }}
-                  title={`$ ${r.value.toLocaleString('es-AR')}`}
-                />
-                <span className="text-xs text-muted">{r.month}</span>
-              </div>
-            ))}
-          </div>
+          {conIngresos ? (
+            <div className="mt-6 flex h-48 items-end gap-3">
+              {m.revenueSeries.map((r) => (
+                <div key={r.month} className="flex flex-1 flex-col items-center gap-2">
+                  <div
+                    className="w-full rounded-t-md bg-brand transition-all hover:bg-brand-dark"
+                    style={{ height: `${(Number(r.amount) / max) * 100}%` }}
+                    title={formatARS(Number(r.amount))}
+                  />
+                  <span className="text-xs text-muted">{r.month}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-12 text-center text-sm text-muted">
+              Todavía no se registraron pagos aprobados.
+            </p>
+          )}
         </div>
 
-        {/* Recent tenants */}
         <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-base text-ink">
-              Inmobiliarias recientes
+              Con más publicaciones
             </h2>
-            <Link to="/admin/inmobiliarias" className="text-sm font-medium text-brand hover:underline">
+            <Link
+              to="/admin/inmobiliarias"
+              className="text-sm font-medium text-brand hover:underline"
+            >
               Ver todas
             </Link>
           </div>
-          <ul className="divide-y divide-line">
-            {tenants.slice(0, 5).map((t) => (
-              <li key={t.id} className="flex items-center justify-between py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink">{t.name}</p>
-                  <p className="text-xs text-muted">Plan {t.plan} · {t.properties} props</p>
-                </div>
-                <Badge tone={tenantStatusTone[t.status]}>
-                  {tenantStatusLabels[t.status]}
-                </Badge>
-              </li>
-            ))}
-          </ul>
+          {m.topAgencies.length === 0 ? (
+            <EmptyState>Todavía no hay inmobiliarias activas.</EmptyState>
+          ) : (
+            <ul className="divide-y divide-line">
+              {m.topAgencies.map((t) => (
+                <li key={t.id} className="flex items-center justify-between py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-ink">{t.name}</p>
+                    <p className="truncate text-xs text-muted">/{t.slug}</p>
+                  </div>
+                  <span className="shrink-0 text-sm text-muted">
+                    {t.properties} {t.properties === 1 ? 'prop' : 'props'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

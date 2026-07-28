@@ -3,6 +3,7 @@ import { BadRequestError, NotFoundError } from "@/shared/errors";
 import { logger } from "@/config/logger";
 import type { PaymentEvent, PaymentProvider } from "@/shared/services/payments";
 import { noopNotifier, type Notifier } from "@/modules/notifications";
+import { noopAuditor, type Auditor } from "@/modules/audit/audit.service";
 
 export interface SubscriptionForCheckout {
   id: string;
@@ -74,6 +75,7 @@ export class BillingService {
     /** A dónde vuelve el usuario después de autorizar el pago. */
     private readonly returnUrl: string,
     private readonly notifier: Notifier = noopNotifier,
+    private readonly auditor: Auditor = noopAuditor,
   ) {}
 
   /**
@@ -182,9 +184,11 @@ export class BillingService {
     if (evento.status === "approved") {
       await this.repo.applyPendingPlan(subscription.id);
       await this.notificar("pagoConfirmado", subscription, evento);
+      await this.auditar("payment.received", subscription, evento);
     } else if (evento.status === "rejected" || evento.status === "cancelled") {
       if (evento.status === "rejected") {
         await this.notificar("pagoFallido", subscription, evento);
+        await this.auditar("payment.failed", subscription, evento);
       }
       // El pago no prosperó: se descarta el plan pretendido para que no quede
       // esperando y se aplique con un pago posterior por otra cosa.
@@ -200,6 +204,22 @@ export class BillingService {
     if (!subscription?.externalRef) return;
 
     await this.provider.cancelSubscription(subscription.externalRef);
+  }
+
+  /** El movimiento de plata queda registrado; el actor es la pasarela, no un usuario. */
+  private async auditar(
+    action: "payment.received" | "payment.failed",
+    subscription: SubscriptionForCheckout,
+    evento: PaymentEvent,
+  ): Promise<void> {
+    await this.auditor.record({
+      tenantId: subscription.tenantId,
+      userId: null,
+      action,
+      entityType: "payment",
+      entityId: evento.externalPaymentId ?? undefined,
+      metadata: { amount: evento.amount, currency: evento.currency },
+    });
   }
 
   private async notificar(
