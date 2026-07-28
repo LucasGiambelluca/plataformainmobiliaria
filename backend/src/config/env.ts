@@ -52,31 +52,50 @@ const envSchema = z.object({
   EMAIL_API_KEY: z.string().optional().default(""),
   EMAIL_FROM: z.string().default("no-reply@plataforma.com"),
 
-  PAYMENT_PROVIDER: z.enum(["mercadopago", "stripe"]).default("mercadopago"),
+  // "fake" simula los cobros: el backend arranca sin cuenta de MercadoPago.
+  PAYMENT_PROVIDER: z.enum(["mercadopago", "stripe", "fake"]).default("fake"),
   PAYMENT_API_KEY: z.string().optional().default(""),
   PAYMENT_WEBHOOK_SECRET: z.string().optional().default(""),
+  // URL pública del backend: la pasarela la necesita para el notification_url,
+  // así que no puede ser localhost en producción.
+  BACKEND_URL: z.string().url().default("http://localhost:3000"),
 });
 
 // Con STORAGE_PROVIDER=s3 las credenciales dejan de ser opcionales: es
 // preferible no arrancar a descubrirlo cuando alguien intenta subir una foto.
-const envWithStorageRules = envSchema.superRefine((env, ctx) => {
-  if (env.STORAGE_PROVIDER !== "s3") return;
-  const required = [
-    "S3_BUCKET",
-    "S3_ACCESS_KEY_ID",
-    "S3_SECRET_ACCESS_KEY",
-    "S3_PUBLIC_URL",
-  ] as const;
-  for (const key of required) {
-    if (!env[key]) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: [key],
-        message: `Requerida cuando STORAGE_PROVIDER=s3`,
-      });
+const envWithStorageRules = envSchema
+  .superRefine((env, ctx) => {
+    if (env.STORAGE_PROVIDER !== "s3") return;
+    const required = [
+      "S3_BUCKET",
+      "S3_ACCESS_KEY_ID",
+      "S3_SECRET_ACCESS_KEY",
+      "S3_PUBLIC_URL",
+    ] as const;
+    for (const key of required) {
+      if (!env[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `Requerida cuando STORAGE_PROVIDER=s3`,
+        });
+      }
     }
-  }
-});
+  })
+  .superRefine((env, ctx) => {
+    // Sin webhook secret no se puede verificar la firma, y un webhook sin
+    // verificar es una puerta abierta a que cualquiera se acredite un pago.
+    if (env.PAYMENT_PROVIDER !== "mercadopago") return;
+    for (const key of ["PAYMENT_API_KEY", "PAYMENT_WEBHOOK_SECRET"] as const) {
+      if (!env[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `Requerida cuando PAYMENT_PROVIDER=mercadopago`,
+        });
+      }
+    }
+  });
 
 const parsed = envWithStorageRules.safeParse(process.env);
 

@@ -45,6 +45,15 @@ export function createPublicRouter(service: PublicService): Router {
     }),
   );
 
+  // Los precios son información pública: cualquiera puede verlos antes de
+  // registrarse, y el panel de la inmobiliaria los necesita para el upgrade.
+  router.get(
+    "/plans",
+    asyncHandler(async (_req, res) => {
+      res.json({ plans: await service.plans() });
+    }),
+  );
+
   // Alimenta el buscador por localidad de la home.
   router.get(
     "/cities",

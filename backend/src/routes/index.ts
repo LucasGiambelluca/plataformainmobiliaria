@@ -11,6 +11,7 @@ import {
   inquiriesRouter,
   publicInquiriesRouter,
 } from "@/modules/inquiries/inquiries.router";
+import { billingRouter } from "@/modules/billing/billing.router";
 
 // Router raíz de la API. Cada módulo monta su sub-router acá.
 export const apiRouter = Router();
@@ -34,5 +35,7 @@ apiRouter.use("/public", publicRouter);
 apiRouter.use("/public/sites", publicSitesRouter);
 // Bandeja de consultas de la inmobiliaria.
 apiRouter.use("/inquiries", inquiriesRouter);
+// Cobros: checkout del tenant + webhook público de la pasarela.
+apiRouter.use("/billing", billingRouter);
 // Alta de consulta desde la ficha pública, sin login.
 apiRouter.use("/public/properties/:propertyId/inquiries", publicInquiriesRouter);

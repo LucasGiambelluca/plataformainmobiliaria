@@ -97,6 +97,20 @@ export interface PublicRepository {
   incrementViews(id: string): Promise<void>;
   listAgencies(): Promise<PublicAgencyListItem[]>;
   listCities(): Promise<{ city: string; count: number }[]>;
+  /** Solo planes activos: uno dado de baja no se ofrece más. */
+  listActivePlans(): Promise<PublicPlan[]>;
+}
+
+export interface PublicPlan {
+  id: string;
+  name: string;
+  slug: string;
+  priceAmount: string;
+  priceCurrency: string;
+  billingInterval: string;
+  maxProperties: number;
+  maxUsers: number;
+  maxStorageMb: number;
 }
 
 const MAX_PAGE_SIZE = 60;
@@ -145,5 +159,9 @@ export class PublicService {
 
   cities(): Promise<{ city: string; count: number }[]> {
     return this.repo.listCities();
+  }
+
+  plans(): Promise<PublicPlan[]> {
+    return this.repo.listActivePlans();
   }
 }

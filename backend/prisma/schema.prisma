@@ -142,6 +142,10 @@ model Subscription {
   id                 String             @id @default(uuid()) @db.Uuid
   tenantId           String             @map("tenant_id") @db.Uuid
   planId             String             @map("plan_id") @db.Uuid
+  // Plan que el tenant intentó contratar y todavía no pagó. El cambio a planId
+  // se aplica recién cuando la pasarela confirma: si se aplicara al abrir el
+  // checkout, bastaría con abandonarlo para quedarse con el plan caro gratis.
+  pendingPlanId      String?            @map("pending_plan_id") @db.Uuid
   status             SubscriptionStatus @default(trialing)
   currentPeriodStart DateTime?          @map("current_period_start")
   currentPeriodEnd   DateTime?          @map("current_period_end")

@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Info, Loader2 } from 'lucide-react'
+import { Check, Info, Loader2 } from 'lucide-react'
 import Button from '../../components/common/Button'
 import Badge from '../../components/common/Badge'
 import { ErrorState, Spinner } from '../../components/common/AsyncState'
 import { useResource } from '../../hooks/useResource'
 import { cancelSubscription, getSubscription } from '../../api/subscription'
+import { getPlans, startCheckout } from '../../api/billing'
 import type { SubscriptionStatus } from '../../api/schemas'
 import { ApiError } from '../../lib/apiError'
 import { formatARS } from '../../data/mock'
@@ -67,8 +68,22 @@ function UsageBar({ label, used, limit, unit = '' }: UsageBarProps) {
 
 export default function Suscripcion() {
   const resource = useResource(() => getSubscription(), [])
+  const planes = useResource(() => getPlans(), [])
   const [canceling, setCanceling] = useState(false)
+  const [contratando, setContratando] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  const contratar = async (planId: string) => {
+    setActionError(null)
+    setContratando(planId)
+    try {
+      // La pasarela se encarga del cobro; volvemos acá cuando termine.
+      window.location.href = await startCheckout(planId)
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'No se pudo iniciar el pago')
+      setContratando(null)
+    }
+  }
 
   const onCancel = async () => {
     setActionError(null)
@@ -161,18 +176,81 @@ export default function Suscripcion() {
             </div>
           </div>
 
-          {/* El cambio de plan self-serve depende del módulo de pagos, que
-              todavía no existe en el backend (tareas 1.13 y 1.14). */}
-          <div className="mt-8 flex items-start gap-3 rounded-lg border border-line bg-surface p-6 shadow-card">
-            <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden />
-            <div>
-              <h2 className="font-semibold tracking-base text-ink">Cambiar de plan</h2>
-              <p className="mt-1 text-sm text-muted">
-                Por ahora el cambio de plan lo aplica el equipo de la plataforma.
-                El alta de pagos online está en desarrollo.
-              </p>
+          <h2 className="mb-4 mt-8 text-lg font-semibold tracking-base text-ink">
+            Planes disponibles
+          </h2>
+
+          {planes.error ? (
+            <ErrorState error={planes.error} onRetry={planes.reload} />
+          ) : planes.loading && !planes.data ? (
+            <Spinner />
+          ) : (
+            <div className="grid gap-6 md:grid-cols-3">
+              {planes.data?.map((plan) => {
+                const actual = plan.id === resource.data?.subscription.plan.id
+                const gratuito = Number(plan.priceAmount) === 0
+                return (
+                  <div
+                    key={plan.id}
+                    className={`rounded-xl border bg-surface p-6 shadow-card ${
+                      actual ? 'border-brand ring-1 ring-brand' : 'border-line'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold tracking-base text-ink">
+                        {plan.name}
+                      </h3>
+                      {actual && <Badge tone="brand">Actual</Badge>}
+                    </div>
+                    <p className="mt-2 text-2xl font-bold tracking-base text-ink">
+                      {gratuito ? 'Gratis' : formatARS(Number(plan.priceAmount))}
+                      {!gratuito && (
+                        <span className="text-sm font-normal text-muted">
+                          {' '}
+                          / {intervalLabels[plan.billingInterval as 'monthly']}
+                        </span>
+                      )}
+                    </p>
+                    <ul className="mt-4 space-y-2 text-sm text-ink">
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-brand" />
+                        {plan.maxProperties} propiedades
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-brand" />
+                        {plan.maxUsers} usuarios
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-brand" />
+                        {Math.round((plan.maxStorageMb / 1024) * 10) / 10} GB
+                      </li>
+                    </ul>
+                    <Button
+                      variant={actual ? 'secondary' : 'primary'}
+                      className="mt-5 w-full"
+                      disabled={actual || gratuito || contratando === plan.id}
+                      onClick={() => void contratar(plan.id)}
+                    >
+                      {contratando === plan.id && (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      )}
+                      {actual
+                        ? 'Plan actual'
+                        : gratuito
+                          ? 'Plan de entrada'
+                          : 'Contratar'}
+                    </Button>
+                  </div>
+                )
+              })}
             </div>
-          </div>
+          )}
+
+          <p className="mt-4 flex items-start gap-2 text-xs text-muted">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            El plan cambia recién cuando la pasarela confirma el pago, no al
+            abrir el checkout.
+          </p>
         </>
       ) : null}
     </div>

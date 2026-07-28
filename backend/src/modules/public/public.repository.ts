@@ -232,6 +232,25 @@ export const publicRepository: PublicRepository = {
     }));
   },
 
+  async listActivePlans() {
+    const plans = await prisma.plan.findMany({
+      where: { isActive: true },
+      orderBy: { priceAmount: "asc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        priceAmount: true,
+        priceCurrency: true,
+        billingInterval: true,
+        maxProperties: true,
+        maxUsers: true,
+        maxStorageMb: true,
+      },
+    });
+    return plans.map((p) => ({ ...p, priceAmount: p.priceAmount.toString() }));
+  },
+
   async listCities(): Promise<{ city: string; count: number }[]> {
     const rows = await prisma.property.groupBy({
       by: ["city"],

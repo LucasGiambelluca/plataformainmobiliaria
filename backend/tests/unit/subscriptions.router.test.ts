@@ -36,13 +36,16 @@ function makeApp(
     ...planOverrides,
   } as unknown as PlansService;
 
+  // Cancelar también corta el débito en la pasarela; acá se inyecta un doble.
+  const gateway = { cancelExternal: jest.fn().mockResolvedValue(undefined) };
+
   const app = express();
   app.use(express.json());
-  app.use("/api/subscription", createSubscriptionsRouter(subService));
+  app.use("/api/subscription", createSubscriptionsRouter(subService, gateway));
   app.use("/api/admin/plans", createPlansRouter(plansService));
   app.use(notFoundHandler);
   app.use(errorHandler);
-  return { app, subService, plansService };
+  return { app, subService, plansService, gateway };
 }
 
 describe("subscriptions router (tenant)", () => {
@@ -65,13 +68,16 @@ describe("subscriptions router (tenant)", () => {
     expect(subService.getStatus).toHaveBeenCalledWith(TENANT_ID);
   });
 
-  it("POST /cancel → 204", async () => {
-    const { app, subService } = makeApp();
+  it("POST /cancel → 204, y también corta el débito en la pasarela", async () => {
+    // Sin lo segundo la baja queda solo en nuestra base y MercadoPago sigue
+    // cobrando todos los meses.
+    const { app, subService, gateway } = makeApp();
     const res = await request(app)
       .post("/api/subscription/cancel")
       .set("Authorization", `Bearer ${adminToken()}`);
     expect(res.status).toBe(204);
     expect(subService.cancel).toHaveBeenCalledWith(TENANT_ID);
+    expect(gateway.cancelExternal).toHaveBeenCalledWith(TENANT_ID);
   });
 });
 

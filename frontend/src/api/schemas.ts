@@ -326,6 +326,25 @@ export type PublicAgency = z.infer<
   typeof publicAgenciesResponseSchema
 >['agencies'][number]
 
+export const publicPlansResponseSchema = z.object({
+  plans: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      slug: z.string(),
+      priceAmount: decimalString,
+      priceCurrency: z.string(),
+      billingInterval: z.string(),
+      maxProperties: z.number(),
+      maxUsers: z.number(),
+      maxStorageMb: z.number(),
+    }),
+  ),
+})
+export type PublicPlan = z.infer<typeof publicPlansResponseSchema>['plans'][number]
+
+export const checkoutResponseSchema = z.object({ redirectUrl: z.string().url() })
+
 export const publicCitiesResponseSchema = z.object({
   cities: z.array(z.object({ city: z.string(), count: z.number() })),
 })

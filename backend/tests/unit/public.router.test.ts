@@ -33,6 +33,7 @@ function makeApp(overrides: Partial<PublicRepository> = {}) {
     incrementViews: jest.fn().mockResolvedValue(undefined),
     listAgencies: jest.fn().mockResolvedValue([]),
     listCities: jest.fn().mockResolvedValue([]),
+    listActivePlans: jest.fn().mockResolvedValue([]),
     ...overrides,
   };
 
