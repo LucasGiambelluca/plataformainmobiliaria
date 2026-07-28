@@ -423,6 +423,55 @@ export const siteFormSchema = z.object({
 })
 export type SiteForm = z.infer<typeof siteFormSchema>
 
+/* ---------------------------- consultas ---------------------------- */
+
+export const inquiryStatusSchema = z.enum(['new', 'contacted', 'closed'])
+export type InquiryStatus = z.infer<typeof inquiryStatusSchema>
+
+export const inquirySchema = z.object({
+  id: z.string(),
+  tenantId: z.string(),
+  propertyId: z.string().nullable(),
+  name: z.string(),
+  email: z.string(),
+  phone: z.string().nullable(),
+  message: z.string(),
+  status: inquiryStatusSchema,
+  createdAt: z.string(),
+  propertyTitle: z.string().nullable(),
+})
+export type Inquiry = z.infer<typeof inquirySchema>
+
+export const inquiryListResponseSchema = z.object({
+  items: z.array(inquirySchema),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  newCount: z.number(),
+})
+export type InquiryListResponse = z.infer<typeof inquiryListResponseSchema>
+
+export const inquiryResponseSchema = z.object({ inquiry: inquirySchema })
+
+/** El alta pública responde lo mínimo: confirma y nada más. */
+export const inquiryCreatedSchema = z.object({ ok: z.boolean() })
+
+export const contactFormSchema = z.object({
+  name: z.string().trim().min(2, 'Ingresá tu nombre').max(255),
+  // Inline y no `emailSchema`: esa constante se declara más abajo en el
+  // archivo, y usarla acá rompería por temporal dead zone al cargar el módulo.
+  email: z.string().trim().toLowerCase().email('Email inválido').max(255),
+  phone: z.string().trim().max(50).optional().or(z.literal('')),
+  message: z
+    .string()
+    .trim()
+    .min(10, 'Contanos un poco más (mínimo 10 caracteres)')
+    .max(2000, 'El mensaje es demasiado largo'),
+  // Campo trampa, oculto por CSS. Un humano nunca lo completa.
+  website: z.string().max(200).optional(),
+})
+export type ContactForm = z.infer<typeof contactFormSchema>
+
 /* ------------------------- entradas (forms) ------------------------- */
 
 // Mismas reglas que backend/src/modules/**/**.schemas.ts: el usuario ve el

@@ -10,8 +10,7 @@ import {
   Maximize,
   MapPin,
 } from 'lucide-react'
-import Button from '../components/common/Button'
-import Input from '../components/common/Input'
+import ContactForm from '../components/properties/ContactForm'
 import { ErrorState, Spinner } from '../components/common/AsyncState'
 import { useResource } from '../hooks/useResource'
 import { getPublicProperty } from '../api/publicCatalog'
@@ -20,7 +19,6 @@ import { formatPrice, operationLabels, typeLabels } from '../lib/propertyLabels'
 export default function PropertyDetail() {
   const { id } = useParams()
   const [active, setActive] = useState(0)
-  const [sent, setSent] = useState(false)
 
   const recurso = useResource(() => getPublicProperty(id as string), [id])
 
@@ -196,34 +194,7 @@ export default function PropertyDetail() {
             <h2 className="text-lg font-semibold tracking-base text-ink">
               Contactar a la inmobiliaria
             </h2>
-            {/* El formulario todavía no envía nada: falta el módulo de consultas
-                en el backend, que es lo que convierte esto en un lead. */}
-            {sent ? (
-              <p className="mt-4 rounded-md bg-brand/10 p-4 text-sm text-brand-dark">
-                El envío de consultas todavía no está habilitado. Mientras tanto,
-                escribile directo a la inmobiliaria.
-              </p>
-            ) : (
-              <form
-                className="mt-4 space-y-3"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  setSent(true)
-                }}
-              >
-                <Input placeholder="Nombre y apellido" required />
-                <Input type="email" placeholder="Email" required />
-                <Input type="tel" placeholder="Teléfono" />
-                <textarea
-                  defaultValue={`Hola, me interesa la propiedad "${property.title}". ¿Podemos coordinar una visita?`}
-                  rows={4}
-                  className="w-full rounded-md border border-line bg-surface px-4 py-2.5 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                />
-                <Button type="submit" className="w-full">
-                  Enviar consulta
-                </Button>
-              </form>
-            )}
+            <ContactForm propertyId={property.id} propertyTitle={property.title} />
 
             {(property.agencyContact.email || property.agencyContact.phone) && (
               <div className="mt-5 border-t border-line pt-4 text-sm text-muted">
