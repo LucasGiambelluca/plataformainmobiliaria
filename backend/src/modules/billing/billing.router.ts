@@ -10,6 +10,7 @@ import { asyncHandler } from "@/shared/utils/asyncHandler";
 import { paymentProvider } from "@/shared/services/payments";
 import { createCheckoutSchema, type CreateCheckoutBody } from "./billing.schemas";
 import { BillingService } from "./billing.service";
+import { notifier } from "@/modules/notifications";
 import { billingRepository } from "./billing.repository";
 
 /**
@@ -83,6 +84,7 @@ export const billingService = new BillingService(
   billingRepository,
   paymentProvider,
   `${env.FRONTEND_URL}/panel/suscripcion`,
+  notifier,
 );
 
 // Router con el wiring por defecto.

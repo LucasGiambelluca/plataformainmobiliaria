@@ -1,5 +1,6 @@
 import type { InquiryStatus } from "@prisma/client";
 import { NotFoundError } from "@/shared/errors";
+import type { Notifier } from "@/modules/notifications";
 
 export interface InquiryRecord {
   id: string;
@@ -38,6 +39,10 @@ export interface InquiriesRepository {
   findPublicProperty(
     propertyId: string,
   ): Promise<{ id: string; tenantId: string; title: string } | null>;
+  /** A quién avisarle que llegó una consulta. */
+  findNotificationTarget(
+    tenantId: string,
+  ): Promise<{ email: string | null; agencyName: string } | null>;
   createInquiry(data: {
     tenantId: string;
     propertyId: string;
@@ -64,7 +69,11 @@ const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 20;
 
 export class InquiriesService {
-  constructor(private readonly repo: InquiriesRepository) {}
+  constructor(
+    private readonly repo: InquiriesRepository,
+    private readonly notifier: Notifier,
+    private readonly leadsUrl: string,
+  ) {}
 
   /**
    * Alta desde la ficha pública. La propiedad tiene que ser visible: no se
@@ -85,6 +94,19 @@ export class InquiriesService {
       email: input.email,
       ...(input.phone ? { phone: input.phone } : {}),
       message: input.message,
+    });
+
+    // El aviso va después de guardar y sin await sobre la respuesta: si el
+    // correo falla, la consulta ya está en la bandeja igual.
+    const destino = await this.repo.findNotificationTarget(property.tenantId);
+    await this.notifier.leadRecibido(destino?.email ?? null, {
+      agencyName: destino?.agencyName ?? "",
+      propertyTitle: property.title,
+      name: input.name,
+      email: input.email,
+      phone: input.phone ?? null,
+      message: input.message,
+      panelUrl: this.leadsUrl,
     });
 
     // La respuesta al visitante es deliberadamente mínima: confirma que se

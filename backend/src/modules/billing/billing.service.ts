@@ -2,6 +2,7 @@ import type { PaymentStatus, SubscriptionStatus } from "@prisma/client";
 import { BadRequestError, NotFoundError } from "@/shared/errors";
 import { logger } from "@/config/logger";
 import type { PaymentEvent, PaymentProvider } from "@/shared/services/payments";
+import { noopNotifier, type Notifier } from "@/modules/notifications";
 
 export interface SubscriptionForCheckout {
   id: string;
@@ -72,6 +73,7 @@ export class BillingService {
     private readonly provider: PaymentProvider,
     /** A dónde vuelve el usuario después de autorizar el pago. */
     private readonly returnUrl: string,
+    private readonly notifier: Notifier = noopNotifier,
   ) {}
 
   /**
@@ -179,7 +181,11 @@ export class BillingService {
     // El upgrade se concede acá y en ningún otro lado.
     if (evento.status === "approved") {
       await this.repo.applyPendingPlan(subscription.id);
+      await this.notificar("pagoConfirmado", subscription, evento);
     } else if (evento.status === "rejected" || evento.status === "cancelled") {
+      if (evento.status === "rejected") {
+        await this.notificar("pagoFallido", subscription, evento);
+      }
       // El pago no prosperó: se descarta el plan pretendido para que no quede
       // esperando y se aplique con un pago posterior por otra cosa.
       await this.repo.clearPendingPlan(subscription.id);
@@ -194,6 +200,20 @@ export class BillingService {
     if (!subscription?.externalRef) return;
 
     await this.provider.cancelSubscription(subscription.externalRef);
+  }
+
+  private async notificar(
+    tipo: "pagoConfirmado" | "pagoFallido",
+    subscription: SubscriptionForCheckout,
+    evento: PaymentEvent,
+  ): Promise<void> {
+    const email = await this.repo.findBillingEmail(subscription.tenantId);
+    await this.notifier[tipo](email, {
+      planName: subscription.plan.name,
+      amount: evento.amount ?? subscription.plan.priceAmount,
+      currency: evento.currency ?? subscription.plan.priceCurrency,
+      panelUrl: this.returnUrl,
+    });
   }
 
   private async resolveSubscription(

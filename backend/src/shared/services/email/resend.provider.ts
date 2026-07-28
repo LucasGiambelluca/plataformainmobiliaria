@@ -1,0 +1,44 @@
+import { AppError } from "@/shared/errors";
+import { logger } from "@/config/logger";
+import type { EmailMessage, EmailProvider } from "./email.provider";
+
+const API = "https://api.resend.com/emails";
+
+export interface ResendConfig {
+  apiKey: string;
+  /** Remitente verificado en Resend, ej. "Entre Rios Propiedades <no-reply@…>". */
+  from: string;
+}
+
+export class ResendProvider implements EmailProvider {
+  readonly name = "resend";
+
+  constructor(private readonly config: ResendConfig) {}
+
+  async send(message: EmailMessage): Promise<void> {
+    const res = await fetch(API, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: this.config.from,
+        to: [message.to],
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+      }),
+    });
+
+    if (!res.ok) {
+      const cuerpo = await res.text();
+      // El destinatario puede ser dato personal: va al log, no al error.
+      logger.error(
+        { status: res.status, body: cuerpo, subject: message.subject },
+        "Resend rechazó el envío",
+      );
+      throw new AppError("No se pudo enviar el correo", 502, "EMAIL_ERROR");
+    }
+  }
+}

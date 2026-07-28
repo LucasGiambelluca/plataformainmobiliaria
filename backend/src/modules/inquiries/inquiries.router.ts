@@ -15,6 +15,7 @@ import {
   type UpdateInquiryBody,
 } from "./inquiries.schemas";
 import { InquiriesService } from "./inquiries.service";
+import { notifier, panelUrls } from "@/modules/notifications";
 import { inquiriesRepository } from "./inquiries.repository";
 
 /**
@@ -102,7 +103,11 @@ export function createInquiriesRouter(service: InquiriesService): Router {
   return router;
 }
 
-const service = new InquiriesService(inquiriesRepository);
+const service = new InquiriesService(
+  inquiriesRepository,
+  notifier,
+  panelUrls.leads,
+);
 
 // Routers con el wiring por defecto (repositorio Prisma).
 export const inquiriesRouter = createInquiriesRouter(service);

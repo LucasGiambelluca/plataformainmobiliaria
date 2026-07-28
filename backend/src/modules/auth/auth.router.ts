@@ -13,6 +13,7 @@ import {
   type LoginInput,
   type RegisterInput,
 } from "./auth.schemas";
+import { notifier, panelUrls } from "@/modules/notifications";
 import { AuthService, type AuthTokens } from "./auth.service";
 import { authRepository } from "./auth.repository";
 
@@ -60,6 +61,15 @@ export function createAuthRouter(
         body.password,
       );
       setRefreshCookie(res, { accessToken, ...tokens });
+
+      // La bienvenida no puede hacer fallar el alta: el servicio de
+      // notificaciones se traga sus propios errores.
+      await notifier.inmobiliariaCreada(body.email, {
+        agencyName: tenant.name,
+        slug: tenant.slug,
+        panelUrl: panelUrls.panel,
+      });
+
       res.status(201).json({ tenant, user, accessToken });
     }),
   );

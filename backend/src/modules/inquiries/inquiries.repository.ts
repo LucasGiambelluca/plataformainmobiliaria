@@ -44,6 +44,31 @@ class InquiriesPrismaRepository
     });
   }
 
+  async findNotificationTarget(tenantId: string) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        name: true,
+        contactEmail: true,
+        users: {
+          // El admin más antiguo es el que se creó al provisionar la cuenta.
+          where: { role: "tenant_admin", isActive: true },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+          select: { email: true },
+        },
+      },
+    });
+    if (!tenant) return null;
+
+    return {
+      // El mail de contacto de la inmobiliaria manda; si no lo cargó, se le
+      // escribe al admin.
+      email: tenant.contactEmail ?? tenant.users[0]?.email ?? null,
+      agencyName: tenant.name,
+    };
+  }
+
   async createInquiry(data: {
     tenantId: string;
     propertyId: string;

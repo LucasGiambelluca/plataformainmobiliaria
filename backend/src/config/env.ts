@@ -48,9 +48,10 @@ const envSchema = z.object({
   // Minutos de validez de la URL de subida firmada.
   S3_UPLOAD_URL_TTL_MIN: z.coerce.number().int().positive().default(10),
 
-  EMAIL_PROVIDER: z.enum(["resend", "sendgrid"]).default("resend"),
+  // "fake" no envía nada: solo loguea. El backend arranca sin cuenta de correo.
+  EMAIL_PROVIDER: z.enum(["resend", "sendgrid", "fake"]).default("fake"),
   EMAIL_API_KEY: z.string().optional().default(""),
-  EMAIL_FROM: z.string().default("no-reply@plataforma.com"),
+  EMAIL_FROM: z.string().default("Entre Rios Propiedades <no-reply@plataforma.com>"),
 
   // "fake" simula los cobros: el backend arranca sin cuenta de MercadoPago.
   PAYMENT_PROVIDER: z.enum(["mercadopago", "stripe", "fake"]).default("fake"),
@@ -94,6 +95,16 @@ const envWithStorageRules = envSchema
           message: `Requerida cuando PAYMENT_PROVIDER=mercadopago`,
         });
       }
+    }
+  })
+  .superRefine((env, ctx) => {
+    if (env.EMAIL_PROVIDER !== "resend") return;
+    if (!env.EMAIL_API_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["EMAIL_API_KEY"],
+        message: `Requerida cuando EMAIL_PROVIDER=resend`,
+      });
     }
   });
 

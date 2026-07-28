@@ -41,6 +41,9 @@ function makeRepo(overrides: Partial<InquiriesRepository> = {}) {
     findPublicProperty: jest
       .fn()
       .mockResolvedValue({ id: PROPERTY_ID, tenantId: TENANT_ID, title: "Casa" }),
+    findNotificationTarget: jest
+      .fn()
+      .mockResolvedValue({ email: "inmo@correo.com", agencyName: "Inmobiliaria Demo" }),
     createInquiry: jest.fn().mockResolvedValue(INQUIRY),
     list: jest.fn().mockResolvedValue({ items: [INQUIRY], total: 1 }),
     countNew: jest.fn().mockResolvedValue(1),
@@ -52,7 +55,14 @@ function makeRepo(overrides: Partial<InquiriesRepository> = {}) {
 }
 
 function makeApp(repo: InquiriesRepository) {
-  const service = new InquiriesService(repo);
+  // Notificador espía: verifica el aviso sin mandar un solo correo.
+  const notifier = {
+    leadRecibido: jest.fn().mockResolvedValue(undefined),
+    inmobiliariaCreada: jest.fn().mockResolvedValue(undefined),
+    pagoConfirmado: jest.fn().mockResolvedValue(undefined),
+    pagoFallido: jest.fn().mockResolvedValue(undefined),
+  };
+  const service = new InquiriesService(repo, notifier, "https://app.test/panel/leads");
   const app = express();
   app.use(express.json());
   app.use(
@@ -62,7 +72,7 @@ function makeApp(repo: InquiriesRepository) {
   app.use("/api/inquiries", createInquiriesRouter(service));
   app.use(notFoundHandler);
   app.use(errorHandler);
-  return { app, repo };
+  return { app, repo, notifier };
 }
 
 const adminToken = () =>
@@ -146,6 +156,29 @@ describe("alta pública de consultas", () => {
     expect(res.status).toBe(201);
     expect(res.body).toEqual({ ok: true });
     expect(repo.createInquiry).not.toHaveBeenCalled();
+  });
+
+  it("avisa por correo a la inmobiliaria", async () => {
+    const { app, notifier } = makeApp(makeRepo());
+
+    await post(app, BODY);
+
+    expect(notifier.leadRecibido).toHaveBeenCalledWith(
+      "inmo@correo.com",
+      expect.objectContaining({
+        propertyTitle: "Casa",
+        name: "Martín Pérez",
+        email: "martin@correo.com",
+      }),
+    );
+  });
+
+  it("el bot del honeypot no dispara ningún correo", async () => {
+    const { app, notifier } = makeApp(makeRepo());
+
+    await post(app, { ...BODY, website: "http://spam.com" });
+
+    expect(notifier.leadRecibido).not.toHaveBeenCalled();
   });
 
   it("la respuesta no filtra datos internos de la inmobiliaria", async () => {
