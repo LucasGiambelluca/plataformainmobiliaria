@@ -62,6 +62,7 @@ export const planSchema = z.object({
   maxProperties: z.number(),
   maxUsers: z.number(),
   maxStorageMb: z.number(),
+  maxDomains: z.number(),
   isActive: z.boolean(),
 })
 export type Plan = z.infer<typeof planSchema>
@@ -141,6 +142,7 @@ export const subscriptionStatusResponseSchema = z.object({
     users: resourceUsageSchema,
     properties: resourceUsageSchema,
     storageMb: resourceUsageSchema,
+    domains: resourceUsageSchema,
   }),
 })
 export type SubscriptionStatusResponse = z.infer<typeof subscriptionStatusResponseSchema>
@@ -338,6 +340,7 @@ export const publicPlansResponseSchema = z.object({
       maxProperties: z.number(),
       maxUsers: z.number(),
       maxStorageMb: z.number(),
+      maxDomains: z.number(),
     }),
   ),
 })
@@ -562,6 +565,54 @@ export type AuditListResponse = z.infer<typeof auditListResponseSchema>
 
 export const auditActionsResponseSchema = z.object({ actions: z.array(z.string()) })
 
+/* --------------------------- dominios --------------------------- */
+
+export const domainStatusSchema = z.enum(['pending', 'verifying', 'active', 'failed'])
+export type DomainStatus = z.infer<typeof domainStatusSchema>
+
+export const customDomainSchema = z.object({
+  id: z.string(),
+  tenantId: z.string(),
+  domain: z.string(),
+  status: domainStatusSchema,
+  dnsTarget: z.string().nullable(),
+  lastCheckedAt: z.string().nullable(),
+  verifiedAt: z.string().nullable(),
+  createdAt: z.string(),
+})
+export type CustomDomain = z.infer<typeof customDomainSchema>
+
+export const domainListResponseSchema = z.object({
+  domains: z.array(customDomainSchema),
+  // Adónde hay que apuntar el DNS. Viaja siempre, incluso sin dominios
+  // cargados: es lo que el panel muestra en las instrucciones.
+  dnsTarget: z.string(),
+})
+
+export const domainResponseSchema = z.object({ domain: customDomainSchema })
+
+/** La verificación devuelve el porqué cuando no pasó, para mostrarlo tal cual. */
+export const domainVerifyResponseSchema = z.object({
+  domain: customDomainSchema,
+  detail: z.string().nullable(),
+})
+export type DomainVerifyResult = z.infer<typeof domainVerifyResponseSchema>
+
+/** Vista del super admin: el dominio más de quién es. */
+export const adminDomainSchema = customDomainSchema.extend({
+  tenantName: z.string(),
+  tenantSlug: z.string(),
+})
+export type AdminDomain = z.infer<typeof adminDomainSchema>
+
+export const adminDomainListResponseSchema = z.object({
+  items: z.array(adminDomainSchema),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+})
+export type AdminDomainListResponse = z.infer<typeof adminDomainListResponseSchema>
+
 /* ------------------------- entradas (forms) ------------------------- */
 
 // Mismas reglas que backend/src/modules/**/**.schemas.ts: el usuario ve el
@@ -662,5 +713,25 @@ export const planFormSchema = z.object({
   maxProperties: positiveInt('El máximo de propiedades'),
   maxUsers: positiveInt('El máximo de usuarios'),
   maxStorageMb: positiveInt('El almacenamiento'),
+  // 0 es válido: un plan de entrada no incluye dominio propio.
+  maxDomains: z.coerce
+    .number()
+    .int('El máximo de dominios debe ser un número entero')
+    .nonnegative('El máximo de dominios no puede ser negativo'),
 })
 export type PlanForm = z.infer<typeof planFormSchema>
+
+// Mismas reglas que backend/src/modules/domains/domains.schemas.ts: se acepta
+// que peguen la URL entera del navegador y se limpia acá antes de mandarla.
+const HOSTNAME = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))*\.[a-z]{2,}$/
+
+export const domainFormSchema = z.object({
+  domain: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .transform((v) => v.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/\.$/, ''))
+    .refine((v) => v.length <= 253, 'El dominio es demasiado largo')
+    .refine((v) => HOSTNAME.test(v), 'Dominio inválido. Ejemplo: midominio.com.ar'),
+})
+export type DomainForm = z.infer<typeof domainFormSchema>

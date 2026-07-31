@@ -246,6 +246,7 @@ export const publicRepository: PublicRepository = {
         maxProperties: true,
         maxUsers: true,
         maxStorageMb: true,
+        maxDomains: true,
       },
     });
     return plans.map((p) => ({ ...p, priceAmount: p.priceAmount.toString() }));

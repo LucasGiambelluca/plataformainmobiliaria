@@ -111,6 +111,7 @@ describe("plans router (super admin)", () => {
         maxProperties: 100,
         maxUsers: 10,
         maxStorageMb: 5000,
+        maxDomains: 1,
       });
     expect(ok.status).toBe(201);
     expect(plansService.create).toHaveBeenCalled();

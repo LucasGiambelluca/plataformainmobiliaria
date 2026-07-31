@@ -115,6 +115,33 @@ describe("createResolveTenant", () => {
     );
   });
 
+  it("www cae al dominio pelado si no está cargado aparte", async () => {
+    // Nadie carga las dos variantes en el panel, y cada fila del plan cuesta
+    // un cupo: www lo sirve el apex.
+    const findActiveByVerifiedDomain = jest
+      .fn()
+      .mockImplementation((domain: string) =>
+        Promise.resolve(domain === "inmobiliarianorte.com" ? TENANT : null),
+      );
+    const repo = makeRepo({ findActiveByVerifiedDomain });
+    const res = await request(makeApp(repo))
+      .get("/actual")
+      .set("Host", "www.inmobiliarianorte.com");
+
+    expect(res.body.resolved).toEqual({ ...TENANT, source: "custom_domain" });
+    expect(findActiveByVerifiedDomain).toHaveBeenCalledWith("www.inmobiliarianorte.com");
+    expect(findActiveByVerifiedDomain).toHaveBeenCalledWith("inmobiliarianorte.com");
+  });
+
+  it("el fallback de www no inventa dominios que nadie cargó", async () => {
+    const repo = makeRepo();
+    const res = await request(makeApp(repo))
+      .get("/actual")
+      .set("Host", "www.dominioajeno.com");
+
+    expect(res.status).toBe(404);
+  });
+
   it("un dominio propio no se resuelve por slug", async () => {
     // Si buscara por slug, cualquiera apuntando su dominio al servidor se
     // quedaría con la web de la inmobiliaria que adivine el nombre.

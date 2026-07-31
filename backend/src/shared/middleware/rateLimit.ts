@@ -28,6 +28,17 @@ export const registerLimiter = rateLimit({
   message: json("Demasiados registros desde esta IP."),
 });
 
+// Verificación de dominios: cada intento dispara consultas DNS salientes, así
+// que se limita aunque el endpoint pida login.
+export const dnsCheckLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip,
+  message: json("Demasiadas verificaciones seguidas. Esperá unos minutos."),
+});
+
 // Endpoints públicos (catálogo, consultas).
 export const publicLimiter = rateLimit({
   windowMs: 60 * 1000,

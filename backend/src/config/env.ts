@@ -20,6 +20,9 @@ const envSchema = z.object({
 
   PLATFORM_DOMAIN: z.string().min(1).default("plataforma.com"),
   CUSTOM_DOMAIN_TARGET: z.string().min(1).default("plataforma.com"),
+  // "fake" no consulta el DNS real: sirve para desarrollo local, donde ningún
+  // dominio de prueba apunta a esta máquina. En producción va "node".
+  DNS_RESOLVER: z.enum(["node", "fake"]).default("node"),
 
   DATABASE_URL: z.string().url(),
 

@@ -18,6 +18,7 @@ export interface SubscriptionWithPlan {
     maxProperties: number;
     maxUsers: number;
     maxStorageMb: number;
+    maxDomains: number;
   };
 }
 

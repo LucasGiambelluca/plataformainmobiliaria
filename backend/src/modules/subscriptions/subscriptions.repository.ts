@@ -13,6 +13,7 @@ const planSelect = {
   maxProperties: true,
   maxUsers: true,
   maxStorageMb: true,
+  maxDomains: true,
 } as const;
 
 // Decimal de Prisma → string (la API nunca expone floats para plata).
@@ -52,7 +53,14 @@ export const usageRepository: UsageRepository = {
       where: { tenantId },
       orderBy: { createdAt: "desc" },
       select: {
-        plan: { select: { maxProperties: true, maxUsers: true, maxStorageMb: true } },
+        plan: {
+          select: {
+            maxProperties: true,
+            maxUsers: true,
+            maxStorageMb: true,
+            maxDomains: true,
+          },
+        },
       },
     });
     return sub?.plan ?? null;
@@ -64,6 +72,10 @@ export const usageRepository: UsageRepository = {
 
   countProperties(tenantId) {
     return prisma.property.count({ where: { tenantId } });
+  },
+
+  countDomains(tenantId) {
+    return prisma.tenantDomain.count({ where: { tenantId } });
   },
 
   async sumStorageBytes(tenantId) {

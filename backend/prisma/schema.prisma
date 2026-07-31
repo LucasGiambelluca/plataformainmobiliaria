@@ -103,6 +103,7 @@ model Plan {
   maxProperties   Int             @map("max_properties")
   maxUsers        Int             @map("max_users")
   maxStorageMb    Int             @map("max_storage_mb")
+  maxDomains      Int             @default(1) @map("max_domains")
   isActive        Boolean         @default(true) @map("is_active")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")

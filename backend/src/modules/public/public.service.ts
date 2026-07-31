@@ -111,6 +111,7 @@ export interface PublicPlan {
   maxProperties: number;
   maxUsers: number;
   maxStorageMb: number;
+  maxDomains: number;
 }
 
 const MAX_PAGE_SIZE = 60;

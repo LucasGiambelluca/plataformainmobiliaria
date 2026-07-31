@@ -94,5 +94,15 @@ async function resolver(
   // Dominio propio. Se compara contra tenant_domains, nunca contra el slug:
   // si no está verificado, no hay web.
   const tenant = await repo.findActiveByVerifiedDomain(host);
-  return tenant ? { ...tenant, source: "custom_domain" } : null;
+  if (tenant) return { ...tenant, source: "custom_domain" };
+
+  // "www.midominio.com" lo sirve el dominio pelado. Nadie carga las dos
+  // variantes en el panel, y quien controla el DNS de www.midominio.com es el
+  // dueño de midominio.com: no hay forma de colarse por acá.
+  if (host.startsWith("www.")) {
+    const apex = await repo.findActiveByVerifiedDomain(host.slice(4));
+    if (apex) return { ...apex, source: "custom_domain" };
+  }
+
+  return null;
 }

@@ -6,6 +6,7 @@ export interface PlanLimits {
   maxProperties: number;
   maxUsers: number;
   maxStorageMb: number;
+  maxDomains: number;
 }
 
 export interface ResourceUsage {
@@ -17,6 +18,7 @@ export interface UsageSnapshot {
   users: ResourceUsage;
   properties: ResourceUsage;
   storageMb: ResourceUsage;
+  domains: ResourceUsage;
 }
 
 export interface UsageRepository {
@@ -25,6 +27,7 @@ export interface UsageRepository {
   countActiveUsers(tenantId: string): Promise<number>;
   countProperties(tenantId: string): Promise<number>;
   sumStorageBytes(tenantId: string): Promise<bigint>;
+  countDomains(tenantId: string): Promise<number>;
 }
 
 /**
@@ -43,11 +46,12 @@ export class LimitService {
   }
 
   async getUsage(tenantId: string): Promise<UsageSnapshot> {
-    const [limits, users, properties, storageBytes] = await Promise.all([
+    const [limits, users, properties, storageBytes, domains] = await Promise.all([
       this.getLimits(tenantId),
       this.repo.countActiveUsers(tenantId),
       this.repo.countProperties(tenantId),
       this.repo.sumStorageBytes(tenantId),
+      this.repo.countDomains(tenantId),
     ]);
     return {
       users: { used: users, limit: limits.maxUsers },
@@ -56,6 +60,7 @@ export class LimitService {
         used: Math.round(Number(storageBytes) / BYTES_PER_MB),
         limit: limits.maxStorageMb,
       },
+      domains: { used: domains, limit: limits.maxDomains },
     };
   }
 
@@ -69,6 +74,16 @@ export class LimitService {
     const limits = await this.getLimits(tenantId);
     const used = await this.repo.countProperties(tenantId);
     if (used >= limits.maxProperties) throw new LimitExceededError("propiedades");
+  }
+
+  /**
+   * Un plan con maxDomains 0 no incluye dominio propio: la inmobiliaria se
+   * sirve igual por slug y por subdominio, que no consumen cupo.
+   */
+  async assertCanAddDomain(tenantId: string): Promise<void> {
+    const limits = await this.getLimits(tenantId);
+    const used = await this.repo.countDomains(tenantId);
+    if (used >= limits.maxDomains) throw new LimitExceededError("dominios");
   }
 
   async assertCanAddStorage(tenantId: string, additionalBytes: number): Promise<void> {

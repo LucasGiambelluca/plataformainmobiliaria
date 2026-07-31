@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Building2,
+  Globe,
   HardDrive,
   Loader2,
   Pencil,
@@ -113,6 +114,12 @@ export default function Plans() {
                   <HardDrive className="h-4 w-4 text-brand" />
                   {mbToGb(p.maxStorageMb)} GB de almacenamiento
                 </li>
+                <li className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-brand" />
+                  {p.maxDomains === 0
+                    ? 'Sin dominio propio'
+                    : `${p.maxDomains} ${p.maxDomains === 1 ? 'dominio propio' : 'dominios propios'}`}
+                </li>
               </ul>
 
               <div className="mt-5 flex gap-2">
@@ -187,8 +194,9 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           maxProperties: plan.maxProperties,
           maxUsers: plan.maxUsers,
           maxStorageMb: plan.maxStorageMb,
+          maxDomains: plan.maxDomains,
         }
-      : { maxProperties: 30, maxUsers: 2, maxStorageMb: 5120 },
+      : { maxProperties: 30, maxUsers: 2, maxStorageMb: 5120, maxDomains: 1 },
   })
 
   const onSubmit = handleSubmit(async (values) => {
@@ -251,6 +259,15 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
             {...register('maxStorageMb')}
           />
         </div>
+        <Input
+          label="Máx. dominios propios"
+          type="number"
+          min={0}
+          // 0 deja al plan sirviendo solo por slug y subdominio.
+          placeholder="0 = sin dominio propio"
+          error={errors.maxDomains?.message}
+          {...register('maxDomains')}
+        />
 
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>

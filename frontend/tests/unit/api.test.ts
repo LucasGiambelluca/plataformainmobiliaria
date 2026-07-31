@@ -231,6 +231,7 @@ describe('helpers validados', () => {
             maxProperties: 100,
             maxUsers: 10,
             maxStorageMb: 20480,
+            maxDomains: 1,
             isActive: true,
           },
         ],

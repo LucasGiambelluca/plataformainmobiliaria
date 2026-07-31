@@ -14,6 +14,10 @@ import {
 import { billingRouter } from "@/modules/billing/billing.router";
 import { auditRouter } from "@/modules/audit/audit.router";
 import {
+  adminDomainsRouter,
+  domainsRouter,
+} from "@/modules/domains/domains.router";
+import {
   platformMetricsRouter,
   tenantMetricsRouter,
 } from "@/modules/analytics/analytics.router";
@@ -42,8 +46,11 @@ apiRouter.use("/public/sites", publicSitesRouter);
 apiRouter.use("/inquiries", inquiriesRouter);
 // Cobros: checkout del tenant + webhook público de la pasarela.
 apiRouter.use("/billing", billingRouter);
-// Auditoría y métricas globales: solo super admin.
+// Dominios propios de la inmobiliaria autenticada.
+apiRouter.use("/domains", domainsRouter);
+// Auditoría, dominios y métricas globales: solo super admin.
 apiRouter.use("/admin/audit", auditRouter);
+apiRouter.use("/admin/domains", adminDomainsRouter);
 apiRouter.use("/admin/metrics", platformMetricsRouter);
 // Métricas propias de la inmobiliaria.
 apiRouter.use("/metrics", tenantMetricsRouter);

@@ -7,8 +7,25 @@ const SUPER_ADMIN_EMAIL = process.env.SEED_SUPER_ADMIN_EMAIL ?? "admin@plataform
 const SUPER_ADMIN_PASSWORD = process.env.SEED_SUPER_ADMIN_PASSWORD ?? "ChangeMe123!";
 
 const plans = [
-  { name: "Básico", slug: "basico", priceAmount: "0", maxProperties: 10, maxUsers: 2, maxStorageMb: 500 },
-  { name: "Pro", slug: "pro", priceAmount: "29999", maxProperties: 100, maxUsers: 10, maxStorageMb: 5000 },
+  // El plan gratuito no incluye dominio propio: se sirve por slug y subdominio.
+  {
+    name: "Básico",
+    slug: "basico",
+    priceAmount: "0",
+    maxProperties: 10,
+    maxUsers: 2,
+    maxStorageMb: 500,
+    maxDomains: 0,
+  },
+  {
+    name: "Pro",
+    slug: "pro",
+    priceAmount: "29999",
+    maxProperties: 100,
+    maxUsers: 10,
+    maxStorageMb: 5000,
+    maxDomains: 1,
+  },
   {
     name: "Enterprise",
     slug: "enterprise",
@@ -16,6 +33,7 @@ const plans = [
     maxProperties: 1000,
     maxUsers: 50,
     maxStorageMb: 50000,
+    maxDomains: 5,
   },
 ];
 
@@ -30,6 +48,7 @@ async function main(): Promise<void> {
         maxProperties: p.maxProperties,
         maxUsers: p.maxUsers,
         maxStorageMb: p.maxStorageMb,
+        maxDomains: p.maxDomains,
       },
       create: { ...p, priceCurrency: "ARS", billingInterval: "monthly" },
     });

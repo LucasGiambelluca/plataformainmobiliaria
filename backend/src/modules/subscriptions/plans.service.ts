@@ -11,6 +11,7 @@ export interface PlanRecord {
   maxProperties: number;
   maxUsers: number;
   maxStorageMb: number;
+  maxDomains: number;
   isActive: boolean;
 }
 
@@ -23,6 +24,7 @@ export interface CreatePlanInput {
   maxProperties: number;
   maxUsers: number;
   maxStorageMb: number;
+  maxDomains: number;
 }
 
 export type UpdatePlanInput = Partial<CreatePlanInput> & { isActive?: boolean };

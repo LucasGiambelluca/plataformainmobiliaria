@@ -11,6 +11,7 @@ const PLAN = {
   maxProperties: 100,
   maxUsers: 10,
   maxStorageMb: 5000,
+  maxDomains: 1,
   isActive: true,
 };
 
@@ -33,6 +34,7 @@ const CREATE_INPUT = {
   maxProperties: 100,
   maxUsers: 10,
   maxStorageMb: 5000,
+  maxDomains: 1,
 };
 
 describe("PlansService", () => {

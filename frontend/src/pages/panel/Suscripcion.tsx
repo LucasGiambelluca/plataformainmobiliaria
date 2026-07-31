@@ -172,6 +172,11 @@ export default function Suscripcion() {
                   limit={resource.data.usage.storageMb.limit}
                   unit=" MB"
                 />
+                <UsageBar
+                  label="Dominios propios"
+                  used={resource.data.usage.domains.used}
+                  limit={resource.data.usage.domains.limit}
+                />
               </div>
             </div>
           </div>
@@ -223,6 +228,12 @@ export default function Suscripcion() {
                       <li className="flex items-center gap-2">
                         <Check className="h-4 w-4 text-brand" />
                         {Math.round((plan.maxStorageMb / 1024) * 10) / 10} GB
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-brand" />
+                        {plan.maxDomains === 0
+                          ? 'Sin dominio propio'
+                          : `${plan.maxDomains} ${plan.maxDomains === 1 ? 'dominio propio' : 'dominios propios'}`}
                       </li>
                     </ul>
                     <Button

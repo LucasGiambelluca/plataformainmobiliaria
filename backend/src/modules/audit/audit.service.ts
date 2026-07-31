@@ -19,6 +19,9 @@ export const AUDIT_ACTIONS = [
   "payment.failed",
   "site.publish",
   "site.unpublish",
+  "domain.create",
+  "domain.verify",
+  "domain.delete",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

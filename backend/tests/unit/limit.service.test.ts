@@ -2,7 +2,7 @@ import { LimitService, type UsageRepository } from "@/modules/subscriptions/limi
 import { LimitExceededError } from "@/shared/errors";
 
 const TENANT_ID = "33333333-3333-3333-3333-333333333333";
-const LIMITS = { maxProperties: 10, maxUsers: 2, maxStorageMb: 500 };
+const LIMITS = { maxProperties: 10, maxUsers: 2, maxStorageMb: 500, maxDomains: 1 };
 
 function makeRepo(overrides: Partial<UsageRepository> = {}) {
   const repo: UsageRepository = {
@@ -10,6 +10,7 @@ function makeRepo(overrides: Partial<UsageRepository> = {}) {
     countActiveUsers: jest.fn().mockResolvedValue(1),
     countProperties: jest.fn().mockResolvedValue(3),
     sumStorageBytes: jest.fn().mockResolvedValue(BigInt(100 * 1024 * 1024)),
+    countDomains: jest.fn().mockResolvedValue(0),
     ...overrides,
   };
   return repo;
@@ -24,6 +25,7 @@ describe("LimitService", () => {
         users: { used: 1, limit: 2 },
         properties: { used: 3, limit: 10 },
         storageMb: { used: 100, limit: 500 },
+        domains: { used: 0, limit: 1 },
       });
     });
 
@@ -57,6 +59,33 @@ describe("LimitService", () => {
         makeRepo({ countProperties: jest.fn().mockResolvedValue(10) }),
       );
       await expect(service.assertCanAddProperty(TENANT_ID)).rejects.toBeInstanceOf(
+        LimitExceededError,
+      );
+    });
+  });
+
+  describe("assertCanAddDomain", () => {
+    it("pasa si el plan tiene cupo", async () => {
+      const service = new LimitService(makeRepo());
+      await expect(service.assertCanAddDomain(TENANT_ID)).resolves.toBeUndefined();
+    });
+
+    it("límite alcanzado → LimitExceededError", async () => {
+      const service = new LimitService(
+        makeRepo({ countDomains: jest.fn().mockResolvedValue(1) }),
+      );
+      await expect(service.assertCanAddDomain(TENANT_ID)).rejects.toBeInstanceOf(
+        LimitExceededError,
+      );
+    });
+
+    it("plan sin dominio propio (maxDomains 0) → rechaza el primero", async () => {
+      const service = new LimitService(
+        makeRepo({
+          getPlanLimits: jest.fn().mockResolvedValue({ ...LIMITS, maxDomains: 0 }),
+        }),
+      );
+      await expect(service.assertCanAddDomain(TENANT_ID)).rejects.toBeInstanceOf(
         LimitExceededError,
       );
     });
