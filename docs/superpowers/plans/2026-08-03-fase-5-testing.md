@@ -32,10 +32,13 @@ Las tareas 5.5 (performance), 5.10 (manual de usuario) y 5.11 (capacitación) ta
 
 ## Reglas que valen para todas las tareas
 
-1. **TDD de verdad.** Escribir el test, verlo fallar por el motivo correcto, recién ahí tocar el código. En este plan casi ningún test necesita código nuevo —el backend ya está construido— así que **el test tiene que pasar en verde a la primera**. Si pasa a la primera, está bien. Si falla, encontraste un bug real: ese es el punto de la fase.
+1. **TDD de verdad.** Escribir el test, verlo fallar por el motivo correcto, recién ahí tocar el código. En este plan casi ningún test necesita código nuevo —el backend ya está construido— así que **el test tiene que pasar en verde a la primera**. Si pasa a la primera, está bien.
+
+   **Si falla, primero preguntate si el test está mal.** El código de los tests de este plan se escribió leyendo el repo pero sin ejecutarlo: una afirmación puede estar equivocada sobre lo que un endpoint devuelve. Comprobá contra el router y el servicio reales antes de tocar producción. Cambiar el backend para satisfacer un test mal escrito es peor que no tener el test —y en un caso concreto, agregarle un campo a la respuesta de `/me` significaría una consulta a la base en cada request autenticado—. Recién cuando el test dice la verdad y el código no la cumple, encontraste un bug real: ese es el punto de la fase.
 2. **Un test, una afirmación de negocio.** El nombre del test dice la regla en castellano, como en las suites que ya existen.
 3. **Nada de `sleep`.** Si un test necesita esperar, está mal diseñado.
-4. **Commit por tarea**, con los tests en verde.
+4. **Ojo con los ceros de la plata.** Postgres devuelve un `Decimal` normalizado: se guarda `"150000.00"` y se lee `"150000"`. Los decimales significativos sí sobreviven (`"189500.55"` vuelve igual). Escribí en la afirmación lo que la base devuelve, no lo que insertaste.
+5. **Commit por tarea**, con los tests en verde.
 
 ---
 
@@ -914,7 +917,11 @@ describe("/me", () => {
       .set("Authorization", `Bearer ${alta.body.accessToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.user.email).toBe(ALTA.email);
+    // `/me` devuelve lo que trae el access token —id, tenant y rol— y nada más.
+    // NO esperes el email acá: agregárselo obligaría a pegarle a la base en
+    // cada request autenticado. El email sí viaja en /register y /login.
+    expect(res.body.user.id).toBe(alta.body.user.id);
+    expect(res.body.user.role).toBe("tenant_admin");
     expect(JSON.stringify(res.body)).not.toContain("passwordHash");
   });
 });
@@ -1504,11 +1511,10 @@ describe("webhook de la pasarela", () => {
   }
 
   it("un pago aprobado aplica el plan pendiente y limpia pendingPlanId", async () => {
-    const { tenant } = await crearInmobiliariaCompleta("norte", { planSlug: "basico-norte" });
-    const caro = await crearPlan({ slug: "enterprise", priceAmount: "79999" });
-    const sub = await prisma.subscription.findFirstOrThrow({
-      where: { tenantId: tenant.id },
+    const { subscription: sub } = await crearInmobiliariaCompleta("norte", {
+      planSlug: "basico-norte",
     });
+    const caro = await crearPlan({ slug: "enterprise", priceAmount: "79999" });
     await prisma.subscription.update({
       where: { id: sub.id },
       data: { pendingPlanId: caro.id },
@@ -1531,11 +1537,10 @@ describe("webhook de la pasarela", () => {
   it("un pago rechazado NO aplica el plan pendiente", async () => {
     // Es la mitad que más importa: si un rechazo aplicara el upgrade, alcanzaría
     // con una tarjeta sin fondos para quedarse con el plan caro.
-    const { tenant } = await crearInmobiliariaCompleta("norte", { planSlug: "basico-norte" });
-    const caro = await crearPlan({ slug: "enterprise", priceAmount: "79999" });
-    const sub = await prisma.subscription.findFirstOrThrow({
-      where: { tenantId: tenant.id },
+    const { subscription: sub } = await crearInmobiliariaCompleta("norte", {
+      planSlug: "basico-norte",
     });
+    const caro = await crearPlan({ slug: "enterprise", priceAmount: "79999" });
     await prisma.subscription.update({
       where: { id: sub.id },
       data: { pendingPlanId: caro.id },
@@ -1562,9 +1567,8 @@ describe("webhook de la pasarela", () => {
   });
 
   it("el pago aprobado queda registrado en la tabla de pagos", async () => {
-    const { tenant } = await crearInmobiliariaCompleta("norte", { planSlug: "basico-norte" });
-    const sub = await prisma.subscription.findFirstOrThrow({
-      where: { tenantId: tenant.id },
+    const { tenant, subscription: sub } = await crearInmobiliariaCompleta("norte", {
+      planSlug: "basico-norte",
     });
 
     fingirEvento("evt-3", { externalReference: sub.id });
@@ -1622,8 +1626,10 @@ describe("alta de dominio propio", () => {
   it("el plan decide cuántos entran; con maxDomains 0 no entra ninguno", async () => {
     // El plan básico se sirve solo por slug y subdominio: el dominio propio es
     // parte de lo que se paga.
-    await crearInmobiliariaCompleta("basica");
-    await prisma.plan.updateMany({ where: { slug: "plan-basica" }, data: { maxDomains: 0 } });
+    // maxDomains 0 explícito aunque sea el default de la fábrica: lo que este
+    // test afirma es el 0, y dejarlo implícito lo volvería verde por accidente
+    // si mañana el default cambiara.
+    await crearInmobiliariaCompleta("basica", { maxDomains: 0 });
     const token = await loguear(app, "admin@basica.test");
 
     const res = await request(app)
@@ -1637,8 +1643,7 @@ describe("alta de dominio propio", () => {
   it("un dominio nace en verifying, nunca en active", async () => {
     // Activarlo sin comprobar el DNS haría que resolveTenant sirva la web de
     // esa inmobiliaria en un host que puede no ser suyo.
-    await crearInmobiliariaCompleta("pro");
-    await prisma.plan.updateMany({ where: { slug: "plan-pro" }, data: { maxDomains: 1 } });
+    await crearInmobiliariaCompleta("pro", { maxDomains: 1 });
     const token = await loguear(app, "admin@pro.test");
 
     const res = await request(app)
@@ -1652,8 +1657,7 @@ describe("alta de dominio propio", () => {
   });
 
   it("no hay endpoint para marcarlo activo a mano", async () => {
-    await crearInmobiliariaCompleta("pro");
-    await prisma.plan.updateMany({ where: { slug: "plan-pro" }, data: { maxDomains: 1 } });
+    await crearInmobiliariaCompleta("pro", { maxDomains: 1 });
     const token = await loguear(app, "admin@pro.test");
 
     const alta = await request(app)
@@ -1672,9 +1676,8 @@ describe("alta de dominio propio", () => {
   });
 
   it("un dominio ya reclamado por otra inmobiliaria devuelve 409", async () => {
-    await crearInmobiliariaCompleta("pro");
-    await crearInmobiliariaCompleta("otra");
-    await prisma.plan.updateMany({ data: { maxDomains: 1 } });
+    await crearInmobiliariaCompleta("pro", { maxDomains: 1 });
+    await crearInmobiliariaCompleta("otra", { maxDomains: 1 });
 
     const tokenPro = await loguear(app, "admin@pro.test");
     await request(app)
