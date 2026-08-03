@@ -25,5 +25,3 @@ export async function connectDatabase(): Promise<void> {
 export async function disconnectDatabase(): Promise<void> {
   await prisma.$disconnect();
 }
-
-void env; // asegura validación de env al importar la capa de datos
