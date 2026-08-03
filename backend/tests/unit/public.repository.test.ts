@@ -88,6 +88,43 @@ describe("publicRepository — filtro de visibilidad", () => {
     expect(args.where).toEqual({ isActive: true });
   });
 
+  it("las localidades del directorio salen solo de propiedades visibles", async () => {
+    // Si no, una inmobiliaria aparecería publicando en una ciudad donde solo
+    // tiene borradores.
+    await publicRepository.listAgencies();
+
+    const [args] = property.groupBy.mock.calls[0];
+    esperarVisibilidad(args.where);
+    expect(args.by).toEqual(["tenantId", "city"]);
+  });
+
+  it("el sitemap solo publica propiedades visibles", async () => {
+    await publicRepository.listSitemapProperties();
+
+    const [args] = property.findMany.mock.calls[0];
+    esperarVisibilidad(args.where);
+    expect(args.where.tenantId).toBeUndefined();
+  });
+
+  it("el sitemap de una inmobiliaria acota por tenant sin aflojar la visibilidad", async () => {
+    await publicRepository.listSitemapProperties("t1");
+
+    const [args] = property.findMany.mock.calls[0];
+    esperarVisibilidad(args.where);
+    expect(args.where.tenantId).toBe("t1");
+  });
+
+  it("el sitemap solo ofrece webs publicadas", async () => {
+    // Una web sin publicar responde 404: ofrecérsela al buscador penaliza al sitio.
+    await publicRepository.listSitemapAgencies();
+
+    const [args] = tenant.findMany.mock.calls[0];
+    expect(args.where).toEqual({
+      isActive: true,
+      siteConfig: { isPublished: true },
+    });
+  });
+
   it("las localidades se cuentan solo sobre propiedades visibles", async () => {
     await publicRepository.listCities();
 

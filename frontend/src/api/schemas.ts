@@ -40,6 +40,36 @@ export const authResponseSchema = z.object({
 })
 export type AuthResponse = z.infer<typeof authResponseSchema>
 
+// ── Equipo de la inmobiliaria (agentes y administradores) ──────────
+
+/** super_admin nunca se crea desde acá: es de la plataforma, no del tenant. */
+export const tenantRoleSchema = z.enum(['tenant_admin', 'agent'])
+export type TenantRole = z.infer<typeof tenantRoleSchema>
+
+export const tenantUserSchema = z.object({
+  id: z.string(),
+  tenantId: z.string(),
+  email: z.string(),
+  role: tenantRoleSchema,
+  name: z.string().nullable(),
+  phone: z.string().nullable(),
+  isActive: z.boolean(),
+})
+export type TenantUser = z.infer<typeof tenantUserSchema>
+
+export const usersResponseSchema = z.object({ users: z.array(tenantUserSchema) })
+export const userResponseSchema = z.object({ user: tenantUserSchema })
+
+/** Espejo de createUserSchema del backend. */
+export const agentFormSchema = z.object({
+  name: z.string().trim().min(2, 'Mínimo 2 caracteres').max(255),
+  email: z.string().trim().toLowerCase().email('Email inválido'),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  phone: z.string().trim().max(50).optional().or(z.literal('')),
+  role: tenantRoleSchema,
+})
+export type AgentForm = z.infer<typeof agentFormSchema>
+
 export const registerResponseSchema = authResponseSchema.extend({
   tenant: z.object({
     id: z.string(),
@@ -174,6 +204,8 @@ export const propertyMediaSchema = z.object({
   type: mediaTypeSchema,
   url: z.string(),
   thumbnailUrl: z.string().nullable(),
+  /** Solo en video: lo mide el navegador al subirlo. */
+  durationSec: z.number().nullable(),
   sizeBytes: z.number(),
   sortOrder: z.number(),
   isCover: z.boolean(),
@@ -321,6 +353,10 @@ export const publicAgenciesResponseSchema = z.object({
       contactEmail: z.string().nullable(),
       contactPhone: z.string().nullable(),
       propertiesCount: z.number(),
+      /** Localidades donde publica, de la que más tiene a la que menos. */
+      cities: z.array(z.string()),
+      /** Sin la web publicada no se ofrece el enlace: daría 404. */
+      hasPublishedSite: z.boolean(),
     }),
   ),
 })

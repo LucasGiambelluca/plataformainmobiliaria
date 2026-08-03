@@ -15,6 +15,7 @@ import EnConstruccion from './pages/EnConstruccion'
 import Dashboard from './pages/panel/Dashboard'
 import Properties from './pages/panel/Properties'
 import Leads from './pages/panel/Leads'
+import Agentes from './pages/panel/Agentes'
 import MiSitio from './pages/panel/MiSitio'
 import Dominio from './pages/panel/Dominio'
 import Suscripcion from './pages/panel/Suscripcion'
@@ -25,9 +26,13 @@ import Plans from './pages/admin/Plans'
 import AdminDomains from './pages/admin/AdminDomains'
 import Audit from './pages/admin/Audit'
 import { useAuth } from './store/auth'
+import { isTenantHost } from './lib/host'
 
 export default function App() {
   const bootstrap = useAuth((s) => s.bootstrap)
+
+  // El host no cambia sin recargar la página, así que se lee una sola vez.
+  const enWebDeInmobiliaria = isTenantHost()
 
   // Rehidrata la sesión una sola vez al montar: el access token vive en memoria
   // y se pierde en cada recarga, la cookie de refresh no.
@@ -37,9 +42,14 @@ export default function App() {
 
   return (
     <Routes>
+      {/* En el subdominio o el dominio propio de una inmobiliaria, la raíz es su
+          web y no la home del portal (tarea 4.11). Va fuera de PublicLayout
+          porque AgencySite trae su propio encabezado, su marca y su pie. */}
+      {enWebDeInmobiliaria && <Route path="/" element={<AgencySite />} />}
+
       {/* Sitio público */}
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<Home />} />
+        {!enWebDeInmobiliaria && <Route path="/" element={<Home />} />}
         <Route path="/buscar" element={<SearchResults />} />
         <Route path="/propiedad/:id" element={<PropertyDetail />} />
         <Route path="/registro" element={<Register />} />
@@ -65,9 +75,16 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="propiedades" element={<Properties />} />
           <Route path="leads" element={<Leads />} />
-          <Route path="mi-sitio" element={<MiSitio />} />
-          <Route path="dominio" element={<Dominio />} />
-          <Route path="suscripcion" element={<Suscripcion />} />
+
+          {/* Secciones que el backend reserva al tenant_admin. El portero se
+              repite acá para que un agente que escriba la URL a mano tampoco
+              entre, no solo para ocultarlas del menú. */}
+          <Route element={<RequireAuth roles={['tenant_admin']} />}>
+            <Route path="equipo" element={<Agentes />} />
+            <Route path="mi-sitio" element={<MiSitio />} />
+            <Route path="dominio" element={<Dominio />} />
+            <Route path="suscripcion" element={<Suscripcion />} />
+          </Route>
         </Route>
       </Route>
 

@@ -10,7 +10,7 @@ import StatCard from '../../components/panel/StatCard'
 import { EmptyState, ErrorState, Spinner } from '../../components/common/AsyncState'
 import { useResource } from '../../hooks/useResource'
 import { getPlatformMetrics } from '../../api/metrics'
-import { formatARS } from '../../data/mock'
+import { formatARS } from '../../lib/format'
 
 /** Montos grandes: en las tarjetas se muestran abreviados para que entren. */
 function compacto(monto: string): string {

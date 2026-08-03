@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   Bath,
@@ -9,18 +9,41 @@ import {
   Eye,
   Maximize,
   MapPin,
+  Play,
 } from 'lucide-react'
 import ContactForm from '../components/properties/ContactForm'
-import { ErrorState, Spinner } from '../components/common/AsyncState'
+import { ErrorState } from '../components/common/AsyncState'
+import { PropertyDetailSkeleton, Skeleton } from '../components/common/Skeleton'
 import { useResource } from '../hooks/useResource'
+import { useSeo } from '../hooks/useSeo'
 import { getPublicProperty } from '../api/publicCatalog'
 import { formatPrice, operationLabels, typeLabels } from '../lib/propertyLabels'
+import { propertyJsonLd, propertySummary } from '../lib/seo'
+
+// Leaflet pesa lo suyo y solo lo usa esta pantalla: se carga aparte, cuando la
+// propiedad resultó tener coordenadas.
+const PropertyMap = lazy(() => import('../components/properties/PropertyMap'))
 
 export default function PropertyDetail() {
   const { id } = useParams()
   const [active, setActive] = useState(0)
 
   const recurso = useResource(() => getPublicProperty(id as string), [id])
+  const datos = recurso.data
+
+  const canonicalPath = `/propiedad/${id}`
+  const portada = datos?.media.find((m) => m.type === 'image')
+
+  useSeo({
+    title: datos?.title ?? 'Propiedad',
+    description: datos ? (datos.description ?? propertySummary(datos)) : null,
+    canonicalPath,
+    image: portada?.url ?? null,
+    type: 'article',
+    jsonLd: datos
+      ? propertyJsonLd(datos, window.location.origin + canonicalPath)
+      : null,
+  })
 
   if (recurso.error) {
     return (
@@ -35,15 +58,15 @@ export default function PropertyDetail() {
     )
   }
 
-  if (recurso.loading || !recurso.data) {
+  if (recurso.loading || !datos) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-16">
-        <Spinner label="Cargando propiedad…" />
+      <div className="mx-auto max-w-7xl px-4 py-6">
+        <PropertyDetailSkeleton />
       </div>
     )
   }
 
-  const property = recurso.data
+  const property = datos
   const ubicacion = [property.address, property.city, property.state]
     .filter(Boolean)
     .join(', ')
@@ -67,7 +90,20 @@ export default function PropertyDetail() {
       <div className="mt-5 grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         <div>
           <div className="overflow-hidden rounded-lg border border-line">
-            {principal ? (
+            {principal?.type === 'video' ? (
+              // `key` fuerza a React a rehacer el elemento al cambiar de
+              // archivo: sin eso el reproductor sigue mostrando el video
+              // anterior cuando se elige otro en la galería.
+              <video
+                key={principal.id}
+                src={principal.url}
+                poster={principal.thumbnailUrl ?? undefined}
+                controls
+                preload="metadata"
+                playsInline
+                className="aspect-[16/10] w-full bg-black object-contain"
+              />
+            ) : principal ? (
               <img
                 src={principal.url}
                 alt={property.title}
@@ -90,12 +126,31 @@ export default function PropertyDetail() {
                     active === i ? 'border-brand' : 'border-transparent'
                   }`}
                 >
-                  <img
-                    src={m.thumbnailUrl ?? m.url}
-                    alt=""
-                    loading="lazy"
-                    className="aspect-[4/3] w-full object-cover"
-                  />
+                  <span className="relative block">
+                    {m.type === 'video' && !m.thumbnailUrl ? (
+                      <video
+                        src={m.url}
+                        preload="metadata"
+                        muted
+                        playsInline
+                        className="aspect-[4/3] w-full bg-black object-cover"
+                      />
+                    ) : (
+                      <img
+                        src={m.thumbnailUrl ?? m.url}
+                        alt=""
+                        loading="lazy"
+                        className="aspect-[4/3] w-full object-cover"
+                      />
+                    )}
+                    {m.type === 'video' && (
+                      <span className="absolute inset-0 grid place-items-center">
+                        <span className="grid h-8 w-8 place-items-center rounded-full bg-black/60">
+                          <Play className="h-4 w-4 fill-white text-white" aria-hidden />
+                        </span>
+                      </span>
+                    )}
+                  </span>
                 </button>
               ))}
             </div>
@@ -173,6 +228,19 @@ export default function PropertyDetail() {
                   ))}
                 </ul>
               </div>
+            )}
+
+            {/* Sin coordenadas no hay sección: un mapa centrado en el país no
+                dice nada y ocupa media pantalla. */}
+            {property.lat && property.lng && (
+              <Suspense fallback={<Skeleton className="mt-6 h-72 w-full rounded-lg md:h-96" />}>
+                <PropertyMap
+                  lat={property.lat}
+                  lng={property.lng}
+                  title={property.title}
+                  address={ubicacion || null}
+                />
+              </Suspense>
             )}
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5 text-sm text-muted">

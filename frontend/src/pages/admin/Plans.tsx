@@ -20,7 +20,7 @@ import { useResource } from '../../hooks/useResource'
 import { activatePlan, createPlan, deactivatePlan, listPlans, updatePlan } from '../../api/plans'
 import { planFormSchema, type Plan, type PlanForm } from '../../api/schemas'
 import { ApiError } from '../../lib/apiError'
-import { formatARS } from '../../data/mock'
+import { formatARS } from '../../lib/format'
 
 const intervalLabels = { monthly: 'mes', yearly: 'año' } as const
 

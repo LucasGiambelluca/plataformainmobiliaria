@@ -7,6 +7,7 @@ import {
   type PublicPropertyCard,
   type PublicPropertyDetail,
   type PublicRepository,
+  type SitemapEntry,
 } from "./public.service";
 
 /**
@@ -205,20 +206,39 @@ export const publicRepository: PublicRepository = {
   },
 
   async listAgencies(): Promise<PublicAgencyListItem[]> {
-    const rows = await prisma.tenant.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        logoUrl: true,
-        description: true,
-        contactEmail: true,
-        contactPhone: true,
-        _count: { select: { properties: { where: visibilidad } } },
-      },
-    });
+    const [rows, porCiudad] = await Promise.all([
+      prisma.tenant.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logoUrl: true,
+          description: true,
+          contactEmail: true,
+          contactPhone: true,
+          siteConfig: { select: { isPublished: true } },
+          _count: { select: { properties: { where: visibilidad } } },
+        },
+      }),
+      // En qué localidades publica cada una. Va como consulta aparte y no como
+      // un include: agrupar en la base evita traerse todas las propiedades solo
+      // para juntar sus ciudades.
+      prisma.property.groupBy({
+        by: ["tenantId", "city"],
+        where: { ...visibilidad, city: { not: null } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const ciudades = new Map<string, { city: string; count: number }[]>();
+    for (const fila of porCiudad) {
+      if (fila.city === null) continue;
+      const lista = ciudades.get(fila.tenantId) ?? [];
+      lista.push({ city: fila.city, count: fila._count._all });
+      ciudades.set(fila.tenantId, lista);
+    }
 
     return rows.map((t) => ({
       id: t.id,
@@ -229,6 +249,38 @@ export const publicRepository: PublicRepository = {
       contactEmail: t.contactEmail,
       contactPhone: t.contactPhone,
       propertiesCount: t._count.properties,
+      hasPublishedSite: t.siteConfig?.isPublished ?? false,
+      cities: (ciudades.get(t.id) ?? [])
+        .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "es"))
+        .map((c) => c.city),
+    }));
+  },
+
+  async listSitemapProperties(tenantId?: string): Promise<SitemapEntry[]> {
+    const rows = await prisma.property.findMany({
+      // El tenantId acota, nunca amplía: la visibilidad se aplica igual.
+      where: { ...visibilidad, ...(tenantId ? { tenantId } : {}) },
+      orderBy: { updatedAt: "desc" },
+      // Tope del protocolo de sitemaps: 50.000 URLs por archivo.
+      take: 50_000,
+      select: { id: true, updatedAt: true },
+    });
+
+    return rows.map((r) => ({ path: `/propiedad/${r.id}`, updatedAt: r.updatedAt }));
+  },
+
+  async listSitemapAgencies(): Promise<SitemapEntry[]> {
+    // `isPublished` es obligatorio acá: una web sin publicar responde 404, y
+    // ofrecerle al buscador URLs que dan 404 penaliza al sitio entero.
+    const rows = await prisma.tenant.findMany({
+      where: { isActive: true, siteConfig: { isPublished: true } },
+      orderBy: { name: "asc" },
+      select: { slug: true, updatedAt: true, siteConfig: { select: { updatedAt: true } } },
+    });
+
+    return rows.map((t) => ({
+      path: `/inmobiliaria/${t.slug}`,
+      updatedAt: t.siteConfig?.updatedAt ?? t.updatedAt,
     }));
   },
 

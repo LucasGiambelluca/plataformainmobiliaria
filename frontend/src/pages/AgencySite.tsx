@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowRight,
@@ -10,17 +10,26 @@ import {
   Phone,
 } from 'lucide-react'
 import PropertyCard from '../components/properties/PropertyCard'
-import { EmptyState, ErrorState, Spinner } from '../components/common/AsyncState'
+import { EmptyState, ErrorState } from '../components/common/AsyncState'
+import { AgencySiteSkeleton, PropertyGridSkeleton } from '../components/common/Skeleton'
 import { WhatsAppIcon } from '../components/common/BrandIcons'
 import { useResource } from '../hooks/useResource'
-import { getPublicSite } from '../api/sites'
+import { useSeo } from '../hooks/useSeo'
+import { getCurrentSite, getPublicSite } from '../api/sites'
 import { getCatalog } from '../api/publicCatalog'
 import { tenantThemeStyle } from '../lib/theme'
 import { operationLabels } from '../lib/propertyLabels'
+import { portalHref } from '../lib/host'
+import { agencyJsonLd } from '../lib/seo'
 import type { OperationType } from '../api/schemas'
 
 /**
- * Web propia de una inmobiliaria, servida por slug.
+ * Web propia de una inmobiliaria.
+ *
+ * Se sirve de dos maneras: por slug (`/inmobiliaria/:slug`, dentro del portal) y
+ * por host, cuando la inmobiliaria entra por su subdominio o su dominio propio y
+ * la web ocupa la raíz. En ese caso no hay slug en la URL y quién es la
+ * inmobiliaria lo resuelve el backend leyendo el `Host`.
  *
  * No usa PublicLayout: es el sitio del tenant, con su marca y sus colores, no
  * el portal. Los colores se inyectan como CSS variables acotadas a este
@@ -31,18 +40,41 @@ export default function AgencySite() {
   const [slide, setSlide] = useState(0)
   const [filtro, setFiltro] = useState<OperationType | 'all'>('all')
 
-  const sitio = useResource(() => getPublicSite(slug as string), [slug])
+  const sitio = useResource(
+    () => (slug ? getPublicSite(slug) : getCurrentSite()),
+    [slug],
+  )
+
+  // Por host, el slug lo trae la respuesta: el catálogo igual filtra por slug.
+  const agencySlug = slug ?? sitio.data?.tenant.slug
 
   const propiedades = useResource(
     () =>
       getCatalog({
-        agency: slug,
+        agency: agencySlug,
         operationType: filtro === 'all' ? undefined : filtro,
         onlyFeatured: sitio.data?.site.showFeaturedOnly || undefined,
         pageSize: 24,
       }),
-    [slug, filtro, sitio.data?.site.showFeaturedOnly],
+    [agencySlug, filtro, sitio.data?.site.showFeaturedOnly],
   )
+
+  const portal = portalHref()
+
+  useSeo({
+    title: sitio.data?.site.heroTitle ?? sitio.data?.tenant.name,
+    siteName: sitio.data?.tenant.name,
+    description: sitio.data?.site.aboutText ?? sitio.data?.tenant.description,
+    // Por host la web vive en la raíz; dentro del portal, bajo su slug.
+    canonicalPath: slug ? `/inmobiliaria/${slug}` : '/',
+    image: sitio.data?.carousel[0]?.imageUrl ?? sitio.data?.tenant.logoUrl ?? null,
+    jsonLd: sitio.data
+      ? agencyJsonLd(
+          sitio.data,
+          window.location.origin + (slug ? `/inmobiliaria/${slug}` : '/'),
+        )
+      : null,
+  })
 
   const carousel = sitio.data?.carousel ?? []
 
@@ -60,19 +92,15 @@ export default function AgencySite() {
         <p className="mt-6 text-muted">
           Puede que esta inmobiliaria todavía no haya publicado su sitio.
         </p>
-        <Link to="/" className="mt-2 inline-block text-brand hover:underline">
+        <a href={portal} className="mt-2 inline-block text-brand hover:underline">
           Volver al portal
-        </Link>
+        </a>
       </div>
     )
   }
 
   if (sitio.loading || !sitio.data) {
-    return (
-      <div className="py-24">
-        <Spinner label="Cargando sitio…" />
-      </div>
-    )
+    return <AgencySiteSkeleton />
   }
 
   const { tenant, site } = sitio.data
@@ -236,7 +264,10 @@ export default function AgencySite() {
         {propiedades.error ? (
           <ErrorState error={propiedades.error} onRetry={propiedades.reload} />
         ) : propiedades.loading && !propiedades.data ? (
-          <Spinner />
+          <PropertyGridSkeleton
+            count={6}
+            className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+          />
         ) : propiedades.data && propiedades.data.items.length === 0 ? (
           <EmptyState>
             {filtro === 'all'
@@ -279,9 +310,11 @@ export default function AgencySite() {
 
         <div className="border-t border-line py-3 text-center text-xs text-muted">
           Publicado en{' '}
-          <Link to="/" className="text-brand hover:underline">
+          {/* Enlace absoluto y no <Link>: en el dominio propio de la
+              inmobiliaria, "/" es su propia home, no la del portal. */}
+          <a href={portal} className="text-brand hover:underline">
             Entre Rios Propiedades
-          </Link>
+          </a>
         </div>
       </footer>
     </div>

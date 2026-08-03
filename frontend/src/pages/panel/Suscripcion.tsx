@@ -8,7 +8,7 @@ import { cancelSubscription, getSubscription } from '../../api/subscription'
 import { getPlans, startCheckout } from '../../api/billing'
 import type { SubscriptionStatus } from '../../api/schemas'
 import { ApiError } from '../../lib/apiError'
-import { formatARS } from '../../data/mock'
+import { formatARS } from '../../lib/format'
 
 const statusLabels: Record<SubscriptionStatus, string> = {
   trialing: 'Período de prueba',

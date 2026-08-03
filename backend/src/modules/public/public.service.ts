@@ -62,6 +62,27 @@ export interface PublicAgencyListItem extends PublicAgency {
   contactEmail: string | null;
   contactPhone: string | null;
   propertiesCount: number;
+  /**
+   * Localidades donde la inmobiliaria tiene propiedades visibles, de la que
+   * más publica a la que menos.
+   *
+   * No sale de un campo del tenant: la tabla no tiene domicilio, y aunque lo
+   * tuviera diría dónde está la oficina, no dónde vende. El directorio agrupa
+   * por dónde hay propiedades, así que se calcula desde el catálogo.
+   */
+  cities: string[];
+  /**
+   * Si tiene la web propia publicada. El directorio la necesita para decidir si
+   * ofrece el enlace: una web sin publicar responde 404, igual que una que no
+   * existe, así que linkearla a ciegas manda al visitante a una pantalla rota.
+   */
+  hasPublishedSite: boolean;
+}
+
+/** Una URL del sitemap: la fecha permite que el crawler no reprocese lo viejo. */
+export interface SitemapEntry {
+  path: string;
+  updatedAt: Date;
 }
 
 export interface CatalogInput {
@@ -99,6 +120,14 @@ export interface PublicRepository {
   listCities(): Promise<{ city: string; count: number }[]>;
   /** Solo planes activos: uno dado de baja no se ofrece más. */
   listActivePlans(): Promise<PublicPlan[]>;
+  /**
+   * Propiedades para el sitemap. Con `tenantId` devuelve solo las de esa
+   * inmobiliaria: es el sitemap de su dominio propio, que no debe listar el
+   * catálogo entero de la plataforma.
+   */
+  listSitemapProperties(tenantId?: string): Promise<SitemapEntry[]>;
+  /** Inmobiliarias con la web publicada: las que no lo están dan 404. */
+  listSitemapAgencies(): Promise<SitemapEntry[]>;
 }
 
 export interface PublicPlan {
@@ -164,5 +193,22 @@ export class PublicService {
 
   plans(): Promise<PublicPlan[]> {
     return this.repo.listActivePlans();
+  }
+
+  /**
+   * URLs indexables (tarea 4.9).
+   *
+   * Con `tenantId` es el sitemap de una web propia: solo sus propiedades, y sin
+   * el directorio de inmobiliarias, que pertenece al portal. Sin `tenantId` es
+   * el del portal, que sí lista a todas.
+   */
+  async sitemap(
+    tenantId?: string,
+  ): Promise<{ properties: SitemapEntry[]; agencies: SitemapEntry[] }> {
+    const [properties, agencies] = await Promise.all([
+      this.repo.listSitemapProperties(tenantId),
+      tenantId ? Promise.resolve<SitemapEntry[]>([]) : this.repo.listSitemapAgencies(),
+    ]);
+    return { properties, agencies };
   }
 }

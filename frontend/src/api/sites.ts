@@ -29,6 +29,15 @@ export function getPublicSite(slug: string): Promise<PublicSite> {
   return getJson(`/public/sites/${slug}`, publicSiteSchema)
 }
 
+/**
+ * La web de la inmobiliaria a la que pertenece este host, sin slug en la URL.
+ * Es el endpoint que usan el subdominio y el dominio propio: quién es la
+ * inmobiliaria lo decide el backend leyendo el `Host`, no el navegador.
+ */
+export function getCurrentSite(): Promise<PublicSite> {
+  return getJson('/public/sites/current', publicSiteSchema)
+}
+
 /* ------------------------ config de la inmobiliaria ------------------------ */
 
 export async function getOwnSite(): Promise<OwnSite> {

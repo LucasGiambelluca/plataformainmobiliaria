@@ -1,0 +1,1015 @@
+<meta charset="utf-8">
+<title>Estado del proyecto — Plataforma Inmobiliaria Multitenant</title>
+
+<style>
+  :root {
+    --ground: #F4F7F6;
+    --surface: #FFFFFF;
+    --surface-2: #EAF0EF;
+    --border: #DCE5E3;
+    --border-strong: #C4D2CF;
+    --ink: #0C1918;
+    --ink-2: #2C3F3D;
+    --muted: #5D716E;
+    --brand: #0F766E;
+    --brand-ink: #0B5A54;
+    --accent: #C77A06;
+    --accent-ink: #A66405;
+    --danger: #B4453C;
+    --track: #DDE6E4;
+    --shadow: 0 1px 2px rgba(12, 25, 24, .05), 0 8px 24px -16px rgba(12, 25, 24, .25);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0A1312;
+      --surface: #0F1D1C;
+      --surface-2: #142624;
+      --border: #1E3230;
+      --border-strong: #2A4340;
+      --ink: #E8F0EE;
+      --ink-2: #C3D4D1;
+      --muted: #8FA5A2;
+      --brand: #2DD4BF;
+      --brand-ink: #5EEAD4;
+      --accent: #FBBF24;
+      --accent-ink: #FCD34D;
+      --danger: #E5786D;
+      --track: #1B2E2C;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -20px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground: #F4F7F6;
+    --surface: #FFFFFF;
+    --surface-2: #EAF0EF;
+    --border: #DCE5E3;
+    --border-strong: #C4D2CF;
+    --ink: #0C1918;
+    --ink-2: #2C3F3D;
+    --muted: #5D716E;
+    --brand: #0F766E;
+    --brand-ink: #0B5A54;
+    --accent: #C77A06;
+    --accent-ink: #A66405;
+    --danger: #B4453C;
+    --track: #DDE6E4;
+    --shadow: 0 1px 2px rgba(12, 25, 24, .05), 0 8px 24px -16px rgba(12, 25, 24, .25);
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0A1312;
+    --surface: #0F1D1C;
+    --surface-2: #142624;
+    --border: #1E3230;
+    --border-strong: #2A4340;
+    --ink: #E8F0EE;
+    --ink-2: #C3D4D1;
+    --muted: #8FA5A2;
+    --brand: #2DD4BF;
+    --brand-ink: #5EEAD4;
+    --accent: #FBBF24;
+    --accent-ink: #FCD34D;
+    --danger: #E5786D;
+    --track: #1B2E2C;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -20px rgba(0, 0, 0, .8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .num { font-family: ui-monospace, "Cascadia Mono", "Consolas", "SF Mono", monospace; font-variant-numeric: tabular-nums; }
+
+  .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  h1, h2, h3 { text-wrap: balance; margin: 0; letter-spacing: -.02em; }
+  h1 { font-size: clamp(26px, 4vw, 38px); line-height: 1.1; font-weight: 650; }
+  h2 { font-size: 19px; font-weight: 620; }
+  h3 { font-size: 15px; font-weight: 620; }
+  p { margin: 0; }
+
+  /* ---------- Cabecera ---------- */
+
+  .topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .topbar .meta { display: flex; flex-direction: column; gap: 8px; max-width: 60ch; }
+  .topbar .sub { color: var(--muted); font-size: 14px; }
+
+  .theme-btn {
+    background: var(--surface);
+    color: var(--ink-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .theme-btn:hover { border-color: var(--border-strong); color: var(--ink); }
+  .theme-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+  /* ---------- Panel global ---------- */
+
+  .hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 28px;
+    display: grid;
+    grid-template-columns: minmax(180px, 220px) 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .gauge { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .gauge svg { display: block; width: 176px; height: 176px; }
+  .gauge .ring-track { stroke: var(--track); }
+  .gauge .ring-done { stroke: var(--brand); transition: stroke-dashoffset 1.1s cubic-bezier(.2,.7,.2,1); }
+  .gauge .ring-partial { stroke: var(--accent); transition: stroke-dashoffset 1.1s cubic-bezier(.2,.7,.2,1) .1s; }
+  .gauge .pct { font-size: 34px; font-weight: 650; fill: var(--ink); letter-spacing: -.03em; }
+  .gauge .pct-sub { font-size: 10px; fill: var(--muted); letter-spacing: .12em; font-weight: 600; }
+
+  .hero-side { display: flex; flex-direction: column; gap: 18px; }
+  .hero-lead { font-size: 15px; color: var(--ink-2); max-width: 62ch; }
+  .hero-lead strong { color: var(--ink); font-weight: 620; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .dot.done { background: var(--brand); }
+  .dot.partial { background: var(--accent); }
+  .dot.todo { background: var(--danger); }
+
+  /* ---------- KPIs ---------- */
+
+  .kpis {
+    display: grid;
+    /* Tres por fila: son seis, y con auto-fit quedaba una celda vacía suelta. */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .kpi { background: var(--surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 3px; }
+  .kpi .v { font-size: 24px; font-weight: 620; letter-spacing: -.02em; }
+  .kpi .k { font-size: 11.5px; color: var(--muted); }
+
+  /* ---------- Secciones ---------- */
+
+  section { display: flex; flex-direction: column; gap: 16px; }
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .sec-head p { color: var(--muted); font-size: 13px; max-width: 68ch; }
+
+  /* ---------- Fases ---------- */
+
+  .phases { display: flex; flex-direction: column; gap: 10px; }
+
+  .phase {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--phase-tone, var(--brand));
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: minmax(220px, 1.4fr) minmax(200px, 2fr) auto;
+    gap: 20px;
+    align-items: center;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    width: 100%;
+    transition: border-color .15s, transform .15s;
+  }
+  .phase:hover { border-color: var(--border-strong); border-left-color: var(--phase-tone, var(--brand)); }
+  .phase:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .phase[aria-pressed="true"] { background: var(--surface-2); }
+
+  .phase .title { display: flex; flex-direction: column; gap: 2px; }
+  .phase .title .n { font-weight: 620; font-size: 14.5px; }
+  .phase .title .w { font-size: 11.5px; color: var(--muted); }
+
+  .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--track); }
+  .stack i { display: block; height: 100%; transition: width .9s cubic-bezier(.2,.7,.2,1); }
+  .stack .s-done { background: var(--brand); }
+  .stack .s-partial { background: var(--accent); }
+  .stack .s-todo { background: var(--danger); opacity: .55; }
+  .phase .barwrap { display: flex; flex-direction: column; gap: 6px; }
+  .phase .barmeta { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); }
+
+  .phase .pctbig { font-size: 22px; font-weight: 620; letter-spacing: -.02em; text-align: right; min-width: 72px; }
+
+  /* ---------- Evolución ---------- */
+
+  .evo {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px 18px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .evo-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(140px, 2fr) 210px;
+    gap: 18px;
+    align-items: center;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .evo-row:last-child { border-bottom: 0; }
+  .evo-row .name { font-size: 13.5px; font-weight: 550; }
+
+  /* Riel con la marca del corte anterior y la barra del actual encima. */
+  .rail { position: relative; height: 12px; border-radius: 6px; background: var(--track); overflow: hidden; }
+  .rail .before {
+    position: absolute; inset: 0 auto 0 0;
+    background: repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--brand) 26%, transparent) 0 5px,
+      transparent 5px 10px
+    );
+  }
+  .rail .after { position: absolute; inset: 0 auto 0 0; background: var(--brand); transition: width .9s cubic-bezier(.2,.7,.2,1); }
+  .rail .after.full { background: var(--brand); }
+
+  .evo-nums { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; font-variant-numeric: tabular-nums; }
+  .evo-nums .from { color: var(--muted); font-size: 12.5px; }
+  .evo-nums .arrow { color: var(--muted); font-size: 12px; }
+  .evo-nums .to { font-size: 14.5px; font-weight: 620; }
+
+  .delta {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3px;
+    font-size: 11.5px;
+    font-weight: 650;
+    padding: 1px 8px;
+    border-radius: 999px;
+    min-width: 68px;
+    justify-content: center;
+    white-space: nowrap;
+    color: var(--brand-ink);
+    border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
+    background: color-mix(in srgb, var(--brand) 10%, transparent);
+  }
+  .delta.flat { color: var(--muted); border-color: var(--border); background: transparent; }
+
+  .gauge .delta { font-size: 12.5px; padding: 3px 14px; }
+  .gauge .cap { font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+
+  .changes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+  .change {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--brand);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .change .top { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .change .top .num { font-family: ui-monospace, Consolas, monospace; }
+  .change b { font-size: 13.5px; font-weight: 600; }
+  .change .move { font-size: 12px; color: var(--muted); }
+
+  /* ---------- Filtros ---------- */
+
+  .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink-2);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 550;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .chip:hover { border-color: var(--border-strong); }
+  .chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .chip[aria-pressed="true"] .dot { box-shadow: 0 0 0 2px var(--ground); }
+  .chip .c { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .chip[aria-pressed="true"] .c { color: var(--ground); opacity: .7; }
+
+  .search {
+    flex: 1 1 200px;
+    min-width: 180px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .search::placeholder { color: var(--muted); }
+  .search:focus { outline: 2px solid var(--brand); outline-offset: -1px; border-color: transparent; }
+
+  /* ---------- Tabla ---------- */
+
+  .tablebox {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+  }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; }
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  tbody td { padding: 11px 16px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13.5px; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--surface-2); }
+  td.id { width: 58px; color: var(--muted); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; }
+  td.h { width: 56px; text-align: right; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  td.st { width: 128px; }
+  td.ev { color: var(--muted); font-size: 12.5px; max-width: 340px; }
+  td.ev code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 11.5px; color: var(--ink-2); }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 9px 2px 7px;
+    border-radius: 999px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .tag.done { color: var(--brand-ink); border-color: color-mix(in srgb, var(--brand) 35%, transparent); background: color-mix(in srgb, var(--brand) 10%, transparent); }
+  .tag.partial { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .tag.todo { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+
+  .empty { padding: 28px 16px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  /* ---------- Inventario ---------- */
+
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .card > .label { border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+
+  .items { display: flex; flex-direction: column; gap: 7px; }
+  .item { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; line-height: 1.45; }
+  .item .dot { margin-top: 6px; }
+  .item .desc { color: var(--muted); font-size: 12px; }
+  .item code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 11.5px; }
+
+  /* ---------- Bloqueantes ---------- */
+
+  .gaps { display: flex; flex-direction: column; gap: 10px; }
+  .gap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--tone);
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: grid;
+    grid-template-columns: 116px 1fr auto;
+    gap: 18px;
+    align-items: baseline;
+  }
+  .gap .sev { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--tone); }
+  .gap .what { display: flex; flex-direction: column; gap: 3px; }
+  .gap .what b { font-weight: 620; font-size: 14px; }
+  .gap .what span { color: var(--muted); font-size: 12.5px; }
+  .gap .est { font-size: 12.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  footer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--border); padding-top: 20px; display: flex; flex-direction: column; gap: 6px; }
+  footer code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 11.5px; }
+
+  @media (max-width: 620px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 820px) {
+    .evo-row { grid-template-columns: 1fr; gap: 8px; }
+    .evo-nums { justify-content: flex-start; }
+    .hero { grid-template-columns: 1fr; justify-items: center; text-align: left; }
+    .phase { grid-template-columns: 1fr; gap: 12px; }
+    .phase .pctbig { text-align: left; }
+    .gap { grid-template-columns: 1fr; gap: 6px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="topbar">
+    <div class="meta">
+      <span class="label">Auditoría de avance · 3 ago 2026, tercer corte</span>
+      <h1>Plataforma inmobiliaria multitenant</h1>
+      <p class="sub">Estado real del código contra las 83 tareas del <em>plan_estratégico</em>. Cada fila se verificó contra archivos del repo, no contra el changelog. Los porcentajes se comparan con el corte del 31 de julio.</p>
+    </div>
+    <button class="theme-btn" id="theme" type="button">Cambiar tema</button>
+  </header>
+
+  <div class="hero">
+    <div class="gauge">
+      <svg viewBox="0 0 200 200" role="img" aria-labelledby="gauge-title">
+        <title id="gauge-title">Avance global del proyecto</title>
+        <circle class="ring-track" cx="100" cy="100" r="82" fill="none" stroke-width="17" />
+        <circle class="ring-partial" id="ringPartial" cx="100" cy="100" r="82" fill="none" stroke-width="17"
+                stroke-linecap="butt" transform="rotate(-90 100 100)" />
+        <circle class="ring-done" id="ringDone" cx="100" cy="100" r="82" fill="none" stroke-width="17"
+                stroke-linecap="butt" transform="rotate(-90 100 100)" />
+        <text class="pct num" id="gaugePct" x="100" y="98" text-anchor="middle">0%</text>
+        <text class="pct-sub" x="100" y="120" text-anchor="middle">COMPLETADO</text>
+      </svg>
+      <span class="delta num" id="gaugeDelta"></span>
+      <span class="cap">desde el corte anterior</span>
+    </div>
+
+    <div class="hero-side">
+      <p class="hero-lead">
+        <strong>Las fases 2, 3 y 4 están cerradas</strong>: el sitio público quedó completo con mapa en la ficha, SEO con sitemap propio por inmobiliaria, directorio contra datos reales y esqueletos de carga. Ya no queda ninguna pantalla leyendo datos falsos. De la fase 4 solo resta lo que no es código: <strong>cargar los registros DNS del VPS</strong>, sin los cuales el subdominio y el dominio propio de cada inmobiliaria no existen.
+        Y sigue faltando <strong>el paso grande: correr el deploy</strong>. La configuración está escrita pero nunca se ejecutó.
+      </p>
+      <div class="legend">
+        <span><i class="dot done"></i> Hecho y verificado en el repo</span>
+        <span><i class="dot partial"></i> Parcial — funciona a medias</span>
+        <span><i class="dot todo"></i> Sin empezar</span>
+      </div>
+      <div class="kpis" id="kpis"></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <h2>Qué se movió</h2>
+      <p>Comparación contra el corte anterior. La barra hueca es dónde estaba cada fase; la llena, dónde está ahora.</p>
+    </div>
+    <div class="evo" id="evo"></div>
+    <div class="changes" id="changes"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Avance por fase</h2>
+      <p>Ponderado por las horas del plan. Clic en una fase para filtrar la tabla de tareas.</p>
+    </div>
+    <div class="phases" id="phases"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Las 83 tareas, una por una</h2>
+      <p>Estado verificado contra el código. La columna de evidencia dice dónde mirar.</p>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="tablebox">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Tarea</th>
+            <th style="text-align:right">Horas</th>
+            <th>Estado</th>
+            <th>Evidencia en el repo</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="empty" hidden>Nada coincide con ese filtro.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Qué hay construido</h2>
+      <p>Inventario del código, no del plan.</p>
+    </div>
+    <div class="cols" id="inventory"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Lo que falta, por orden de urgencia</h2>
+      <p>Ordenado por qué impide vender el producto, no por qué es más fácil.</p>
+    </div>
+    <div class="gaps" id="gaps"></div>
+  </section>
+
+  <footer>
+    <p><strong>Método:</strong> cada tarea del plan se marcó hecha, parcial o pendiente buscando su implementación en el repo. El porcentaje pondera por las horas estimadas del plan; las parciales cuentan la fracción indicada en su fila. La comparación usa el mismo criterio sobre el corte anterior, así que los dos números son medibles con la misma vara.</p>
+    <p><strong>Verificado el 3 ago 2026</strong> sobre <code>main</code> @ <code>a91502e</code> — el trabajo de deploy y el cierre de la fase 4 todavía sin commitear. Backend: <code>npm test</code> → 329 pruebas en 29 suites, todas verdes. Frontend: <code>npx vitest run</code> → 68 pruebas en 7 archivos, todas verdes, y <code>npm run build</code> pasa el typecheck. <strong>Nada de esto corrió todavía en un servidor real.</strong></p>
+    <p><strong>Además del código:</strong> el circuito se recorrió a mano en el navegador —alta de inmobiliaria, propiedad con foto y video, sitio publicado, consulta que llega a la bandeja— y de ahí salieron tres errores que ya están corregidos: el rate limit compartido entre <code>/auth/login</code> y <code>/auth/refresh</code>, que echaba al usuario a las diez recargas; el cierre de sesión ante cualquier fallo del refresh, incluido un corte de red; y una espera con <code>requestAnimationFrame</code> que congelaba la subida de un video para siempre si la persona cambiaba de pestaña.</p>
+    <p>Las horas del plan suman 487h en el detalle de tareas (el resumen ejecutivo dice 470h; se usa el detalle porque es lo que se puede auditar).</p>
+  </footer>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Datos: una fila por tarea del plan estratégico.
+  // s: 'done' | 'partial' | 'todo'   w: fracción cumplida si es parcial
+  // ---------------------------------------------------------------
+
+  const PHASES = [
+    { n: 0, name: 'Planificación, diseño UX/UI y arquitectura', weeks: 'Semanas 1-2' },
+    { n: 1, name: 'Backend core, autenticación y suscripciones', weeks: 'Semanas 3-5' },
+    { n: 2, name: 'Panel super admin', weeks: 'Semanas 6-7' },
+    { n: 3, name: 'Panel inmobiliaria y publicaciones', weeks: 'Semanas 8-10' },
+    { n: 4, name: 'Frontend público y webs de inmobiliarias', weeks: 'Semanas 11-13' },
+    { n: 5, name: 'Testing, deploy y entrega final', weeks: 'Semanas 14-15' },
+  ]
+
+  const TASKS = [
+    // ---- Fase 0
+    { f:0, id:'0.1',  h:3,  s:'done',    t:'Monorepo backend + frontend y Docker Compose con Postgres',        ev:'<code>backend/docker-compose.yml</code> (PG 16 + MinIO) y scripts portables <code>pg.ps1</code> / <code>minio.ps1</code>' },
+    { f:0, id:'0.2',  h:3,  s:'done',    t:'Linters, TypeScript y estructura de carpetas del backend',          ev:'<code>tsconfig.json</code> con alias <code>@/</code>, eslint, <code>src/modules/</code> por dominio' },
+    { f:0, id:'0.3',  h:3,  s:'done',    t:'Vite + React + Tailwind y estructura del frontend',                 ev:'<code>frontend/</code> — 73 archivos, 9.061 líneas' },
+    { f:0, id:'0.4',  h:6,  s:'done',    t:'Schema de base de datos completo en Prisma',                        ev:'15 modelos y 12 enums en <code>prisma/schema.prisma</code>, 3 migraciones aplicadas' },
+    { f:0, id:'0.5',  h:10, s:'done',    t:'Diseño UX/UI de los dos paneles',                                   ev:'<code>screenshotsUI/</code> + <code>PanelLayout</code> / <code>AdminLayout</code> sobre <code>DashShell</code>' },
+    { f:0, id:'0.6',  h:8,  s:'done',    t:'Diseño UX/UI de web pública, catálogo y ficha',                     ev:'<code>Home</code>, <code>SearchResults</code>, <code>PropertyDetail</code>' },
+    { f:0, id:'0.7',  h:8,  s:'done',    t:'Diseño UX/UI de la web propia por inmobiliaria',                    ev:'<code>pages/AgencySite.tsx</code> con carrusel y tema del tenant' },
+    { f:0, id:'0.8',  h:6,  s:'done',    t:'Design system: componentes base',                                   ev:'<code>components/common/</code>: Button, Input, Select, Modal, Badge, AsyncState, Logo' },
+    { f:0, id:'0.9',  h:3,  s:'done',    t:'Documento de flujos de suscripción, roles y permisos',              ev:'<code>docs/arquitectura.md</code> §5.1 ciclo de vida, §8.2 roles y permisos' },
+    { f:0, id:'0.10', h:2,  s:'todo',    t:'Documentar la API con OpenAPI/Swagger',                             ev:'Sin rastro de swagger ni openapi en el repo' },
+
+    // ---- Fase 1
+    { f:1, id:'1.1',  h:4,  s:'done',    t:'Setup Express + TypeScript + Zod + Helmet + CORS',                  ev:'<code>src/app.ts</code> monta helmet, cors, rate limit y el router raíz' },
+    { f:1, id:'1.2',  h:2,  s:'done',    t:'Validación de variables de entorno con Zod',                        ev:'<code>src/config/env.ts</code> aborta el proceso si falta algo obligatorio' },
+    { f:1, id:'1.3',  h:4,  s:'done',    t:'Cliente Prisma y seed inicial (planes + super admin)',              ev:'<code>npm run prisma:seed</code> siembra 3 planes y <code>admin@plataforma.com</code>' },
+    { f:1, id:'1.4',  h:6,  s:'done',    t:'BaseRepository tenant-aware: toda query exige tenantId',            ev:'<code>shared/repository/BaseRepository.ts</code> + <code>baseRepository.test.ts</code>' },
+    { f:1, id:'1.5',  h:4,  s:'done',    t:'Middleware authenticate (verificación de JWT)',                     ev:'<code>shared/middleware/authenticate.ts</code>' },
+    { f:1, id:'1.6',  h:3,  s:'done',    t:'Middleware authorize (roles) y requireTenant',                      ev:'<code>authorize.ts</code> + <code>requireTenant.ts</code>, enum <code>UserRole</code>' },
+    { f:1, id:'1.7',  h:5,  s:'done',    t:'Middleware de resolución de tenant por subdominio y slug',          ev:'<code>resolveTenant.ts</code> + <code>resolveTenant.test.ts</code>' },
+    { f:1, id:'1.8',  h:10, s:'done',    t:'Módulo auth: login, registro, refresh y logout',                    ev:'JWT 15min + refresh en cookie httpOnly con rotación; 2 suites de test' },
+    { f:1, id:'1.9',  h:8,  s:'done',    t:'Módulo tenants: CRUD de inmobiliarias para el super admin',         ev:'<code>modules/tenants/</code> + 2 suites de test' },
+    { f:1, id:'1.10', h:6,  s:'done',    t:'Módulo users: CRUD por tenant con chequeo de límite del plan',      ev:'<code>modules/users/</code> + 2 suites de test' },
+    { f:1, id:'1.11', h:10, s:'done',    t:'Módulo subscriptions: planes, suscripciones y estados',             ev:'<code>modules/subscriptions/</code> + <code>plans.router</code>' },
+    { f:1, id:'1.12', h:6,  s:'done',    t:'LimitService: enforcement de límites por plan',                     ev:'<code>limit.service.ts</code> + <code>limit.service.test.ts</code>' },
+    { f:1, id:'1.13', h:10, s:'done',    t:'Módulo billing: interfaz PaymentProvider y webhooks',               ev:'Webhook verifica firma HMAC antes de mirar el cuerpo y consulta el estado real al proveedor' },
+    { f:1, id:'1.14', h:6,  s:'done',    t:'Implementación de MercadoPago (un proveedor)',                      ev:'Modelo preapproval (débito recurrente) + <code>FakePaymentProvider</code>; suite propia de test' },
+    { f:1, id:'1.15', h:6,  s:'done',    t:'Módulo notifications: EmailService y plantillas',                   ev:'Resend + fake; lead, bienvenida, pago ok y pago rechazado. Un correo caído nunca rompe la operación' },
+    { f:1, id:'1.16', h:3,  s:'done',    t:'Rate limiting en login, registro, webhooks y endpoints públicos',   ev:'<code>shared/middleware/rateLimit.ts</code>; consultas públicas con límite más estricto + honeypot' },
+    { f:1, id:'1.17', h:3,  s:'done',    t:'Manejo global de errores (AppError y subclases)',                   ev:'<code>shared/errors/</code> + handler <code>error.ts</code>' },
+    { f:1, id:'1.18', h:8,  s:'done',    t:'Endpoints base de sitios web por inmobiliaria',                     ev:'<code>modules/sites/</code>: <code>/api/site</code> privado y <code>/api/public/sites/:slug</code>' },
+    { f:1, id:'1.19', h:6,  s:'done', t:'Tabla tenant_domains con endpoints CRUD',                 ev:'<code>modules/domains/</code>: alta con límite del plan, verificación, baja y vista global del super admin' },
+    { f:1, id:'1.20', h:5,  s:'partial', w:0.5, t:'Servicio de verificación DNS (job periódico)',  ev:'<code>shared/services/dns/</code> resuelve contra el DNS real y el panel tiene botón de verificar. Falta el reintento automático: hoy un dominio que propaga tarde queda esperando que alguien lo chequee a mano' },
+    { f:1, id:'1.21', h:6,  s:'done',    t:'Resolución de tenant por header Host (dominios propios)',           ev:'Implementado y testeado en <code>resolveTenant.ts</code>; falta la infra que lo alimente' },
+
+    // ---- Fase 2
+    { f:2, id:'2.1',  h:6,  s:'done',    t:'Layout del super admin: sidebar, header y navegación',              ev:'<code>components/admin/AdminLayout.tsx</code>' },
+    { f:2, id:'2.2',  h:10, s:'done',    t:'Dashboard con métricas globales (MRR, ingresos, suscripciones)',    ev:'<code>AdminDashboard</code> contra <code>/api/admin/metrics</code>, datos reales' },
+    { f:2, id:'2.3',  h:8,  s:'done',    t:'Gestión de inmobiliarias: listado, búsqueda y filtros',             ev:'<code>pages/admin/Tenants.tsx</code>' },
+    { f:2, id:'2.4',  h:8,  s:'done',    t:'Crear, editar, suspender y asignar plan a una inmobiliaria',        ev:'Modales de alta y edición con selector de plan en <code>Tenants.tsx</code>' },
+    { f:2, id:'2.5',  h:6,  s:'done',    t:'CRUD de planes de suscripción con precios',                         ev:'<code>pages/admin/Plans.tsx</code> contra <code>/api/admin/plans</code>' },
+    { f:2, id:'2.6',  h:6,  s:'done',    t:'Módulo audit en el backend: logs de acciones',                      ev:'<code>modules/audit/</code> + <code>audit.test.ts</code>, modelo <code>AuditLog</code>' },
+    { f:2, id:'2.7',  h:6,  s:'done',    t:'Vista de auditoría con filtros',                                    ev:'<code>pages/admin/Audit.tsx</code> conectada a la API' },
+    { f:2, id:'2.8',  h:6,  s:'done',    t:'Módulo analytics: métricas agregadas',                              ev:'<code>modules/analytics/</code>: MRR, serie de 6 meses, top inmobiliarias, métricas por tenant' },
+    { f:2, id:'2.9',  h:4,  s:'done', t:'Gestión global de dominios: listado, estados y override', ev:'<code>AdminDomains.tsx</code> contra <code>/api/admin/domains</code>. No expone "marcar activo": el estado sale del DNS. Sí la baja, para liberar un dominio reclamado de mala fe' },
+    { f:2, id:'2.10', h:4,  s:'done',    t:'Stores Zustand e interceptores de Axios',                           ev:'<code>store/auth.ts</code> + refresh single-flight en <code>lib/api.ts</code>; token solo en memoria' },
+
+    // ---- Fase 3
+    { f:3, id:'3.1',  h:6,  s:'done',    t:'Layout del panel de inmobiliaria',                                  ev:'<code>components/panel/PanelLayout.tsx</code>' },
+    { f:3, id:'3.2',  h:8,  s:'done',    t:'Dashboard propio: propiedades, vistas y leads',                     ev:'<code>pages/panel/Dashboard.tsx</code> contra <code>/api/metrics</code>' },
+    { f:3, id:'3.3',  h:10, s:'done',    t:'Backend de propiedades: CRUD y estados',                            ev:'draft / published / paused / featured con transiciones validadas; 2 suites de test' },
+    { f:3, id:'3.4',  h:8,  s:'done',    t:'Listado de propiedades con filtros',                                ev:'<code>pages/panel/Properties.tsx</code>' },
+    { f:3, id:'3.5',  h:10, s:'done',    t:'Formulario de alta y edición (React Hook Form + Zod)',              ev:'<code>components/properties/PropertyForm.tsx</code>' },
+    { f:3, id:'3.6',  h:10, s:'done', t:'Backend de multimedia: pipeline de carga',     ev:'Presigned URL + miniatura firmada aparte + confirm que contrasta tamaño real, registra el thumbnail y suma su peso al cupo. La miniatura la genera el navegador: el archivo nunca pasa por el backend, así que una cola con ffmpeg obligaría a bajarlo y volver a subirlo' },
+    { f:3, id:'3.7',  h:8,  s:'done',    t:'Upload de imágenes con drag & drop, preview y reorden',             ev:'<code>MediaUploader.tsx</code> + <code>media.upload.test.ts</code>' },
+    { f:3, id:'3.8',  h:6,  s:'done', t:'Upload de video con thumbnail y estado de procesamiento', ev:'Subida de mp4/webm/mov, miniatura capturada de un frame, duración medida en el navegador, estado "Procesando…" y reproductor con poster en la ficha' },
+    { f:3, id:'3.9',  h:6,  s:'done',    t:'Backend de consultas: leads por propiedad con estados',             ev:'<code>modules/inquiries/</code>; el tenantId sale de la propiedad, nunca del body' },
+    { f:3, id:'3.10', h:6,  s:'done',    t:'Bandeja de leads con filtros y acciones',                           ev:'<code>pages/panel/Leads.tsx</code> con cambio de estado' },
+    { f:3, id:'3.11', h:6,  s:'done', t:'Gestión de agentes y consultores',             ev:'<code>pages/panel/Agentes.tsx</code>: alta, cambio de rol, baja y restauración, con el cupo del plan a la vista. Un agente ya no ve en el menú las secciones que el backend le niega' },
+    { f:3, id:'3.12', h:8,  s:'done',    t:'Mi sitio web: colores, textos y redes sociales',                    ev:'<code>pages/panel/MiSitio.tsx</code> contra <code>/api/site</code>' },
+    { f:3, id:'3.13', h:8,  s:'done',    t:'Editor del carrusel: agregar, reordenar y eliminar',                ev:'<code>components/properties/CarouselUploader.tsx</code>' },
+    { f:3, id:'3.14', h:4,  s:'done', t:'Dominio propio: UI de configuración e instrucciones DNS', ev:'<code>pages/panel/Dominio.tsx</code> con el target real, estado de verificación y el motivo exacto cuando falla' },
+    { f:3, id:'3.15', h:4,  s:'done', t:'Preview en vivo del sitio desde el panel',      ev:'La portada se dibuja con los valores que se están editando y cambia mientras se tipea. No es un iframe a propósito: sin publicar la web responde 404, y aun publicada mostraría lo último guardado, no lo que se está escribiendo' },
+    { f:3, id:'3.16', h:6,  s:'done',    t:'Vista de suscripción: plan, uso vs límites y upgrade',              ev:'<code>pages/panel/Suscripcion.tsx</code>; el upgrade pasa por checkout real' },
+
+    // ---- Fase 4
+    { f:4, id:'4.1',  h:8,  s:'done',    t:'Landing principal de la plataforma',                                ev:'<code>pages/Home.tsx</code> con datos reales del catálogo' },
+    { f:4, id:'4.2',  h:10, s:'done',    t:'Catálogo general con búsqueda avanzada y filtros',                  ev:'<code>SearchResults.tsx</code>; la visibilidad la decide el servidor, no el filtro' },
+    { f:4, id:'4.3',  h:10, s:'done', p:{s:'partial', w:0.6}, t:'Ficha de propiedad: galería, video, mapa y contacto', ev:'Galería con foto y video, formulario de consulta y mapa. Lo último que faltaba era el mapa: se agregó con Leaflet' },
+    { f:4, id:'4.4',  h:8,  s:'done',    t:'Web por inmobiliaria: header y carrusel hero',                      ev:'<code>pages/AgencySite.tsx</code>' },
+    { f:4, id:'4.5',  h:8,  s:'done',    t:'Web por inmobiliaria: grilla de propiedades con filtros',           ev:'<code>AgencySite</code> + <code>PropertyCard</code>' },
+    { f:4, id:'4.6',  h:6,  s:'done',    t:'Tema dinámico con los colores y la marca del tenant',               ev:'Variables CSS en <code>index.css</code> reescritas por el sitio del tenant' },
+    { f:4, id:'4.7',  h:6,  s:'done', p:{s:'partial', w:0.3}, t:'Perfil público de la inmobiliaria (info, redes, propiedades)', ev:'<code>InmobiliariasList.tsx</code> contra <code>/api/public/agencies</code>, agrupado por la localidad donde cada una publica más. Era la última pantalla con datos falsos: <code>data/mock.ts</code> quedó solo con la publicidad' },
+    { f:4, id:'4.8',  h:4,  s:'done',    t:'Formulario de contacto que genera lead y avisa por email',          ev:'<code>ContactForm.tsx</code> → alta pública + correo al tenant' },
+    { f:4, id:'4.9',  h:4,  s:'done', p:{s:'todo'}, t:'SEO dinámico: meta tags por inmobiliaria y por propiedad', ev:'Hook <code>useSeo</code>: title, description, canonical, OpenGraph y Twitter por pantalla, más JSON-LD <code>RealEstateListing</code> en la ficha y <code>RealEstateAgent</code> en la web del tenant. <code>sitemap.xml</code> y <code>robots.txt</code> los sirve el backend y cambian según el host. Sigue siendo una SPA: Google ejecuta JS y las ve, los previsualizadores de WhatsApp y Facebook no' },
+    { f:4, id:'4.10', h:6,  s:'done', t:'Integración con Caddy para SSL automático',              ev:'<code>deploy/Caddyfile</code> con On-Demand TLS y el endpoint <code>/api/internal/caddy/ask</code> que autoriza qué hosts pueden pedir certificado' },
+    { f:4, id:'4.11', h:6,  s:'partial', w:0.95, p:{s:'partial', w:0.85}, t:'Routing completo: slug, subdominio y dominio propio', ev:'Cerrado el hueco del frontend: <code>lib/host.ts</code> hace que la raíz de un subdominio o dominio propio monte la web de la inmobiliaria y no la home del portal, pidiendo <code>/api/public/sites/current</code>. Antes el backend resolvía bien y la SPA igual mostraba el portal. Falta el único paso que no es código: los registros DNS del VPS' },
+    { f:4, id:'4.12', h:8,  s:'done',    t:'Diseño responsive mobile-first en las vistas públicas',             ev:'Tailwind con breakpoints en todas las pantallas públicas' },
+    { f:4, id:'4.13', h:4,  s:'done', p:{s:'todo'}, t:'Mapa en la ficha (Google Maps o Leaflet)', ev:'<code>PropertyMap.tsx</code> con Leaflet y tiles de OpenStreetMap: sin API key ni cuenta de facturación. Se carga aparte del bundle principal (45 KB gzip) y solo si la propiedad tiene coordenadas' },
+    { f:4, id:'4.14', h:2,  s:'done', p:{s:'partial', w:0.7}, t:'Lazy loading de imágenes y skeleton loaders', ev:'<code>components/common/Skeleton.tsx</code> reemplaza al spinner en home, buscador, ficha, directorio y web del tenant, con las mismas columnas que la grilla real para que el layout no salte' },
+
+    // ---- Fase 5
+    { f:5, id:'5.1',  h:8,  s:'done',    t:'Tests unitarios de servicios, repositorios y límites',              ev:'329 pruebas en 29 suites en el backend y 68 en 7 archivos en el frontend, todas verdes' },
+    { f:5, id:'5.2',  h:6,  s:'todo',    t:'Tests de integración (auth, propiedades, webhooks)',                ev:'Todas las suites mockean Prisma; ninguna toca la base de verdad' },
+    { f:5, id:'5.3',  h:4,  s:'partial', w:0.5, t:'Tests de aislamiento entre inquilinos',                      ev:'<code>baseRepository.test.ts</code> y <code>public.repository.test.ts</code> cubren la regla; falta probarlo contra una base real' },
+    { f:5, id:'5.4',  h:3,  s:'todo',    t:'Test end-to-end de dominio propio hasta el SSL',                    ev:'Depende de 1.19, 1.20 y 4.10' },
+    { f:5, id:'5.5',  h:4,  s:'partial', w:0.25, t:'Optimización de rendimiento (N+1, compresión, lazy)',       ev:'Hay lazy loading e índices en Prisma; sin auditoría de queries ni caché' },
+    { f:5, id:'5.6',  h:6,  s:'done', t:'Docker Compose de producción (backend, frontend, PG, Caddy)', ev:'<code>docker-compose.prod.yml</code> con 7 servicios y Dockerfiles multi-etapa. Escrito, todavía no ejecutado: esta máquina no tiene Docker' },
+    { f:5, id:'5.7',  h:4,  s:'todo',    t:'Deploy en el servidor del cliente',                                 ev:'Es el paso que falta. Nada del compose corrió nunca de verdad' },
+    { f:5, id:'5.8',  h:4,  s:'done', t:'Configuración de Caddy en producción (SSL y wildcard)',   ev:'<code>deploy/Caddyfile</code>. Sin wildcard a propósito: On-Demand TLS emite por host y evita el desafío DNS-01, que exigiría compilar Caddy con el plugin del proveedor' },
+    { f:5, id:'5.9',  h:3,  s:'done', t:'Documentación técnica (README, env vars, guía de deploy)', ev:'<code>README.md</code>, <code>docs/deploy.md</code> con el paso a paso del VPS y <code>.env.production.example</code>' },
+    { f:5, id:'5.10', h:2,  s:'todo',    t:'Manual de usuario para los dos paneles',                            ev:'No existe' },
+    { f:5, id:'5.11', h:1,  s:'todo',    t:'Capacitación remota a los administradores',                         ev:'Pendiente de la entrega' },
+    { f:5, id:'5.12', h:1,  s:'todo',    t:'Smoke testing en producción',                                       ev:'Depende del deploy' },
+  ]
+
+  const INVENTORY = [
+    {
+      title: 'Backend — 15 módulos',
+      items: [
+        { s:'done', n:'auth',          d:'JWT 15min + refresh rotativo en cookie httpOnly' },
+        { s:'done', n:'tenants',       d:'Alta, edición, suspensión y asignación de plan' },
+        { s:'done', n:'users',         d:'Agentes por inmobiliaria con límite del plan' },
+        { s:'done', n:'subscriptions', d:'Planes, estados y LimitService' },
+        { s:'done', n:'properties',    d:'CRUD con transiciones de estado validadas' },
+        { s:'done', n:'media',         d:'Presigned URL a S3/MinIO en dos pasos' },
+        { s:'done', n:'public',        d:'Catálogo cruzando inquilinos, con visibilidad forzada' },
+        { s:'done', n:'sites',         d:'Web propia: branding, carrusel y publicación' },
+        { s:'done', n:'inquiries',     d:'Leads públicos con rate limit y honeypot' },
+        { s:'done', n:'billing',       d:'MercadoPago preapproval + webhook firmado' },
+        { s:'done', n:'notifications', d:'Correos que nunca rompen la operación que los dispara' },
+        { s:'done', n:'audit',         d:'Registro de acciones críticas' },
+        { s:'done', n:'analytics',     d:'Métricas de plataforma y de cada inmobiliaria' },
+        { s:'done', n:'domains',       d:'Dominios propios verificados contra el DNS real, más el endpoint que autoriza los certificados de Caddy' },
+        { s:'done', n:'seo',           d:'sitemap.xml y robots.txt desde la raíz, distintos según el host: el portal lista todo, el dominio de una inmobiliaria solo lo suyo' },
+      ],
+    },
+    {
+      title: 'Frontend — 21 pantallas',
+      items: [
+        { s:'done', n:'Sitio público',   d:'Home, buscador y ficha contra la API real' },
+        { s:'done', n:'Web del tenant',  d:'/inmobiliaria/:slug, o la raíz de su subdominio o dominio propio' },
+        { s:'done', n:'Login y registro', d:'Sesión en memoria, sobrevive al F5 por la cookie' },
+        { s:'done', n:'Panel: propiedades', d:'CRUD completo con carga de fotos' },
+        { s:'done', n:'Panel: leads',    d:'Bandeja con filtros y cambio de estado' },
+        { s:'done', n:'Panel: mi sitio', d:'Colores, textos, redes y carrusel' },
+        { s:'done', n:'Panel: suscripción', d:'Uso vs límites y upgrade con checkout real' },
+        { s:'done', n:'Panel: dashboard', d:'Métricas propias del tenant' },
+        { s:'done', n:'Admin: dashboard, inmobiliarias, planes, auditoría', d:'Todo contra la API' },
+        { s:'done', n:'Panel: dominio',  d:'Alta, instrucciones de DNS, verificación y baja' },
+        { s:'done', n:'Admin: dominios', d:'Vista global con filtros y verificación forzada' },
+        { s:'done', n:'Panel: equipo',   d:'Altas, roles y bajas, con el cupo del plan a la vista' },
+        { s:'done', n:'Directorio de inmobiliarias', d:'Contra /api/public/agencies, agrupado por la localidad donde cada una publica' },
+        { s:'done', n:'Web del tenant por host', d:'En su subdominio o dominio propio, la raíz muestra su sitio y no el portal' },
+      ],
+    },
+    {
+      title: 'Infraestructura y calidad',
+      items: [
+        { s:'done', n:'Postgres 16 + MinIO', d:'Docker Compose y binarios portables para la PC sin Docker' },
+        { s:'done', n:'Prisma',              d:'15 modelos, 12 enums, 3 migraciones' },
+        { s:'done', n:'Aislamiento por tenant', d:'BaseRepository obligatorio + pruebas que lo custodian' },
+        { s:'done', n:'Seguridad de pagos',  d:'Firma HMAC verificada antes del cuerpo; el plan sube recién al confirmarse' },
+        { s:'done', n:'397 pruebas verdes',  d:'329 backend + 68 frontend' },
+        { s:'done', n:'Dockerfiles',         d:'Multi-etapa, runtime sin devDependencies y sin root' },
+        { s:'done', n:'Caddy',               d:'On-Demand TLS con endpoint de autorización propio' },
+        { s:'done', n:'Guía de deploy',      d:'docs/deploy.md: DNS, arranque, backups y diagnóstico' },
+        { s:'todo', n:'Deploy ejecutado',    d:'Nada de esto corrió todavía en un servidor real' },
+        { s:'todo', n:'CI',                  d:'Sin .github/workflows: nada corre las pruebas solo' },
+        { s:'todo', n:'Tests de integración', d:'Todo mockeado contra Prisma' },
+      ],
+    },
+  ]
+
+  const GAPS = [
+    { sev:'Bloqueante', tone:'var(--danger)', h:'4h', what:'Correr el deploy en el VPS',
+      why:'Es lo único que separa al producto de estar en el aire. Dockerfiles, compose y Caddyfile están escritos, pero nunca se ejecutaron: la máquina de desarrollo no tiene Docker, así que se prueban recién en el servidor. Tarea 5.7.' },
+    { sev:'Bloqueante', tone:'var(--danger)', h:'0h', what:'Cargar los registros DNS del VPS',
+      why:'Es lo único que le falta a la tarea 4.11 y no es código: sin el A del dominio y el wildcard de los subdominios, ni la web por subdominio ni los dominios propios existen, por más que backend, Caddy y frontend ya los resuelvan. Está el paso a paso en docs/deploy.md §2.' },
+    { sev:'Alto', tone:'var(--accent)', h:'10h', what:'Tests de integración y de aislamiento contra una base real',
+      why:'Las 397 pruebas mockean Prisma. El aislamiento entre inquilinos es el riesgo crítico del proyecto y hoy nadie lo verifica contra una base de verdad. Tareas 5.2, 5.3 y 5.4.' },
+    { sev:'Alto', tone:'var(--accent)', h:'0h', what:'Credenciales de correo y de cobro',
+      why:'Arranca con los dos proveedores en modo simulado: los leads se guardan pero no sale el aviso por mail, y las suscripciones se cargan a mano. No es trabajo de desarrollo, son cuentas que hay que dar de alta.' },
+    { sev:'Medio', tone:'var(--accent)', h:'5h', what:'Reintento automático de verificación de dominios',
+      why:'Hoy un dominio que propaga tarde queda esperando a que alguien vuelva a apretar Verificar. Con el job, se activa solo. Tarea 1.20.' },
+    { sev:'Medio', tone:'var(--accent)', h:'8h', what:'Prerender o SSR para las fichas',
+      why:'El SEO de la tarea 4.9 lo escribe el navegador: Google ejecuta JS y lo ve, pero WhatsApp, Facebook y X leen el HTML crudo y muestran siempre el mismo título del portal. Compartir una propiedad por WhatsApp es como se mueve la mitad del mercado.' },
+    { sev:'Bajo', tone:'var(--brand)', h:'1h', what:'Config de ESLint 9 en el backend',
+      why:'npm run lint viene fallando desde antes de este corte: el script existe pero no hay eslint.config.js, y ESLint 9 ya no lee .eslintrc. Ninguna regla se está aplicando.' },
+    { sev:'Bajo', tone:'var(--brand)', h:'4h', what:'Swagger y manual de usuario',
+      why:'No frena el lanzamiento pero sí la entrega formal y el traspaso. Tareas 0.10 y 5.10.' },
+  ]
+
+  const KPIS = [
+    { k:'Horas del plan cumplidas', v: null, id:'hours' },
+    { k:'Tareas del plan', v:'83' },
+    { k:'Pruebas verdes', v:'397' },
+    { k:'Módulos de backend', v:'15/15' },
+    { k:'Pantallas de frontend', v:'21' },
+    { k:'Pantallas con datos falsos', v:'0' },
+  ]
+
+  // ---------------------------------------------------------------
+  // Cálculo
+  // ---------------------------------------------------------------
+
+  /**
+   * Estado de una tarea en un corte dado. `t.p` guarda cómo estaba en la
+   * auditoría anterior; si falta, la tarea no cambió y los dos cortes coinciden.
+   */
+  const stateOf = (t, when) => (when === 'prev' && t.p ? t.p : t)
+
+  const weightOf = (t, when) => {
+    const st = stateOf(t, when)
+    return st.s === 'done' ? 1 : st.s === 'partial' ? (st.w ?? 0.5) : 0
+  }
+
+  function summarize(list, when = 'now') {
+    const is = (t, s) => stateOf(t, when).s === s
+    const total = list.reduce((a, t) => a + t.h, 0)
+    const done = list.filter(t => is(t, 'done')).reduce((a, t) => a + t.h, 0)
+    const partialEarned = list
+      .filter(t => is(t, 'partial'))
+      .reduce((a, t) => a + t.h * weightOf(t, when), 0)
+    const partialHours = list.filter(t => is(t, 'partial')).reduce((a, t) => a + t.h, 0)
+    const earned = done + partialEarned
+    return {
+      total, done, partialHours, partialEarned, earned,
+      pct: total ? (earned / total) * 100 : 0,
+      pctDone: total ? (done / total) * 100 : 0,
+      pctPartial: total ? (partialHours / total) * 100 : 0,
+      pctTodo: total ? ((total - done - partialHours) / total) * 100 : 0,
+      counts: {
+        done: list.filter(t => is(t, 'done')).length,
+        partial: list.filter(t => is(t, 'partial')).length,
+        todo: list.filter(t => is(t, 'todo')).length,
+      },
+    }
+  }
+
+  const GLOBAL = summarize(TASKS)
+  const GLOBAL_PREV = summarize(TASKS, 'prev')
+  const BY_PHASE = PHASES.map(p => {
+    const tareas = TASKS.filter(t => t.f === p.n)
+    return { ...p, ...summarize(tareas), prev: summarize(tareas, 'prev') }
+  })
+
+  /** Tareas que se movieron entre los dos cortes. */
+  const CAMBIOS = TASKS.filter(t => t.p)
+
+  const fmt = (n, d = 0) => n.toLocaleString('es-AR', { minimumFractionDigits: d, maximumFractionDigits: d })
+
+  // ---------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------
+
+  // KPIs
+  document.getElementById('kpis').innerHTML = KPIS.map(k => {
+    const v = k.id === 'hours' ? `${fmt(GLOBAL.earned, 1)}<span style="color:var(--muted);font-size:15px"> / ${fmt(GLOBAL.total)}h</span>` : k.v
+    return `<div class="kpi"><span class="v num">${v}</span><span class="k">${k.k}</span></div>`
+  }).join('')
+
+  // Dona global
+  const R = 82, C = 2 * Math.PI * R
+  const ringDone = document.getElementById('ringDone')
+  const ringPartial = document.getElementById('ringPartial')
+  ;[ringDone, ringPartial].forEach(r => { r.setAttribute('stroke-dasharray', C); r.setAttribute('stroke-dashoffset', C) })
+
+  const pctText = document.getElementById('gaugePct')
+  requestAnimationFrame(() => {
+    ringDone.setAttribute('stroke-dashoffset', C * (1 - GLOBAL.pctDone / 100))
+    // El anillo ámbar arranca donde termina el teal: se dibuja detrás, cubriendo hecho + parcial.
+    ringPartial.setAttribute('stroke-dashoffset', C * (1 - (GLOBAL.pctDone + GLOBAL.pctPartial) / 100))
+  })
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (reduce) {
+    pctText.textContent = `${fmt(GLOBAL.pct)}%`
+  } else {
+    const t0 = performance.now(), dur = 1100
+    const tick = (now) => {
+      const k = Math.min(1, (now - t0) / dur)
+      const eased = 1 - Math.pow(1 - k, 3)
+      pctText.textContent = `${fmt(GLOBAL.pct * eased)}%`
+      if (k < 1) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  }
+
+  // Evolución: dónde estaba cada fase y dónde está ahora.
+  const signo = (d) => (d > 0 ? `+${fmt(d, 1)}` : fmt(d, 1))
+
+  const deltaChip = (antes, ahora) => {
+    const d = ahora - antes
+    return d < 0.05
+      ? '<span class="delta flat">sin cambios</span>'
+      : `<span class="delta num">${signo(d)} pts</span>`
+  }
+
+  const filaEvo = (nombre, antes, ahora) => `
+    <div class="evo-row">
+      <span class="name">${nombre}</span>
+      <span class="rail">
+        <i class="before" style="width:${antes}%"></i>
+        <i class="after" style="width:${ahora}%"></i>
+      </span>
+      <span class="evo-nums">
+        <span class="from num">${fmt(antes)}%</span>
+        <span class="arrow">→</span>
+        <span class="to num">${fmt(ahora)}%</span>
+        ${deltaChip(antes, ahora)}
+      </span>
+    </div>`
+
+  document.getElementById('evo').innerHTML =
+    BY_PHASE.map(p => filaEvo(`Fase ${p.n} · ${p.name.split(',')[0]}`, p.prev.pct, p.pct)).join('') +
+    filaEvo('<b>Todo el proyecto</b>', GLOBAL_PREV.pct, GLOBAL.pct)
+
+  document.getElementById('gaugeDelta').textContent =
+    `${signo(GLOBAL.pct - GLOBAL_PREV.pct)} pts`
+
+  // Las tareas que se movieron, con el salto que dieron.
+  const ESTADO_CORTO = { done:'lista', partial:'parcial', todo:'pendiente' }
+  const describir = (st) =>
+    st.s === 'partial' ? `parcial ${Math.round((st.w ?? 0.5) * 100)}%` : ESTADO_CORTO[st.s]
+
+  document.getElementById('changes').innerHTML = CAMBIOS.map(t => `
+    <div class="change">
+      <span class="top"><span class="num">${t.id}</span> · Fase ${t.f} · ${t.h}h</span>
+      <b>${t.t}</b>
+      <span class="move">${describir(t.p)} <span aria-hidden="true">→</span> ${describir(t)}</span>
+    </div>
+  `).join('')
+
+  // Fases
+  const phaseTone = (p) => p.pct >= 90 ? 'var(--brand)' : p.pct >= 60 ? 'var(--accent)' : 'var(--danger)'
+
+  document.getElementById('phases').innerHTML = BY_PHASE.map(p => `
+    <button class="phase" type="button" data-phase="${p.n}" aria-pressed="false" style="--phase-tone:${phaseTone(p)}">
+      <span class="title">
+        <span class="n">Fase ${p.n} — ${p.name}</span>
+        <span class="w">${p.weeks} · ${fmt(p.total)}h · ${p.counts.done} listas, ${p.counts.partial} parciales, ${p.counts.todo} pendientes</span>
+      </span>
+      <span class="barwrap">
+        <span class="stack">
+          <i class="s-done" style="width:${p.pctDone}%"></i>
+          <i class="s-partial" style="width:${p.pctPartial}%"></i>
+          <i class="s-todo" style="width:${p.pctTodo}%"></i>
+        </span>
+        <span class="barmeta"><span>${fmt(p.earned, 1)}h de ${fmt(p.total)}h</span><span>${fmt(p.total - p.earned, 1)}h restantes</span></span>
+      </span>
+      <span class="pctbig num">${fmt(p.pct)}%</span>
+    </button>
+  `).join('')
+
+  // Filtros
+  const STATES = [
+    { key:'all',     label:'Todas' },
+    { key:'done',    label:'Listas' },
+    { key:'partial', label:'Parciales' },
+    { key:'todo',    label:'Pendientes' },
+  ]
+
+  document.getElementById('filters').innerHTML =
+    STATES.map(s => {
+      const n = s.key === 'all' ? TASKS.length : TASKS.filter(t => t.s === s.key).length
+      const dot = s.key === 'all' ? '' : `<i class="dot ${s.key}"></i>`
+      return `<button class="chip" type="button" data-state="${s.key}" aria-pressed="${s.key === 'all'}">${dot}${s.label} <span class="c num">${n}</span></button>`
+    }).join('') +
+    `<input class="search" id="q" type="search" placeholder="Buscar tarea, módulo o archivo…" aria-label="Buscar tarea">`
+
+  const STATE_LABEL = { done:'Lista', partial:'Parcial', todo:'Pendiente' }
+  let fState = 'all', fPhase = null, fQuery = ''
+
+  function render() {
+    const rows = TASKS.filter(t =>
+      (fState === 'all' || t.s === fState) &&
+      (fPhase === null || t.f === fPhase) &&
+      (!fQuery || (`${t.id} ${t.t} ${t.ev}`).toLowerCase().includes(fQuery))
+    )
+
+    document.getElementById('rows').innerHTML = rows.map(t => {
+      const pc = t.s === 'partial' ? ` ${Math.round(weightOf(t) * 100)}%` : ''
+      return `<tr>
+        <td class="id">${t.id}</td>
+        <td>${t.t}</td>
+        <td class="h">${t.h}h</td>
+        <td class="st"><span class="tag ${t.s}"><i class="dot ${t.s}"></i>${STATE_LABEL[t.s]}${pc}</span></td>
+        <td class="ev">${t.ev}</td>
+      </tr>`
+    }).join('')
+
+    document.getElementById('empty').hidden = rows.length > 0
+  }
+
+  document.getElementById('filters').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip')
+    if (!b) return
+    fState = b.dataset.state
+    document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(c === b)))
+    render()
+  })
+
+  document.getElementById('q').addEventListener('input', (e) => {
+    fQuery = e.target.value.trim().toLowerCase()
+    render()
+  })
+
+  document.getElementById('phases').addEventListener('click', (e) => {
+    const b = e.target.closest('.phase')
+    if (!b) return
+    const n = Number(b.dataset.phase)
+    fPhase = fPhase === n ? null : n
+    document.querySelectorAll('.phase').forEach(p => p.setAttribute('aria-pressed', String(Number(p.dataset.phase) === fPhase)))
+    render()
+    if (fPhase !== null) document.getElementById('rows').closest('section').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  })
+
+  // Inventario
+  document.getElementById('inventory').innerHTML = INVENTORY.map(c => `
+    <div class="card">
+      <span class="label">${c.title}</span>
+      <div class="items">
+        ${c.items.map(i => `
+          <div class="item">
+            <i class="dot ${i.s}"></i>
+            <span><b>${i.n}</b> — <span class="desc">${i.d}</span></span>
+          </div>`).join('')}
+      </div>
+    </div>
+  `).join('')
+
+  // Bloqueantes
+  document.getElementById('gaps').innerHTML = GAPS.map(g => `
+    <div class="gap" style="--tone:${g.tone}">
+      <span class="sev">${g.sev}</span>
+      <span class="what"><b>${g.what}</b><span>${g.why}</span></span>
+      <span class="est">≈ ${g.h}</span>
+    </div>
+  `).join('')
+
+  // Tema: el visor tiene su propio toggle; este sirve al abrir el archivo suelto.
+  document.getElementById('theme').addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme')
+    const sysDark = matchMedia('(prefers-color-scheme: dark)').matches
+    const now = cur ? cur : (sysDark ? 'dark' : 'light')
+    document.documentElement.setAttribute('data-theme', now === 'dark' ? 'light' : 'dark')
+  })
+
+  render()
+</script>

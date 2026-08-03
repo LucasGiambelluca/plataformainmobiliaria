@@ -8,5 +8,11 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     setupFiles: ['tests/setup.ts'],
     restoreMocks: true,
+    // `lib/host.ts` lee el dominio del portal al cargarse: tiene que estar
+    // definido antes de que el primer test lo importe. Es el mismo valor que el
+    // default de PLATFORM_DOMAIN en el backend.
+    env: {
+      VITE_PLATFORM_DOMAIN: 'plataforma.com',
+    },
   },
 })

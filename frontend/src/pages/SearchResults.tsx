@@ -3,12 +3,14 @@ import { useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal } from 'lucide-react'
 import PropertyCard from '../components/properties/PropertyCard'
 import Select from '../components/common/Select'
-import { EmptyState, ErrorState, Spinner } from '../components/common/AsyncState'
+import { EmptyState, ErrorState } from '../components/common/AsyncState'
+import { PropertyGridSkeleton } from '../components/common/Skeleton'
 import { useResource } from '../hooks/useResource'
 import { useDebounced } from '../hooks/useDebounced'
+import { useSeo } from '../hooks/useSeo'
 import { getCatalog } from '../api/publicCatalog'
 import type { OperationType, PropertyType } from '../api/schemas'
-import { operationLabels, typeOptions } from '../lib/propertyLabels'
+import { operationLabels, typeLabels, typeOptions } from '../lib/propertyLabels'
 
 const operaciones: OperationType[] = ['sale', 'rent', 'temporary_rental']
 
@@ -38,6 +40,25 @@ export default function SearchResults() {
 
   // El filtro de ubicación se escribe letra por letra: no conviene pedir en cada tecla.
   const qDebounced = useDebounced(q)
+
+  const hayFiltros = Boolean(op || type || q || agency)
+
+  useSeo({
+    title: [
+      type ? typeLabels[type as PropertyType] + 's' : 'Propiedades',
+      op ? `en ${operationLabels[op].toLowerCase()}` : '',
+      q ? `en ${q}` : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
+    description:
+      'Buscá entre las propiedades publicadas por las inmobiliarias de la plataforma.',
+    canonicalPath: '/buscar',
+    // Una búsqueda filtrada es contenido delgado y hay combinaciones infinitas:
+    // se le pide al buscador que no la indexe pero sí siga los enlaces, que son
+    // las fichas, que sí queremos indexadas. El /buscar pelado sí se indexa.
+    noIndex: hayFiltros,
+  })
 
   const catalogo = useResource(
     () =>
@@ -137,7 +158,10 @@ export default function SearchResults() {
           {catalogo.error ? (
             <ErrorState error={catalogo.error} onRetry={catalogo.reload} />
           ) : catalogo.loading && !catalogo.data ? (
-            <Spinner label="Buscando propiedades…" />
+            <PropertyGridSkeleton
+              count={6}
+              className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3"
+            />
           ) : catalogo.data && catalogo.data.items.length === 0 ? (
             <EmptyState>No hay resultados con esos filtros.</EmptyState>
           ) : (

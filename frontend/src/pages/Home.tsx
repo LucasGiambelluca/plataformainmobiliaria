@@ -4,8 +4,10 @@ import { ArrowLeft, ArrowRight, ChevronRight, SlidersHorizontal } from 'lucide-r
 import Select from '../components/common/Select'
 import AdSlot from '../components/common/AdSlot'
 import PropertyCard from '../components/properties/PropertyCard'
-import { EmptyState, ErrorState, Spinner } from '../components/common/AsyncState'
+import { EmptyState, ErrorState } from '../components/common/AsyncState'
+import { PropertyGridSkeleton } from '../components/common/Skeleton'
 import { useResource } from '../hooks/useResource'
+import { useSeo } from '../hooks/useSeo'
 import { getCatalog, getCities } from '../api/publicCatalog'
 import type { OperationType } from '../api/schemas'
 import { operationLabels, typeOptions } from '../lib/propertyLabels'
@@ -32,6 +34,13 @@ const DESTACADAS_OBJETIVO = 6
 
 export default function Home() {
   const navigate = useNavigate()
+
+  useSeo({
+    title: 'El portal inmobiliario de Entre Ríos',
+    description:
+      'Casas, departamentos, terrenos y locales en venta y alquiler, publicados por las inmobiliarias de la región.',
+    canonicalPath: '/',
+  })
 
   // Buscador del hero
   const [op, setOp] = useState<OperationType>('sale')
@@ -216,7 +225,10 @@ export default function Home() {
             <ErrorState error={destacadas.error} onRetry={destacadas.reload} />
           </div>
         ) : destacadas.loading && !destacadas.data ? (
-          <Spinner />
+          <PropertyGridSkeleton
+            count={CAROUSEL_SIZE}
+            className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+          />
         ) : items.length === 0 ? (
           <div className="mt-6">
             <EmptyState>
@@ -281,7 +293,11 @@ export default function Home() {
             <ErrorState error={grilla.error} onRetry={grilla.reload} />
           </div>
         ) : grilla.loading && !grilla.data ? (
-          <Spinner />
+          <PropertyGridSkeleton
+            count={12}
+            compact
+            className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6"
+          />
         ) : (
           <>
             <p className="mt-6 font-serif text-sm font-semibold text-muted">

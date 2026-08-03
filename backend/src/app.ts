@@ -7,6 +7,7 @@ import { env } from "@/config/env";
 import { logger } from "@/config/logger";
 import { errorHandler, notFoundHandler } from "@/shared/middleware/error";
 import { apiRouter } from "@/routes";
+import { seoRouter } from "@/modules/seo/seo.router";
 
 export function createApp(): Express {
   const app = express();
@@ -31,6 +32,10 @@ export function createApp(): Express {
   });
 
   app.use("/api", apiRouter);
+
+  // sitemap.xml y robots.txt viven en la raíz del host, no bajo /api: es donde
+  // los busca un crawler. Caddy los reenvía acá antes de servir los estáticos.
+  app.use(seoRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
