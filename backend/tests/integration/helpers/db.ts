@@ -29,7 +29,7 @@ export function exigirBaseDeTest(): void {
   }
   if (nombre !== BASE_DE_TEST) {
     throw new Error(
-      `Los tests de integración solo corren contra ${BASE_DE_TEST}, y DATABASE_URL apunta a "${nombre}". Corré: npm run test:db`,
+      `Los tests de integración solo corren contra ${BASE_DE_TEST}, y DATABASE_URL apunta a ${nombre ? `"${nombre}"` : "una URL vacía o mal formada"}. Corré: npm run test:db`,
     );
   }
 }

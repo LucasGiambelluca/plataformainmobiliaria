@@ -20,9 +20,10 @@ describe("arnés de integración", () => {
     expect(encontrado?.name).toBe("Inmobiliaria humo");
   });
 
-  it("cada test arranca con la base vacía", async () => {
-    // Si el truncate del beforeEach no corriera, el tenant del test anterior
-    // seguiría acá y este test fallaría.
+  // Dos veces el mismo test a propósito: cada uno afirma que arranca vacío y
+  // deja una fila. El segundo solo puede pasar si el truncate corrió.
+  it.each([1, 2])("cada test arranca con la base vacía (%i)", async () => {
     expect(await prisma.tenant.count()).toBe(0);
+    await crearTenant("humo");
   });
 });
