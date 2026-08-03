@@ -119,6 +119,30 @@ describe("alta self-serve", () => {
     // statement de la transacción, cuando todavía no hay nada que revertir.
     expect(await prisma.tenant.count()).toBe(1);
   });
+
+  it("dos altas simultáneas con el mismo email no crean dos inmobiliarias", async () => {
+    // El login resuelve por email sin tenant, así que dos usuarios con el mismo
+    // email dejan a uno de los dos sin poder entrar nunca. El chequeo previo de
+    // `provision` no alcanza: las dos altas lo pasan antes de que cualquiera
+    // inserte. Lo que cierra la ventana es el unique de la base.
+    const [a, b] = await Promise.all([
+      request(app).post("/api/auth/register").send(ALTA),
+      request(app).post("/api/auth/register").send({ ...ALTA, slug: "otra" }),
+    ]);
+
+    const estados = [a.status, b.status].sort();
+    expect(estados).toEqual([201, 409]);
+    expect(await prisma.user.count()).toBe(1);
+    expect(await prisma.tenant.count()).toBe(1);
+
+    // Y el que pierde la carrera lee lo mismo que quien llega segundo sin
+    // carrera. Sin la traducción del P2002 en `provision` el status igual sería
+    // 409 —el handler global ya lo mapea—, pero el mensaje sería "Ya existe un
+    // registro con esos datos únicos" con la columna adentro: la respuesta
+    // dependería de un milisegundo de diferencia.
+    const perdedor = [a, b].find((r) => r.status === 409);
+    expect(perdedor?.body.error.message).toBe("Ese email ya está registrado");
+  });
 });
 
 describe("login", () => {

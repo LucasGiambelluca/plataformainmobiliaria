@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import type { UserRole } from "@prisma/client";
+import { Prisma, type UserRole } from "@prisma/client";
 import type { LimitService } from "@/modules/subscriptions/limit.service";
 import { BadRequestError, ConflictError, NotFoundError } from "@/shared/errors";
 
@@ -65,10 +65,21 @@ export class UsersService {
     await this.limitService.assertCanAddUser(tenantId);
 
     const { password, ...rest } = input;
-    return this.repo.createUser(tenantId, {
-      ...rest,
-      passwordHash: await bcrypt.hash(password, BCRYPT_COST),
-    });
+    try {
+      return await this.repo.createUser(tenantId, {
+        ...rest,
+        passwordHash: await bcrypt.hash(password, BCRYPT_COST),
+      });
+    } catch (e) {
+      // P2002 = violación de unique. Solo puede pasar si otra alta con el mismo
+      // email entró entre el chequeo de arriba y este insert: la carrera que el
+      // chequeo previo no puede cerrar. El usuario ve el mismo 409 que si
+      // hubiera llegado segundo por un milisegundo, que es lo que pasó.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        throw new ConflictError("Ese email ya está registrado");
+      }
+      throw e;
+    }
   }
 
   async update(

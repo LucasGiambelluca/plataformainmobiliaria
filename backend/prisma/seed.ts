@@ -55,7 +55,10 @@ async function main(): Promise<void> {
   }
   console.log(`✔ ${plans.length} planes sembrados`);
 
-  // Super admin (tenantId null). Único por (tenantId, email).
+  // Super admin (tenantId null). El email es único en TODA la plataforma, no
+  // por tenant: si alguien ya lo tomó desde una inmobiliaria, este create
+  // explota con P2002 en vez de dejar dos filas con el mismo email. Es el
+  // fallo ruidoso correcto — con dos, el login no sabría cuál devolver.
   const existing = await prisma.user.findFirst({
     where: { tenantId: null, email: SUPER_ADMIN_EMAIL },
   });

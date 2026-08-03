@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import type { UserRole } from "@prisma/client";
+import { Prisma, type UserRole } from "@prisma/client";
 import { AppError, ConflictError, NotFoundError } from "@/shared/errors";
 
 // Plan asignado en el alta self-serve (gratuito → suscripción activa directa).
@@ -101,14 +101,30 @@ export class TenantsService {
       throw new AppError(`No existe el plan por defecto "${DEFAULT_PLAN_SLUG}"`);
     }
 
-    return this.repo.createTenantWithAdmin({
-      tenantName: input.tenantName,
-      slug: input.slug,
-      planId: plan.id,
-      adminEmail: input.adminEmail,
-      adminPasswordHash: await bcrypt.hash(input.adminPassword, BCRYPT_COST),
-      adminName: input.adminName,
-    });
+    try {
+      return await this.repo.createTenantWithAdmin({
+        tenantName: input.tenantName,
+        slug: input.slug,
+        planId: plan.id,
+        adminEmail: input.adminEmail,
+        adminPasswordHash: await bcrypt.hash(input.adminPassword, BCRYPT_COST),
+        adminName: input.adminName,
+      });
+    } catch (e) {
+      // P2002 = violación de unique. Solo puede pasar si otra alta con el mismo
+      // email o slug entró entre los chequeos de arriba y este insert: la
+      // carrera que un chequeo previo no puede cerrar. Traducirlo acá y no
+      // dejarlo caer al handler global es por el mensaje: el genérico dice
+      // "ya existe un registro con esos datos únicos" y expone la columna, así
+      // que la respuesta dependería de un milisegundo de diferencia.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        const campos = (e.meta?.target as string[] | undefined) ?? [];
+        throw campos.includes("slug")
+          ? new ConflictError("Ese slug ya está en uso")
+          : new ConflictError("Ese email ya está registrado");
+      }
+      throw e;
+    }
   }
 
   async list(input: ListTenantsInput) {
