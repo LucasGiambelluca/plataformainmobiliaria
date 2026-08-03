@@ -1253,7 +1253,9 @@ describe("límite de propiedades del plan", () => {
       .set(...comoUsuario(token))
       .send(NUEVA);
 
-    expect(res.status).toBe(403);
+    // 402 y no 403: `LimitExceededError` es Payment Required a propósito —el
+    // pedido está permitido, lo que falta es pagar un plan más grande—.
+    expect(res.status).toBe(402);
     expect(await prisma.property.count({ where: { tenantId: tenant.id } })).toBe(2);
   });
 
