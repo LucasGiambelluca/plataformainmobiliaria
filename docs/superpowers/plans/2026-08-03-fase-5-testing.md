@@ -962,6 +962,118 @@ git commit -m "test: cover the auth flow end to end"
 
 ---
 
+## Tarea 4b: Unique global de email en la base
+
+**Esta es la única tarea del plan que toca código de producción y el schema.** Sale de un defecto real que encontró la revisión de calidad de la tarea 4, no de una idea de mejora.
+
+**El invariante.** El login resuelve el usuario solo por email, sin tenant: `auth.repository.ts` hace `findFirst({ where: { email } })`. Eso exige que el email sea único en toda la plataforma. El código lo sabe —`users.service.ts` tiene el comentario "Global a propósito: el email es único en toda la plataforma mientras el login no resuelve tenant"— y lo defiende con un chequeo previo (`findByEmailGlobal`) tanto en el alta self-serve como en el alta de agentes.
+
+**El agujero.** La base no lo garantiza. `User` tiene `@@unique([tenantId, email])`, que es único *por inmobiliaria*. Dos altas simultáneas con el mismo email y distinto slug pasan las dos el chequeo previo, insertan las dos, y nada las frena: medido, **201 y 201, dos inmobiliarias, dos usuarios**. Después `findFirst` devuelve la fila que Postgres quiera, y el segundo admin no puede entrar nunca. Es un invariante de seguridad sostenido con chequear-y-después-insertar, que es justo el patrón que una restricción de base existe para reemplazar.
+
+**Por qué ahora y no después del deploy.** La migración falla si ya hay duplicados. Hoy no hay ninguno ni en desarrollo ni en el VPS, porque el VPS todavía no tiene datos. Es el momento más barato que va a existir.
+
+**Archivos:**
+- Modificar: `backend/prisma/schema.prisma`
+- Crear: migración generada por Prisma
+- Modificar: `backend/src/modules/tenants/tenants.service.ts` y `backend/src/modules/users/users.service.ts` (mapeo del error)
+- Modificar: `backend/tests/integration/auth.test.ts`
+
+- [ ] **Paso 1: El test que hoy falla**
+
+Escribirlo primero y **verlo fallar**, que es la única forma de saber que prueba algo. Va en `auth.test.ts`, dentro de `describe("alta self-serve")`:
+
+```typescript
+  it("dos altas simultáneas con el mismo email no crean dos inmobiliarias", async () => {
+    // El login resuelve por email sin tenant, así que dos usuarios con el mismo
+    // email dejan a uno de los dos sin poder entrar nunca. El chequeo previo de
+    // `provision` no alcanza: las dos altas lo pasan antes de que cualquiera
+    // inserte. Lo que cierra la ventana es el unique de la base.
+    const [a, b] = await Promise.all([
+      request(app).post("/api/auth/register").send(ALTA),
+      request(app).post("/api/auth/register").send({ ...ALTA, slug: "otra" }),
+    ]);
+
+    const estados = [a.status, b.status].sort();
+    expect(estados).toEqual([201, 409]);
+    expect(await prisma.user.count()).toBe(1);
+    expect(await prisma.tenant.count()).toBe(1);
+  });
+```
+
+Antes del arreglo esto da `[201, 201]` con dos usuarios y dos inmobiliarias. Si da otra cosa, **pará y reportá**: significa que el diagnóstico está mal y no hay que tocar el schema.
+
+- [ ] **Paso 2: La restricción**
+
+En `prisma/schema.prisma`, modelo `User`:
+
+```prisma
+  // Único global y no solo por tenant: el login resuelve por email sin saber
+  // la inmobiliaria (auth.repository.findUserByEmail), así que dos filas con el
+  // mismo email dejan a una persona sin poder entrar. El chequeo previo de los
+  // servicios da el 409 lindo; esta restricción es la que cierra la carrera.
+  email        String   @unique @db.VarChar(255)
+```
+
+`@@unique([tenantId, email])` se deja como está: no molesta y sigue siendo el índice natural para buscar dentro de una inmobiliaria.
+
+Generar la migración:
+
+```bash
+npx prisma migrate dev --name add_global_unique_email
+```
+
+**Leer el SQL que generó antes de seguir.** Tiene que ser un `CREATE UNIQUE INDEX`, nada más. Si Prisma propone borrar y recrear la tabla, parar y reportar.
+
+- [ ] **Paso 3: Que la carrera devuelva 409 y no 500**
+
+Con la restricción puesta, la segunda alta simultánea recibe un `P2002` de Prisma que hoy sale como 500. Un 500 le dice al usuario "se rompió algo" cuando lo correcto es "ese email ya está". Mapearlo donde ya se traduce el error del chequeo previo, en `tenants.service.ts` y `users.service.ts`:
+
+```typescript
+import { Prisma } from "@prisma/client";
+
+// ...
+
+    try {
+      return await this.repo.createTenantWithAdmin({ ... });
+    } catch (e) {
+      // P2002 = violación de unique. Solo puede pasar si otra alta con el mismo
+      // email entró entre el chequeo de arriba y este insert: la carrera que el
+      // chequeo previo no puede cerrar. El usuario ve el mismo 409 que si
+      // hubiera llegado segundo por un milisegundo, que es lo que pasó.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        throw new ConflictError("Ese email ya está registrado");
+      }
+      throw e;
+    }
+```
+
+- [ ] **Paso 4: Ver el test en verde y comprobar que no es vacío**
+
+```bash
+npx jest --selectProjects integration auth --runInBand
+```
+
+Después, la comprobación que importa: sacar el `@unique` del schema, correr `npx prisma migrate dev`, confirmar que el test vuelve a rojo con `[201, 201]`, y volver a ponerlo. Si el test sigue verde sin la restricción, no está probando la restricción.
+
+- [ ] **Paso 5: Actualizar la base de test y correr todo**
+
+```bash
+npm run test:db
+npm run test:unit
+npm run test:integration
+```
+
+Las 329 unitarias tienen que seguir en verde: mockean Prisma, así que la restricción no debería tocarlas. Si alguna cae, es que sembraba dos usuarios con el mismo email y hay que darle emails distintos.
+
+- [ ] **Paso 6: Commit**
+
+```bash
+git add backend/prisma backend/src backend/tests
+git commit -m "fix(auth): make email globally unique in the database"
+```
+
+---
+
 ## Tarea 5: Propiedades, estados y límite del plan
 
 **Archivos:**
