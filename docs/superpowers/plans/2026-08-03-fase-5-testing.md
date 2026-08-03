@@ -951,7 +951,7 @@ describe("/me", () => {
 npx jest --selectProjects integration auth --runInBand
 ```
 
-Esperado: 15 tests en verde.
+Esperado: 16 tests en verde (5 de alta + 4 de login + 4 de rotación + 3 de `/me`).
 
 - [ ] **Paso 3: Commit**
 
@@ -1039,6 +1039,58 @@ describe("alta de propiedades", () => {
   it("sin token devuelve 401", async () => {
     const res = await request(app).post("/api/properties").send(NUEVA);
     expect(res.status).toBe(401);
+  });
+});
+
+describe("edición de una propiedad propia", () => {
+  // El control positivo de los 404 de `isolation.test.ts`: ahí se verifica que
+  // editar una propiedad ajena no toca nada, pero sin este caso nadie verifica
+  // que editar la propia sí funcione. Un endpoint que devolviera 404 siempre
+  // pasaría todos los tests de aislamiento y ninguno de estos.
+  let token: string;
+  let propiedadId: string;
+  let tenantId: string;
+
+  beforeEach(async () => {
+    const { tenant } = await crearInmobiliariaCompleta("norte");
+    tenantId = tenant.id;
+    propiedadId = (await crearPropiedad(tenant.id, { title: "Casa original" })).id;
+    token = await loguear(app, "admin@norte.test");
+  });
+
+  it("editar la propia devuelve 200 y guarda el cambio", async () => {
+    const res = await request(app)
+      .patch(`/api/properties/${propiedadId}`)
+      .set(...comoUsuario(token))
+      .send({ title: "Casa renovada", rooms: 5 });
+
+    expect(res.status).toBe(200);
+
+    const enBase = await prisma.property.findUniqueOrThrow({
+      where: { id: propiedadId },
+    });
+    expect(enBase.title).toBe("Casa renovada");
+    expect(enBase.rooms).toBe(5);
+  });
+
+  it("un body vacío devuelve 422", async () => {
+    // El schema lo rechaza a propósito: un PATCH sin campos es casi siempre un
+    // error del cliente, y aceptarlo escondería el bug.
+    const res = await request(app)
+      .patch(`/api/properties/${propiedadId}`)
+      .set(...comoUsuario(token))
+      .send({});
+
+    expect(res.status).toBe(422);
+  });
+
+  it("borrar la propia devuelve 204 y la saca de la base", async () => {
+    const res = await request(app)
+      .delete(`/api/properties/${propiedadId}`)
+      .set(...comoUsuario(token));
+
+    expect(res.status).toBeLessThan(300);
+    expect(await prisma.property.count({ where: { tenantId } })).toBe(0);
   });
 });
 

@@ -15,11 +15,12 @@ const app = createApp();
  * devuelve 404, no 403. Un 403 confirmaría que el recurso existe, y saber que
  * la propiedad X existe ya es filtrar información de la competencia.
  *
- * Ningún caso se conforma con la ausencia de lo ajeno, porque un endpoint roto
- * que no devolviera nada nunca pasaría igual. Cada 404 viene con su control
- * positivo — lo propio responde 200, o el listado trae exactamente lo suyo — y
- * los pedidos de escritura releen además la fila ajena en la base para ver que
- * sigue como estaba.
+ * Ningún caso se conforma con la ausencia de lo ajeno. En las lecturas, cada
+ * 404 viene con su control positivo —lo propio responde 200, o el listado trae
+ * exactamente lo suyo— porque un endpoint roto que no devolviera nada pasaría
+ * igual. En las escrituras el contrapeso es otro: se relee la fila ajena en la
+ * base para ver que sigue como estaba, que es lo que caza un endpoint que
+ * escribe antes de chequear la pertenencia.
  */
 describe("aislamiento entre inquilinos", () => {
   let tokenNorte: string;
