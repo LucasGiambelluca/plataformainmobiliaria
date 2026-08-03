@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { uploadImage } from '../../src/api/media'
+import { uploadMedia } from '../../src/api/media'
 import { ApiError } from '../../src/lib/apiError'
 import { setAccessToken, setSessionExpiredHandler } from '../../src/lib/session'
 import { useMockServer, type MockServer } from '../helpers/mockServer'
@@ -18,6 +18,7 @@ const mediaRow = (overrides: Record<string, unknown> = {}) => ({
   type: 'image',
   url: PUBLIC_URL,
   thumbnailUrl: null,
+  durationSec: null,
   sizeBytes: 1024,
   sortOrder: 0,
   isCover: true,
@@ -46,7 +47,7 @@ beforeEach(() => {
   setSessionExpiredHandler(null)
 })
 
-describe('uploadImage', () => {
+describe('uploadMedia', () => {
   it('firma, sube al storage y confirma, en ese orden', async () => {
     server
       .on('post', SIGN_PATH, { status: 201, data: signedResponse })
@@ -56,7 +57,7 @@ describe('uploadImage', () => {
         data: { media: mediaRow({ status: 'ready', sizeBytes: 1024 }) },
       })
 
-    const result = await uploadImage(PROPERTY_ID, makeFile())
+    const result = await uploadMedia(PROPERTY_ID, makeFile())
 
     expect(result.status).toBe('ready')
     expect(server.calls.map((c) => `${c.method} ${c.url}`)).toEqual([
@@ -72,7 +73,7 @@ describe('uploadImage', () => {
       .on('put', UPLOAD_URL, { status: 200 })
       .on('post', CONFIRM_PATH, { status: 200, data: { media: mediaRow({ status: 'ready' }) } })
 
-    await uploadImage(PROPERTY_ID, makeFile())
+    await uploadMedia(PROPERTY_ID, makeFile())
 
     expect(server.callsTo('post', SIGN_PATH)[0].body).toEqual({
       contentType: 'image/png',
@@ -88,7 +89,7 @@ describe('uploadImage', () => {
       .on('put', UPLOAD_URL, { status: 200 })
       .on('post', CONFIRM_PATH, { status: 200, data: { media: mediaRow({ status: 'ready' }) } })
 
-    await uploadImage(PROPERTY_ID, makeFile())
+    await uploadMedia(PROPERTY_ID, makeFile())
 
     expect(server.callsTo('post', SIGN_PATH)[0].authorization).toBe('Bearer token-vigente')
     expect(server.callsTo('put', UPLOAD_URL)[0].authorization).toBeUndefined()
@@ -101,7 +102,7 @@ describe('uploadImage', () => {
       .on('put', UPLOAD_URL, { status: 403 })
       .on('delete', MEDIA_PATH, { status: 204 })
 
-    await expect(uploadImage(PROPERTY_ID, makeFile())).rejects.toBeInstanceOf(ApiError)
+    await expect(uploadMedia(PROPERTY_ID, makeFile())).rejects.toBeInstanceOf(ApiError)
 
     expect(server.countOf('delete', MEDIA_PATH)).toBe(1)
     expect(server.countOf('post', CONFIRM_PATH)).toBe(0)
@@ -118,7 +119,7 @@ describe('uploadImage', () => {
       },
     })
 
-    const err = (await uploadImage(PROPERTY_ID, makeFile()).catch((e: unknown) => e)) as ApiError
+    const err = (await uploadMedia(PROPERTY_ID, makeFile()).catch((e: unknown) => e)) as ApiError
 
     expect(err.code).toBe('LIMIT_EXCEEDED')
     expect(server.countOf('put', UPLOAD_URL)).toBe(0)
@@ -131,7 +132,7 @@ describe('uploadImage', () => {
       .on('post', CONFIRM_PATH, { status: 200, data: { media: mediaRow({ status: 'ready' }) } })
 
     const onProgress = vi.fn()
-    await uploadImage(PROPERTY_ID, makeFile(), onProgress)
+    await uploadMedia(PROPERTY_ID, makeFile(), onProgress)
 
     expect(onProgress).toHaveBeenLastCalledWith(100)
   })
@@ -139,7 +140,7 @@ describe('uploadImage', () => {
   it('una respuesta que no cumple el contrato falla como CONTRACT_MISMATCH', async () => {
     server.on('post', SIGN_PATH, { status: 201, data: { media: { id: MEDIA_ID } } })
 
-    const err = (await uploadImage(PROPERTY_ID, makeFile()).catch((e: unknown) => e)) as ApiError
+    const err = (await uploadMedia(PROPERTY_ID, makeFile()).catch((e: unknown) => e)) as ApiError
 
     expect(err.code).toBe('CONTRACT_MISMATCH')
   })

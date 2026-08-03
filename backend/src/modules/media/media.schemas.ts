@@ -52,6 +52,24 @@ export const createUploadSchema = z.object({
 });
 export type CreateUploadBody = z.infer<typeof createUploadSchema>;
 
+/**
+ * Miniatura: la genera el navegador con un canvas y la sube por su propia URL
+ * firmada. El Content-Type no se negocia, siempre es jpeg, así que no viaja.
+ */
+export const createThumbnailSchema = z.object({
+  sizeBytes: z.number().int().positive("La miniatura está vacía"),
+});
+export type CreateThumbnailBody = z.infer<typeof createThumbnailSchema>;
+
+/**
+ * La duración la mide el navegador al cargar los metadatos del video. El tope
+ * es de doce horas: más que eso es un valor inventado, no una publicación.
+ */
+export const confirmUploadSchema = z.object({
+  durationSec: z.number().int().positive().max(12 * 60 * 60).optional(),
+});
+export type ConfirmUploadBody = z.infer<typeof confirmUploadSchema>;
+
 export const updateMediaSchema = z
   .object({
     sortOrder: z.number().int().nonnegative().optional(),

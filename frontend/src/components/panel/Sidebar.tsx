@@ -6,6 +6,8 @@ export interface NavItem {
   label: string
   icon: LucideIcon
   end?: boolean
+  /** Secciones que el backend reserva al tenant_admin. */
+  adminOnly?: boolean
 }
 
 interface Props {

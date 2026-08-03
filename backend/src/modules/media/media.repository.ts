@@ -90,7 +90,13 @@ class MediaPrismaRepository
   async updateMedia(
     id: string,
     tenantId: string,
-    data: { sizeBytes?: number; status?: MediaStatus; sortOrder?: number },
+    data: {
+      sizeBytes?: number;
+      status?: MediaStatus;
+      sortOrder?: number;
+      thumbnailUrl?: string;
+      durationSec?: number;
+    },
   ): Promise<MediaRecord> {
     // Verifica pertenencia antes de escribir (garantía de BaseRepository).
     await this.findByIdOrThrow(id, tenantId);
@@ -100,6 +106,8 @@ class MediaPrismaRepository
         ...(data.status !== undefined && { status: data.status }),
         ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
         ...(data.sizeBytes !== undefined && { sizeBytes: BigInt(data.sizeBytes) }),
+        ...(data.thumbnailUrl !== undefined && { thumbnailUrl: data.thumbnailUrl }),
+        ...(data.durationSec !== undefined && { durationSec: data.durationSec }),
       },
     });
     return toRecord(row);

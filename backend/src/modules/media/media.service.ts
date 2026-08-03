@@ -55,7 +55,13 @@ export interface MediaRepository {
   updateMedia(
     id: string,
     tenantId: string,
-    data: { sizeBytes?: number; status?: MediaStatus; sortOrder?: number },
+    data: {
+      sizeBytes?: number;
+      status?: MediaStatus;
+      sortOrder?: number;
+      thumbnailUrl?: string;
+      durationSec?: number;
+    },
   ): Promise<MediaRecord>;
   /** Marca una como portada y desmarca el resto de la misma propiedad. */
   setCover(id: string, propertyId: string, tenantId: string): Promise<MediaRecord>;
@@ -63,6 +69,12 @@ export interface MediaRepository {
   reorder(propertyId: string, tenantId: string, ids: string[]): Promise<MediaRecord[]>;
   deleteMedia(id: string, tenantId: string): Promise<void>;
 }
+
+/** Lo genera un canvas del navegador, que exporta jpeg. */
+const THUMBNAIL_CONTENT_TYPE = "image/jpeg";
+
+/** Una miniatura razonable pesa decenas de KB; el tope es para atajar abusos. */
+const MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024;
 
 export class MediaService {
   constructor(
@@ -136,13 +148,56 @@ export class MediaService {
   }
 
   /**
-   * Paso 2: el navegador terminó el PUT. Se contrasta el tamaño real contra el
-   * declarado — sin esto, declarar 1 byte y subir 4 GB saltearía el límite.
+   * Paso opcional entre la subida y la confirmación: firma la miniatura.
+   *
+   * La genera el navegador —redimensionando la imagen o capturando un frame
+   * del video con un canvas— y la sube por su propia URL firmada. No se genera
+   * acá a propósito: el archivo nunca pasa por el backend (decisión fijada en
+   * plan_estrategico.md), así que hacerlo obligaría a bajar cada video del
+   * storage, procesarlo y volver a subirlo.
+   */
+  async createThumbnailUpload(
+    propertyId: string,
+    mediaId: string,
+    tenantId: string,
+    input: { sizeBytes: number },
+  ): Promise<{ media: MediaRecord; upload: SignedUploadResult["upload"] }> {
+    const media = await this.getOwned(propertyId, mediaId, tenantId);
+
+    if (input.sizeBytes > MAX_THUMBNAIL_BYTES) {
+      throw new BadRequestError("La miniatura es demasiado grande");
+    }
+    // Ocupa lugar en el bucket como cualquier otro objeto.
+    await this.limitService.assertCanAddStorage(tenantId, input.sizeBytes);
+
+    const key = this.keyOf(media.url);
+    if (!key) throw new BadRequestError("No se pudo derivar la clave del archivo");
+
+    const signed = await this.storage.createSignedUpload({
+      key: thumbnailKeyOf(key),
+      contentType: THUMBNAIL_CONTENT_TYPE,
+    });
+
+    return {
+      media,
+      upload: {
+        uploadUrl: signed.uploadUrl,
+        contentType: signed.contentType,
+        expiresAt: signed.expiresAt,
+      },
+    };
+  }
+
+  /**
+   * Paso final: el navegador terminó los PUT. Se contrasta el tamaño real
+   * contra el declarado — sin esto, declarar 1 byte y subir 4 GB saltearía el
+   * límite — y se registra la miniatura si llegó.
    */
   async confirmUpload(
     propertyId: string,
     mediaId: string,
     tenantId: string,
+    input: { durationSec?: number } = {},
   ): Promise<MediaRecord> {
     const media = await this.getOwned(propertyId, mediaId, tenantId);
     if (media.status === "ready") return media;
@@ -168,7 +223,13 @@ export class MediaService {
       );
     }
 
-    const delta = object.sizeBytes - media.sizeBytes;
+    // La miniatura es accesoria: si no llegó o no es lo que dice ser, se
+    // descarta y la subida sigue. Que falte una miniatura no puede impedir
+    // publicar una propiedad.
+    const thumbnail = key ? await this.resolveThumbnail(key) : null;
+    const totalBytes = object.sizeBytes + (thumbnail?.sizeBytes ?? 0);
+
+    const delta = totalBytes - media.sizeBytes;
     if (delta > 0) {
       // El declarado ya está sumado, así que solo se valida la diferencia.
       try {
@@ -176,15 +237,42 @@ export class MediaService {
       } catch (err) {
         // El archivo real no entra en el plan: se descarta entero.
         if (key) await this.storage.remove(key);
+        if (thumbnail) await this.storage.remove(thumbnail.key);
         await this.repo.deleteMedia(mediaId, tenantId);
         throw err;
       }
     }
 
     return this.repo.updateMedia(mediaId, tenantId, {
-      sizeBytes: object.sizeBytes,
+      sizeBytes: totalBytes,
       status: "ready",
+      ...(thumbnail ? { thumbnailUrl: this.storage.publicUrlFor(thumbnail.key) } : {}),
+      // La duración solo tiene sentido en video, y la mide el navegador al
+      // cargar los metadatos del archivo.
+      ...(media.type === "video" && input.durationSec
+        ? { durationSec: input.durationSec }
+        : {}),
     });
+  }
+
+  /**
+   * Busca la miniatura del archivo. Devuelve null si no se subió, y la borra
+   * si el objeto almacenado no es un jpeg: el bucket es de lectura pública, así
+   * que un objeto con Content-Type arbitrario sería contenido servido desde
+   * nuestro dominio.
+   */
+  private async resolveThumbnail(
+    key: string,
+  ): Promise<{ key: string; sizeBytes: number } | null> {
+    const thumbKey = thumbnailKeyOf(key);
+    const object = await this.storage.head(thumbKey);
+    if (!object) return null;
+
+    if (object.contentType && object.contentType !== THUMBNAIL_CONTENT_TYPE) {
+      await this.storage.remove(thumbKey);
+      return null;
+    }
+    return { key: thumbKey, sizeBytes: object.sizeBytes };
   }
 
   /**
@@ -243,6 +331,13 @@ export class MediaService {
 
     const key = this.keyOf(media.url);
     if (key) await this.storage.remove(key);
+
+    // La miniatura vive aparte en el bucket: sin esto quedaría huérfana
+    // ocupando cupo del plan para siempre.
+    if (media.thumbnailUrl) {
+      const thumbKey = this.keyOf(media.thumbnailUrl);
+      if (thumbKey) await this.storage.remove(thumbKey);
+    }
   }
 
   private async assertProperty(propertyId: string, tenantId: string): Promise<void> {
@@ -274,4 +369,14 @@ export class MediaService {
 function extensionOf(key: string): string {
   const dot = key.lastIndexOf(".");
   return dot === -1 ? "" : key.slice(dot + 1).toLowerCase();
+}
+
+/**
+ * "…/abc.mp4" → "…/abc-thumb.jpg".
+ *
+ * Se deriva de la clave del archivo en vez de guardarse en una columna, por lo
+ * mismo que la clave del original: una sola fuente de verdad.
+ */
+function thumbnailKeyOf(key: string): string {
+  return `${key.replace(/\.[^./]+$/, "")}-thumb.jpg`;
 }

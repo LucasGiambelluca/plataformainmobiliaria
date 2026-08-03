@@ -150,6 +150,44 @@ describe('refresh ante 401', () => {
     expect(server.countOf('get', '/subscription')).toBe(1)
   })
 
+  it('no cierra la sesión si el refresh choca contra el rate limit', async () => {
+    // Un 429 no dice que la cookie no valga: dice que preguntamos demasiado.
+    // Cerrar la sesión acá echa de la aplicación a alguien que sí estaba
+    // logueado, y le hace perder lo que estuviera cargando.
+    setAccessToken('token-vencido')
+    let expirada = false
+    setSessionExpiredHandler(() => {
+      expirada = true
+    })
+    server
+      .on('get', '/subscription', { status: 401 })
+      .on('post', '/auth/refresh', {
+        status: 429,
+        data: backendError('RATE_LIMITED', 'Demasiadas renovaciones de sesión seguidas.'),
+      })
+
+    await api.get('/subscription').catch(() => undefined)
+
+    expect(expirada).toBe(false)
+  })
+
+  it('no cierra la sesión si el backend no responde', async () => {
+    // Mismo criterio para una caída de red: no hay ninguna evidencia de que la
+    // sesión haya terminado.
+    setAccessToken('token-vencido')
+    let expirada = false
+    setSessionExpiredHandler(() => {
+      expirada = true
+    })
+    server
+      .on('get', '/subscription', { status: 401 })
+      .on('post', '/auth/refresh', { status: 503 })
+
+    await api.get('/subscription').catch(() => undefined)
+
+    expect(expirada).toBe(false)
+  })
+
   it('refreshSession concurrente hace un solo pedido', async () => {
     server.on('post', '/auth/refresh', {
       status: 200,

@@ -4,18 +4,22 @@ import {
   ArrowRight,
   ImagePlus,
   Loader2,
+  Play,
   Star,
   Trash2,
   UploadCloud,
 } from 'lucide-react'
 import {
-  ACCEPTED_IMAGE_TYPES,
+  ACCEPTED_MEDIA_TYPES,
   MAX_IMAGE_BYTES,
+  MAX_VIDEO_BYTES,
   deleteMedia,
+  esVideo,
   listMedia,
+  maxBytesPara,
   reorderMedia,
   setCover,
-  uploadImage,
+  uploadMedia,
 } from '../../api/media'
 import type { PropertyMedia } from '../../api/schemas'
 import { ApiError } from '../../lib/apiError'
@@ -30,6 +34,7 @@ interface EnCurso {
   id: string
   nombre: string
   preview: string
+  esVideo: boolean
   progreso: number
   error?: string
 }
@@ -37,15 +42,25 @@ interface EnCurso {
 const MB = 1024 * 1024
 
 function esAceptado(file: File): boolean {
-  return (ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type)
+  return (ACCEPTED_MEDIA_TYPES as readonly string[]).includes(file.type)
+}
+
+/** 95 → "1:35". */
+function duracion(segundos: number): string {
+  const min = Math.floor(segundos / 60)
+  const seg = segundos % 60
+  return `${min}:${String(seg).padStart(2, '0')}`
 }
 
 /**
- * Carga de imágenes de una propiedad.
+ * Carga de fotos y videos de una propiedad.
  *
- * Cada archivo pasa por firmar → PUT directo al storage → confirmar. Se sube de
- * a uno: en paralelo, varias subidas grandes compiten por el ancho de banda y
- * la barra de progreso deja de significar algo.
+ * Cada archivo pasa por firmar → PUT directo al storage → miniatura →
+ * confirmar. Se sube de a uno: en paralelo, varias subidas grandes compiten por
+ * el ancho de banda y la barra de progreso deja de significar algo.
+ *
+ * La miniatura del video la genera este navegador capturando un frame; hasta
+ * que el archivo termina de confirmarse, la tarjeta se muestra en gris.
  */
 export default function MediaUploader({ propertyId, onChange }: Props) {
   const [media, setMedia] = useState<PropertyMedia[]>([])
@@ -87,13 +102,16 @@ export default function MediaUploader({ propertyId, onChange }: Props) {
 
     const invalido = lista.find((f) => !esAceptado(f))
     if (invalido) {
-      setError(`"${invalido.name}" no es una imagen aceptada (JPG, PNG, WebP o AVIF)`)
+      setError(
+        `"${invalido.name}" no es un archivo aceptado (JPG, PNG, WebP, AVIF, MP4, WebM o MOV)`,
+      )
       return
     }
-    const grande = lista.find((f) => f.size > MAX_IMAGE_BYTES)
+    const grande = lista.find((f) => f.size > maxBytesPara(f.type))
     if (grande) {
+      const max = maxBytesPara(grande.type) / MB
       setError(
-        `"${grande.name}" pesa ${Math.round(grande.size / MB)} MB y el máximo es ${MAX_IMAGE_BYTES / MB} MB`,
+        `"${grande.name}" pesa ${Math.round(grande.size / MB)} MB y el máximo es ${max} MB`,
       )
       return
     }
@@ -101,10 +119,13 @@ export default function MediaUploader({ propertyId, onChange }: Props) {
     for (const file of lista) {
       const tempId = `${file.name}-${file.size}-${file.lastModified}`
       const preview = URL.createObjectURL(file)
-      setEnCurso((prev) => [...prev, { id: tempId, nombre: file.name, preview, progreso: 0 }])
+      setEnCurso((prev) => [
+        ...prev,
+        { id: tempId, nombre: file.name, preview, esVideo: esVideo(file.type), progreso: 0 },
+      ])
 
       try {
-        const subida = await uploadImage(propertyId, file, (p) => {
+        const subida = await uploadMedia(propertyId, file, (p) => {
           setEnCurso((prev) =>
             prev.map((e) => (e.id === tempId ? { ...e, progreso: p } : e)),
           )
@@ -186,23 +207,24 @@ export default function MediaUploader({ propertyId, onChange }: Props) {
       >
         <UploadCloud className="mx-auto h-8 w-8 text-muted" aria-hidden />
         <p className="mt-2 text-sm text-ink">
-          Arrastrá las fotos acá, o{' '}
+          Arrastrá las fotos o videos acá, o{' '}
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
             className="font-medium text-brand hover:underline"
           >
-            elegilas de tu compu
+            elegilos de tu compu
           </button>
         </p>
         <p className="mt-1 text-xs text-muted">
-          JPG, PNG, WebP o AVIF · hasta {MAX_IMAGE_BYTES / MB} MB por foto
+          Fotos JPG, PNG, WebP o AVIF hasta {MAX_IMAGE_BYTES / MB} MB · videos MP4, WebM
+          o MOV hasta {MAX_VIDEO_BYTES / MB} MB
         </p>
         <input
           ref={inputRef}
           type="file"
           multiple
-          accept={ACCEPTED_IMAGE_TYPES.join(',')}
+          accept={ACCEPTED_MEDIA_TYPES.join(',')}
           className="hidden"
           onChange={(e) => {
             if (e.target.files?.length) void subir(e.target.files)
@@ -233,11 +255,31 @@ export default function MediaUploader({ propertyId, onChange }: Props) {
                 m.isCover ? 'border-brand ring-1 ring-brand' : 'border-line'
               }`}
             >
-              <img
-                src={m.thumbnailUrl ?? m.url}
-                alt=""
-                className="aspect-[4/3] w-full object-cover"
-              />
+              {m.type === 'video' && !m.thumbnailUrl ? (
+                // Sin miniatura (el navegador no pudo generarla): el propio
+                // video muestra su primer frame con preload=metadata.
+                <video
+                  src={m.url}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  className="aspect-[4/3] w-full bg-black object-cover"
+                />
+              ) : (
+                <img
+                  src={m.thumbnailUrl ?? m.url}
+                  alt=""
+                  loading="lazy"
+                  className="aspect-[4/3] w-full object-cover"
+                />
+              )}
+
+              {m.type === 'video' && (
+                <span className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                  <Play className="h-2.5 w-2.5 fill-current" aria-hidden />
+                  {m.durationSec ? duracion(m.durationSec) : 'Video'}
+                </span>
+              )}
 
               {m.isCover && (
                 <span className="absolute left-1.5 top-1.5 rounded bg-brand px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
@@ -303,7 +345,21 @@ export default function MediaUploader({ propertyId, onChange }: Props) {
               key={e.id}
               className="relative overflow-hidden rounded-lg border border-line bg-surface"
             >
-              <img src={e.preview} alt="" className="aspect-[4/3] w-full object-cover opacity-50" />
+              {e.esVideo ? (
+                <video
+                  src={e.preview}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  className="aspect-[4/3] w-full bg-black object-cover opacity-50"
+                />
+              ) : (
+                <img
+                  src={e.preview}
+                  alt=""
+                  className="aspect-[4/3] w-full object-cover opacity-50"
+                />
+              )}
               <div className="absolute inset-x-0 bottom-0 border-t border-line bg-surface px-2 py-1.5">
                 {e.error ? (
                   <p className="truncate text-[11px] text-red-600" title={e.error}>
@@ -318,7 +374,9 @@ export default function MediaUploader({ propertyId, onChange }: Props) {
                       />
                     </div>
                     <p className="mt-1 truncate text-[11px] text-muted">
-                      {e.progreso}% · {e.nombre}
+                      {/* El PUT llega hasta 99: lo que queda es generar la
+                          miniatura, subirla y confirmar contra el plan. */}
+                      {e.progreso >= 99 ? 'Procesando…' : `${e.progreso}%`} · {e.nombre}
                     </p>
                   </>
                 )}

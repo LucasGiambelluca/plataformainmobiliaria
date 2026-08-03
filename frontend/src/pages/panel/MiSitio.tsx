@@ -47,6 +47,69 @@ function ColorPreview({ value }: { value?: string }) {
   )
 }
 
+interface PreviewProps {
+  tenantName: string
+  heroTitle?: string
+  heroSubtitle?: string
+  aboutText?: string
+  primaryColor?: string
+  imagen?: string
+}
+
+/**
+ * Portada del sitio dibujada con los valores que se están editando.
+ *
+ * No es un iframe del sitio real a propósito: mientras no esté publicado, la
+ * web pública responde 404, y aunque estuviera, el iframe mostraría lo último
+ * guardado en vez de lo que la persona está escribiendo. Acá el cambio se ve
+ * mientras se tipea, que es de lo que sirve una vista previa.
+ */
+function SitePreview({
+  tenantName,
+  heroTitle,
+  heroSubtitle,
+  aboutText,
+  primaryColor,
+  imagen,
+}: PreviewProps) {
+  const color = /^#[0-9a-fA-F]{6}$/.test(primaryColor ?? '') ? primaryColor : '#0F3258'
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-line">
+      <div className="flex items-center gap-2 border-b border-line bg-canvas px-3 py-2">
+        <span className="h-2 w-2 rounded-full bg-line" aria-hidden />
+        <span className="h-2 w-2 rounded-full bg-line" aria-hidden />
+        <span className="h-2 w-2 rounded-full bg-line" aria-hidden />
+      </div>
+
+      <div
+        className="relative flex min-h-[9rem] flex-col justify-center bg-cover bg-center px-5 py-7"
+        style={{
+          backgroundColor: color,
+          ...(imagen ? { backgroundImage: `url(${imagen})` } : {}),
+        }}
+      >
+        {/* Sin el velo, un carrusel claro deja el título ilegible. */}
+        {imagen && <span className="absolute inset-0 bg-black/45" aria-hidden />}
+        <div className="relative">
+          <p className="text-lg font-semibold leading-tight text-white">
+            {heroTitle?.trim() || tenantName}
+          </p>
+          {heroSubtitle?.trim() && (
+            <p className="mt-1 text-sm text-white/85">{heroSubtitle}</p>
+          )}
+        </div>
+      </div>
+
+      {aboutText?.trim() && (
+        <p className="line-clamp-3 bg-surface px-5 py-4 text-center text-xs text-muted">
+          {aboutText}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function MiSitio() {
   const recurso = useResource(() => getOwnSite(), [])
   const [site, setSite] = useState<OwnSite | null>(null)
@@ -261,6 +324,21 @@ export default function MiSitio() {
           <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
             <h2 className="mb-4 text-lg font-semibold tracking-base text-ink">Carrousel</h2>
             <CarouselUploader carousel={site.carousel} onChange={onCarouselChange} />
+          </div>
+
+          <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
+            <h2 className="text-lg font-semibold tracking-base text-ink">Vista previa</h2>
+            <p className="mt-1 text-sm text-muted">
+              Así queda tu portada. Se actualiza mientras escribís, antes de guardar.
+            </p>
+            <SitePreview
+              tenantName={site.tenantName}
+              heroTitle={watch('heroTitle')}
+              heroSubtitle={watch('heroSubtitle')}
+              aboutText={watch('aboutText')}
+              primaryColor={watch('primaryColor')}
+              imagen={site.carousel.find((c) => c.isActive)?.imageUrl}
+            />
           </div>
 
           <div className="rounded-lg border border-line bg-surface p-6 shadow-card">

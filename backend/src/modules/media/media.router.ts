@@ -6,9 +6,13 @@ import { asyncHandler } from "@/shared/utils/asyncHandler";
 import { limitService } from "@/modules/subscriptions/subscriptions.router";
 import { storageProvider } from "@/shared/services/storage";
 import {
+  confirmUploadSchema,
+  createThumbnailSchema,
   createUploadSchema,
   reorderMediaSchema,
   updateMediaSchema,
+  type ConfirmUploadBody,
+  type CreateThumbnailBody,
   type CreateUploadBody,
   type ReorderMediaBody,
   type UpdateMediaBody,
@@ -51,14 +55,33 @@ export function createMediaRouter(service: MediaService): Router {
     }),
   );
 
-  // Paso 2: el navegador terminó el PUT y se verifica el archivo real.
+  // Paso 2 (opcional): firma la miniatura, que el navegador ya generó.
+  router.post(
+    "/:mediaId/thumbnail-url",
+    validate(createThumbnailSchema),
+    asyncHandler(async (req, res) => {
+      const body = req.body as CreateThumbnailBody;
+      const result = await service.createThumbnailUpload(
+        req.params.propertyId,
+        req.params.mediaId,
+        req.tenantId as string,
+        body,
+      );
+      res.status(201).json(result);
+    }),
+  );
+
+  // Paso 3: el navegador terminó los PUT y se verifica el archivo real.
   router.post(
     "/:mediaId/confirm",
+    validate(confirmUploadSchema),
     asyncHandler(async (req, res) => {
+      const body = req.body as ConfirmUploadBody;
       const media = await service.confirmUpload(
         req.params.propertyId,
         req.params.mediaId,
         req.tenantId as string,
+        body,
       );
       res.json({ media });
     }),

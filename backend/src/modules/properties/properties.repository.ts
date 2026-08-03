@@ -44,6 +44,7 @@ function toRecord(row: PropertyWithDetail): PropertyRecord {
       type: m.type,
       url: m.url,
       thumbnailUrl: m.thumbnailUrl,
+      durationSec: m.durationSec,
       sizeBytes: Number(m.sizeBytes),
       sortOrder: m.sortOrder,
       isCover: m.isCover,

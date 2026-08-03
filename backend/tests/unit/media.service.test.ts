@@ -348,4 +348,183 @@ describe("MediaService", () => {
       expect(storage.removed).toEqual([]);
     });
   });
+
+  /**
+   * El thumbnail lo genera el navegador y lo sube por su propia URL firmada.
+   * No hay cola de jobs con sharp ni ffmpeg: la multimedia nunca pasa por el
+   * backend, así que generarlos acá obligaría a bajar y volver a subir cada
+   * archivo.
+   */
+  describe("thumbnails", () => {
+    const keyOf = (record: MediaRecord) =>
+      record.url.replace("https://storage.local/", "");
+    const thumbKeyOf = (record: MediaRecord) =>
+      keyOf(record).replace(/\.[^.]+$/, "-thumb.jpg");
+
+    const VIDEO = () =>
+      media({
+        type: "video",
+        url: `https://storage.local/tenants/${TENANT_ID}/properties/${PROPERTY_ID}/${MEDIA_ID}.mp4`,
+        sizeBytes: 20 * MB,
+      });
+
+    it("firma el thumbnail junto al archivo, con el mismo id y sufijo", async () => {
+      const record = VIDEO();
+      const repo = makeRepo({ findById: jest.fn().mockResolvedValue(record) });
+      const { service, storage } = makeService(repo);
+
+      await service.createThumbnailUpload(PROPERTY_ID, MEDIA_ID, TENANT_ID, {
+        sizeBytes: 40_000,
+      });
+
+      expect(storage.uploads).toHaveLength(1);
+      expect(storage.uploads[0].key).toBe(thumbKeyOf(record));
+    });
+
+    it("el thumbnail siempre se firma como jpeg", async () => {
+      // Lo produce un canvas del navegador, que exporta jpeg. Fijarlo evita
+      // que alguien suba otra cosa bajo el nombre del thumbnail.
+      const repo = makeRepo({ findById: jest.fn().mockResolvedValue(VIDEO()) });
+      const { service, storage } = makeService(repo);
+
+      const result = await service.createThumbnailUpload(
+        PROPERTY_ID,
+        MEDIA_ID,
+        TENANT_ID,
+        { sizeBytes: 40_000 },
+      );
+
+      expect(result.upload.contentType).toBe("image/jpeg");
+      expect(storage.uploads[0].contentType).toBe("image/jpeg");
+    });
+
+    it("el thumbnail también consume cupo del plan", async () => {
+      const repo = makeRepo({ findById: jest.fn().mockResolvedValue(VIDEO()) });
+      const limits = makeLimits();
+      const { service } = makeService(repo, limits);
+
+      await service.createThumbnailUpload(PROPERTY_ID, MEDIA_ID, TENANT_ID, {
+        sizeBytes: 40_000,
+      });
+
+      expect(limits.assertCanAddStorage).toHaveBeenCalledWith(TENANT_ID, 40_000);
+    });
+
+    it("no firma el thumbnail de un archivo de otro tenant", async () => {
+      const repo = makeRepo({ findById: jest.fn().mockResolvedValue(null) });
+      const { service, storage } = makeService(repo);
+
+      await expect(
+        service.createThumbnailUpload(PROPERTY_ID, MEDIA_ID, OTRO_TENANT, {
+          sizeBytes: 40_000,
+        }),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(storage.uploads).toHaveLength(0);
+    });
+
+    it("al confirmar registra el thumbnail que sí llegó", async () => {
+      const record = VIDEO();
+      const repo = makeRepo({ findById: jest.fn().mockResolvedValue(record) });
+      const storage = new FakeStorageProvider();
+      storage.pretendUploaded(keyOf(record), 20 * MB, "video/mp4");
+      storage.pretendUploaded(thumbKeyOf(record), 40_000, "image/jpeg");
+      const { service } = makeService(repo, makeLimits(), storage);
+
+      await service.confirmUpload(PROPERTY_ID, MEDIA_ID, TENANT_ID);
+
+      expect(repo.updateMedia).toHaveBeenCalledWith(
+        MEDIA_ID,
+        TENANT_ID,
+        expect.objectContaining({
+          status: "ready",
+          thumbnailUrl: `https://storage.local/${thumbKeyOf(record)}`,
+        }),
+      );
+    });
+
+    it("el peso del thumbnail se suma al del archivo", async () => {
+      // Ocupa lugar en el bucket: si no se contabiliza, el plan miente.
+      const record = VIDEO();
+      const repo = makeRepo({ findById: jest.fn().mockResolvedValue(record) });
+      const storage = new FakeStorageProvider();
+      storage.pretendUploaded(keyOf(record), 20 * MB, "video/mp4");
+      storage.pretendUploaded(thumbKeyOf(record), 40_000, "image/jpeg");
+      const { service } = makeService(repo, makeLimits(), storage);
+
+      await service.confirmUpload(PROPERTY_ID, MEDIA_ID, TENANT_ID);
+
+      expect(repo.updateMedia).toHaveBeenCalledWith(
+        MEDIA_ID,
+        TENANT_ID,
+        expect.objectContaining({ sizeBytes: 20 * MB + 40_000 }),
+      );
+    });
+
+    it("sin thumbnail subido, confirmar funciona igual", async () => {
+      // Una imagen chica no necesita miniatura: el thumbnail es opcional y su
+      // ausencia no puede tumbar la subida.
+      const record = media();
+      const repo = makeRepo({ findById: jest.fn().mockResolvedValue(record) });
+      const storage = new FakeStorageProvider();
+      storage.pretendUploaded(keyOf(record), 2 * MB);
+      const { service } = makeService(repo, makeLimits(), storage);
+
+      await service.confirmUpload(PROPERTY_ID, MEDIA_ID, TENANT_ID);
+
+      const [, , data] = (repo.updateMedia as jest.Mock).mock.calls[0];
+      expect(data.status).toBe("ready");
+      expect(data.thumbnailUrl).toBeUndefined();
+    });
+
+    it("un thumbnail que no es jpeg se descarta sin romper la subida", async () => {
+      // El bucket es de lectura pública: un objeto con Content-Type text/html
+      // sería contenido arbitrario servido desde nuestro dominio.
+      const record = VIDEO();
+      const repo = makeRepo({ findById: jest.fn().mockResolvedValue(record) });
+      const storage = new FakeStorageProvider();
+      storage.pretendUploaded(keyOf(record), 20 * MB, "video/mp4");
+      storage.pretendUploaded(thumbKeyOf(record), 500, "text/html");
+      const { service } = makeService(repo, makeLimits(), storage);
+
+      await service.confirmUpload(PROPERTY_ID, MEDIA_ID, TENANT_ID);
+
+      const [, , data] = (repo.updateMedia as jest.Mock).mock.calls[0];
+      expect(data.status).toBe("ready");
+      expect(data.thumbnailUrl).toBeUndefined();
+      expect(storage.removed).toContain(thumbKeyOf(record));
+    });
+
+    it("guarda la duración del video al confirmar", async () => {
+      const record = VIDEO();
+      const repo = makeRepo({ findById: jest.fn().mockResolvedValue(record) });
+      const storage = new FakeStorageProvider();
+      storage.pretendUploaded(keyOf(record), 20 * MB, "video/mp4");
+      const { service } = makeService(repo, makeLimits(), storage);
+
+      await service.confirmUpload(PROPERTY_ID, MEDIA_ID, TENANT_ID, {
+        durationSec: 47,
+      });
+
+      expect(repo.updateMedia).toHaveBeenCalledWith(
+        MEDIA_ID,
+        TENANT_ID,
+        expect.objectContaining({ durationSec: 47 }),
+      );
+    });
+
+    it("la duración se ignora en una imagen", async () => {
+      const record = media();
+      const repo = makeRepo({ findById: jest.fn().mockResolvedValue(record) });
+      const storage = new FakeStorageProvider();
+      storage.pretendUploaded(keyOf(record), 2 * MB);
+      const { service } = makeService(repo, makeLimits(), storage);
+
+      await service.confirmUpload(PROPERTY_ID, MEDIA_ID, TENANT_ID, {
+        durationSec: 47,
+      });
+
+      const [, , data] = (repo.updateMedia as jest.Mock).mock.calls[0];
+      expect(data.durationSec).toBeUndefined();
+    });
+  });
 });

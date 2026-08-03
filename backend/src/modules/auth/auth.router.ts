@@ -1,7 +1,11 @@
 import { Router, type Response } from "express";
 import { isProd } from "@/config/env";
 import { authenticate } from "@/shared/middleware/authenticate";
-import { authLimiter, registerLimiter } from "@/shared/middleware/rateLimit";
+import {
+  authLimiter,
+  refreshLimiter,
+  registerLimiter,
+} from "@/shared/middleware/rateLimit";
 import { validate } from "@/shared/middleware/validate";
 import { asyncHandler } from "@/shared/utils/asyncHandler";
 import { UnauthorizedError } from "@/shared/errors";
@@ -89,7 +93,7 @@ export function createAuthRouter(
 
   router.post(
     "/refresh",
-    authLimiter,
+    refreshLimiter,
     asyncHandler(async (req, res) => {
       const current = (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE];
       if (!current) throw new UnauthorizedError("Falta el refresh token");

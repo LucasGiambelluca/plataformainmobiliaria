@@ -61,6 +61,19 @@ export function refreshSession(): Promise<AuthResponse> {
   return inFlight
 }
 
+/**
+ * ¿El refresh falló porque la sesión terminó, o porque no se pudo preguntar?
+ *
+ * Solo un 401/403 significa que la cookie ya no vale. Un 429, un 5xx o un
+ * corte de red son problemas de momento: cerrar la sesión ahí echa al usuario
+ * de la aplicación por un pico de tráfico, y encima le hace perder lo que
+ * estuviera escribiendo.
+ */
+export function sesionTerminada(err: unknown): boolean {
+  const { status } = toApiError(err)
+  return status === 401 || status === 403
+}
+
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
@@ -76,9 +89,11 @@ api.interceptors.response.use(
       try {
         await refreshSession()
         return await api(config)
-      } catch {
-        // El refresh también falló: la sesión terminó de verdad.
-        notifySessionExpired()
+      } catch (err) {
+        // Solo se da la sesión por terminada si el backend dijo que la cookie
+        // no vale. Ante un fallo pasajero la sesión sigue en pie y el próximo
+        // pedido vuelve a intentar el refresh.
+        if (sesionTerminada(err)) notifySessionExpired()
       }
     }
 
