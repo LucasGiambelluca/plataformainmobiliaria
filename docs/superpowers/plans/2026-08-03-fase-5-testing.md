@@ -329,7 +329,10 @@ import { prisma } from "./db";
 
 export const PASSWORD = "password-de-test";
 
-/** El alta self-serve exige que exista el plan "basico" (DEFAULT_PLAN_SLUG). */
+/**
+ * El alta self-serve exige que exista el plan "basico" (DEFAULT_PLAN_SLUG).
+ * Por eso llamarla dos veces sin `slug` rompe el unique: pasale uno.
+ */
 export async function crearPlan(
   overrides: Partial<{
     slug: string;
@@ -406,7 +409,9 @@ export async function crearPropiedad(
       title: overrides.title ?? "Casa de prueba",
       propertyType: "house",
       operationType: "sale",
-      price: overrides.price ?? "150000.00",
+      // Sin decimales de relleno a propósito: Postgres devuelve "150000.00"
+      // como "150000", y un default con ceros invita a assertions que fallan.
+      price: overrides.price ?? "150000",
       currency: "USD",
       city: overrides.city ?? "Paraná",
       status: overrides.status ?? "published",
@@ -414,22 +419,34 @@ export async function crearPropiedad(
   });
 }
 
-/** Inmobiliaria completa y lista para operar: plan, tenant, suscripción y admin. */
+/**
+ * Inmobiliaria completa y lista para operar: plan, tenant, suscripción y admin.
+ *
+ * El admin queda como `admin@<slug>.test` y el plan como `plan-<slug>`: las
+ * suites escriben esos strings a mano para loguearse, así que son parte del
+ * contrato, no un detalle interno.
+ */
 export async function crearInmobiliariaCompleta(
   slug: string,
-  opciones: { planSlug?: string; maxProperties?: number; isActive?: boolean } = {},
+  opciones: {
+    planSlug?: string;
+    maxProperties?: number;
+    maxUsers?: number;
+    maxDomains?: number;
+    isActive?: boolean;
+  } = {},
 ) {
-  const plan = await crearPlan({
-    slug: opciones.planSlug ?? `plan-${slug}`,
-    maxProperties: opciones.maxProperties ?? 10,
-  });
-  const tenant = await crearTenant(slug, { isActive: opciones.isActive ?? true });
-  await crearSuscripcion(tenant.id, plan.id);
+  // Los límites pasan crudos: quien tiene el default es crearPlan, repetirlo
+  // acá haría que cambiar uno solo desincronizara los dos caminos.
+  const { planSlug, isActive, ...limites } = opciones;
+  const plan = await crearPlan({ slug: planSlug ?? `plan-${slug}`, ...limites });
+  const tenant = await crearTenant(slug, { isActive });
+  const subscription = await crearSuscripcion(tenant.id, plan.id);
   const admin = await crearUsuario(tenant.id, {
     email: `admin@${slug}.test`,
     role: "tenant_admin",
   });
-  return { plan, tenant, admin };
+  return { plan, tenant, subscription, admin };
 }
 ```
 
@@ -492,10 +509,11 @@ describe("arnés de integración", () => {
     expect(encontrado?.name).toBe("Inmobiliaria humo");
   });
 
-  it("cada test arranca con la base vacía", async () => {
-    // Si el truncate del beforeEach no corriera, el tenant del test anterior
-    // seguiría acá y este test fallaría.
+  // Dos veces el mismo test a propósito: cada uno afirma que arranca vacío y
+  // deja una fila. El segundo solo puede pasar si el truncate corrió.
+  it.each([1, 2])("cada test arranca con la base vacía (%i)", async () => {
     expect(await prisma.tenant.count()).toBe(0);
+    await crearTenant("humo");
   });
 });
 ```
@@ -506,7 +524,7 @@ describe("arnés de integración", () => {
 npm run test:integration
 ```
 
-Esperado: `Tests: 3 passed`. Si el tercero falla, `setupFilesAfterEnv` no se está aplicando.
+Esperado: `Tests: 4 passed`. Si el tercero falla, `setupFilesAfterEnv` no se está aplicando.
 
 - [ ] **Paso 5: Commit**
 

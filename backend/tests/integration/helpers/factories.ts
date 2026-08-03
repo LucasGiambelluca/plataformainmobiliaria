@@ -103,9 +103,9 @@ export async function crearPropiedad(
 /**
  * Inmobiliaria completa y lista para operar: plan, tenant, suscripción y admin.
  *
- * El admin queda como `admin@<slug>.test` y el plan como `plan-<slug>`: las
- * suites escriben esos strings a mano para loguearse, así que son parte del
- * contrato, no un detalle interno.
+ * El admin queda como `admin@<slug>.test`, y el plan como `plan-<slug>` salvo
+ * que pases `planSlug`: las suites escriben esos strings a mano para
+ * loguearse, así que son parte del contrato, no un detalle interno.
  */
 export async function crearInmobiliariaCompleta(
   slug: string,
@@ -120,7 +120,10 @@ export async function crearInmobiliariaCompleta(
   // Los límites pasan crudos: quien tiene el default es crearPlan, repetirlo
   // acá haría que cambiar uno solo desincronizara los dos caminos.
   const { planSlug, isActive, ...limites } = opciones;
-  const plan = await crearPlan({ slug: planSlug ?? `plan-${slug}`, ...limites });
+  // El slug va después del spread: hoy `limites` no puede traerlo porque el
+  // tipo lo prohíbe, pero si alguien amplía `opciones` no queremos que un
+  // slug perdido ahí adentro le gane al que se calculó acá.
+  const plan = await crearPlan({ ...limites, slug: planSlug ?? `plan-${slug}` });
   const tenant = await crearTenant(slug, { isActive });
   const subscription = await crearSuscripcion(tenant.id, plan.id);
   const admin = await crearUsuario(tenant.id, {
