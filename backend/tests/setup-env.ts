@@ -7,3 +7,15 @@ process.env.LOG_LEVEL = "silent";
 // Los tests que tocan storage inyectan su propio FakeStorageProvider; esto solo
 // evita que el provider compartido intente hablar con S3 al importar un router.
 process.env.STORAGE_PROVIDER ??= "fake";
+
+// Los tests de integración levantan la app entera: sin esto, el módulo de
+// cobros intentaría hablar con MercadoPago y el de dominios haría consultas DNS
+// reales. Cada proveedor tiene su implementación fake detrás de la interfaz.
+process.env.PAYMENT_PROVIDER ??= "fake";
+process.env.EMAIL_PROVIDER ??= "fake";
+process.env.DNS_RESOLVER ??= "fake";
+
+// El endpoint que autoriza los certificados de Caddy rechaza TODO cuando el
+// token está vacío, que es el default de env.ts. Sin esto, sus tests no podrían
+// distinguir "host no autorizado" de "token sin configurar".
+process.env.CADDY_ASK_TOKEN ??= "token-de-test-para-caddy";
