@@ -243,7 +243,7 @@ payments ──N:1── subscriptions
 **users** (usuarios internos del tenant)
 - id: UUID (PK)
 - tenant_id: UUID (FK NULL)     -- NULL solo para super_admin
-- email: VARCHAR(255)           -- UNIQUE por (tenant_id, email)
+- email: VARCHAR(255)           -- UNIQUE global, además de (tenant_id, email)
 - password_hash: TEXT
 - role: ENUM('super_admin','tenant_admin','agent')
 - name / phone / avatar_url
@@ -352,7 +352,7 @@ payments ──N:1── subscriptions
 ### 4.3 Índices clave
 - `properties (tenant_id, status)` — listados de panel y catálogo.
 - `properties (status)` parcial donde `status IN ('published','featured')` — catálogo público cross-filtro.
-- `users (tenant_id, email)` UNIQUE.
+- `users (email)` UNIQUE global, y `users (tenant_id, email)` UNIQUE. El global no es redundante: el login resuelve el usuario por email sin saber la inmobiliaria, así que dos filas con el mismo email dejarían a una persona sin poder entrar nunca.
 - `property_media (property_id)`, `inquiries (tenant_id, status)`.
 - `subscriptions (tenant_id)`, `payments (tenant_id, status)`.
 - `tenant_domains (domain)` UNIQUE — lookup por `Host` header en cada request público de dominio custom.

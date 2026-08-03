@@ -81,6 +81,7 @@ Shared database con `tenant_id` en toda tabla de negocio. El aislamiento se gara
 - Serialización: los `Decimal` de Prisma se pasan a string y los `BigInt` a number **en el repositorio**. `res.json()` tira una excepción con BigInt.
 - Path alias `@/` → `src/` (tsconfig + tsc-alias en build).
 - Schema Prisma (`prisma/schema.prisma`): Plan, Tenant, Subscription, Payment, User, Property, PropertyMedia, PropertyFeature, Inquiry, TenantDomain, TenantSiteConfig, SiteCarouselImage, AuditLog.
+- **`User.email` es único global, no solo por tenant.** El login resuelve por email sin saber la inmobiliaria (`findUserByEmail` es un `findFirst`), así que dos filas con el mismo email dejan a una persona sin poder entrar nunca. Los servicios chequean antes de insertar para dar un 409 con mensaje claro; la restricción de la base es la que cierra la carrera entre dos altas simultáneas. Si algún día el login recibe la inmobiliaria, el unique global sobra y se puede sacar.
 
 ### Resolución de tenant (diseño, parcialmente implementado)
 
