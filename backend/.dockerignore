@@ -1,0 +1,19 @@
+# Se reinstala dentro de la imagen: copiarlo desde Windows además de pesado
+# rompe los binarios nativos.
+node_modules
+dist
+
+# Nunca dentro de la imagen: las variables reales las inyecta el compose.
+.env
+.env.*
+!.env.example
+
+tests
+coverage
+*.log
+scripts
+.git
+.gitignore
+Dockerfile
+.dockerignore
+docker-compose*.yml

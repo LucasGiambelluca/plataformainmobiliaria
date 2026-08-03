@@ -24,6 +24,11 @@ const envSchema = z.object({
   // dominio de prueba apunta a esta máquina. En producción va "node".
   DNS_RESOLVER: z.enum(["node", "fake"]).default("node"),
 
+  // Secreto que Caddy manda al preguntar si puede emitir un certificado para
+  // un host. Vacío = el endpoint no autoriza nada, que es lo correcto fuera de
+  // producción: sin Caddy adelante, nadie tiene por qué preguntar.
+  CADDY_ASK_TOKEN: z.string().optional().default(""),
+
   DATABASE_URL: z.string().url(),
 
   JWT_SECRET: z.string().min(32, "JWT_SECRET debe tener al menos 32 caracteres"),

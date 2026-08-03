@@ -4,6 +4,8 @@ build/
 coverage/
 .env
 .env.local
+# Secretos de producción: base, JWT, MinIO, pasarela. Nunca al repo.
+.env.production
 *.log
 .DS_Store
 .idea/

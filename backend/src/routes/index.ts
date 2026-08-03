@@ -17,6 +17,7 @@ import {
   adminDomainsRouter,
   domainsRouter,
 } from "@/modules/domains/domains.router";
+import { caddyRouter } from "@/modules/domains/caddy.router";
 import {
   platformMetricsRouter,
   tenantMetricsRouter,
@@ -48,6 +49,9 @@ apiRouter.use("/inquiries", inquiriesRouter);
 apiRouter.use("/billing", billingRouter);
 // Dominios propios de la inmobiliaria autenticada.
 apiRouter.use("/domains", domainsRouter);
+// Caddy pregunta acá antes de emitir un certificado. No lo llama un navegador:
+// va por la red interna del compose y se autentica con un token propio.
+apiRouter.use("/internal/caddy", caddyRouter);
 // Auditoría, dominios y métricas globales: solo super admin.
 apiRouter.use("/admin/audit", auditRouter);
 apiRouter.use("/admin/domains", adminDomainsRouter);

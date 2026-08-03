@@ -1,0 +1,161 @@
+# ─────────────────────────────────────────────────────────────
+# Producción, single-node. Se levanta con:
+#
+#   docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+#
+# El --env-file no es opcional: además de alimentar a los servicios, de ahí
+# salen las variables que se interpolan acá abajo (PLATFORM_DOMAIN, las
+# credenciales de Postgres y MinIO). Sin él, el compose levanta con valores
+# vacíos y Caddy pide certificados para el host "".
+#
+# Guía completa en docs/deploy.md.
+# ─────────────────────────────────────────────────────────────
+name: inmobiliaria
+
+services:
+  # ── Borde: lo único publicado a internet ───────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: inmobiliaria_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:?falta PLATFORM_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?falta ACME_EMAIL}
+      CADDY_ASK_TOKEN: ${CADDY_ASK_TOKEN:?falta CADDY_ASK_TOKEN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Acá viven los certificados y la clave de la cuenta ACME. Borrar este
+      # volumen obliga a reemitir todo y puede chocar con la cuota semanal de
+      # Let's Encrypt. Entra en el backup.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+
+  # ── SPA ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Mismo host que la web: ver el comentario del Caddyfile.
+        VITE_API_URL: /api
+        # Con qué host la SPA sabe que está sirviendo el portal y con cuál la
+        # web de una inmobiliaria. Tiene que ser el mismo PLATFORM_DOMAIN que
+        # usa el backend: si difieren, un subdominio de inmobiliaria muestra la
+        # home del portal.
+        VITE_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:?falta PLATFORM_DOMAIN en .env.production}
+    container_name: inmobiliaria_frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+
+  # ── API ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+    container_name: inmobiliaria_backend
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    expose:
+      - "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      # No arranca hasta que las migraciones terminaron bien: un backend contra
+      # un schema viejo falla de formas mucho más confusas que no arrancar.
+      migrate:
+        condition: service_completed_successfully
+
+  # ── Migraciones: corre una vez y termina ───────────────────
+  # Usa la etapa `build` de la imagen porque es la única que tiene el CLI de
+  # Prisma; el runtime va sin devDependencies.
+  migrate:
+    build:
+      context: ./backend
+      target: build
+    container_name: inmobiliaria_migrate
+    command: npx prisma migrate deploy
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Base de datos ──────────────────────────────────────────
+  # Sin `ports`: solo se llega desde la red interna del compose. Para conectarse
+  # con un cliente, túnel SSH (ver docs/deploy.md).
+  postgres:
+    image: postgres:16
+    container_name: inmobiliaria_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?falta POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?falta POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Multimedia ─────────────────────────────────────────────
+  # Tampoco se publica: el navegador llega a las fotos por cdn.PLATFORM_DOMAIN,
+  # que proxea Caddy. La consola de administración queda accesible solo por
+  # túnel SSH.
+  minio:
+    image: minio/minio:latest
+    container_name: inmobiliaria_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?falta MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?falta MINIO_ROOT_PASSWORD}
+    expose:
+      - "9000"
+      - "9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Crea el bucket y lo deja de lectura pública. Idempotente: se puede volver a
+  # correr sin romper nada.
+  minio-init:
+    image: minio/mc:latest
+    container_name: inmobiliaria_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing local/$${S3_BUCKET} &&
+      mc anonymous set download local/$${S3_BUCKET}
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?falta MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?falta MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET:-inmobiliaria-media}
+
+volumes:
+  pgdata:
+  miniodata:
+  caddy_data:
+  caddy_config:
