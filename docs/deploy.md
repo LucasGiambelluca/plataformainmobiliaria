@@ -236,6 +236,34 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d --bui
 Las migraciones corren solas antes de que arranque el backend. Si una falla, el
 backend no arranca y queda la versión anterior sirviendo: es lo buscado.
 
+### Antes de actualizar sobre una base con datos
+
+Hay un tipo de migración que puede fallar aunque el código esté bien: las que
+agregan una restricción sobre datos que ya existen. Si los datos la violan, el
+`CREATE UNIQUE INDEX` no puede aplicarse.
+
+Lo que hace que esto importe más de lo que parece: **Prisma deja registrada la
+migración como fallida**, y a partir de ahí *todo* `migrate deploy` posterior
+aborta con `P3009` hasta que alguien corra `prisma migrate resolve` a mano. Un
+deploy trabado, no solo uno fallido. La migración en sí no escribe nada a medias,
+así que la base queda sana; lo que queda trabado es el mecanismo.
+
+Hoy la única así es la del email único global (`add_global_unique_email`).
+Comprobar antes de actualizar una instalación que ya tenga usuarios cargados:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  exec postgres psql -U app -d realestate \
+  -c "SELECT email, count(*) FROM users GROUP BY email HAVING count(*) > 1;"
+```
+
+Con `(0 rows)` se puede actualizar tranquilo. Si aparece alguno, hay dos personas
+distintas compartiendo un email y hay que decidir cuál se queda **antes** de
+migrar: el login resuelve por email sin saber la inmobiliaria, así que hoy una de
+las dos no puede entrar de todos modos.
+
+En una instalación nueva no hace falta: no hay datos que puedan violar nada.
+
 ---
 
 ## 7. Backups
