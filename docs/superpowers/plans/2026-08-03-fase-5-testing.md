@@ -1736,7 +1736,9 @@ describe("webhook de la pasarela", () => {
 
     const despues = await prisma.subscription.findUniqueOrThrow({ where: { id: sub.id } });
     expect(despues.planId).not.toBe(caro.id);
-    expect(despues.pendingPlanId).toBe(caro.id);
+    // El rechazo además descarta el pendiente: dejarlo colgado permitiría que
+    // un pago aprobado posterior y sin relación se lleve el plan caro.
+    expect(despues.pendingPlanId).toBeNull();
   });
 
   it("una notificación de un pago que no es nuestro se ignora sin romper", async () => {
