@@ -13,7 +13,7 @@
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest --runInBand",
     "test:unit": "jest --selectProjects unit",
-    "test:integration": "jest --selectProjects integration --runInBand --passWithNoTests",
+    "test:integration": "jest --selectProjects integration --runInBand",
     "test:db": "powershell -ExecutionPolicy Bypass -File scripts/test-db.ps1",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

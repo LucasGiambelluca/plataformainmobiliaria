@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Un push nuevo cancela la corrida anterior de la misma rama: no tiene sentido
+# esperar el resultado de un commit que ya quedó viejo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: devpassword
+          POSTGRES_DB: realestate_test
+        ports:
+          - 5432:5432
+        # Sin el healthcheck, los tests arrancan antes de que Postgres acepte
+        # conexiones y fallan de forma intermitente. Intermitente es peor que
+        # roto: entrena a la gente a reintentar en vez de mirar qué pasó.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # tests/setup-env.ts usa `??=`, así que esta variable del entorno gana
+      # sobre el default que trae el archivo: apunta al servicio de este job,
+      # no al Postgres portable de una máquina de desarrollo.
+      DATABASE_URL: postgresql://app:devpassword@localhost:5432/realestate_test?schema=public
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Misma versión que corre en el VPS (ver backend/Dockerfile): que el
+          # CI no mienta sobre qué runtime va a producción.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      # `migrate deploy`, no `migrate dev`: dev pide confirmación interactiva
+      # y no hay quién la dé en un runner. La base está vacía, así que la
+      # migración que agrega el índice único de email (sobre una tabla sin
+      # filas) aplica sin fricción.
+      - name: Aplicar migraciones
+        run: npx prisma migrate deploy
+
+      - run: npm run typecheck
+
+      - name: Tests unitarios
+        run: npm run test:unit
+
+      - name: Tests de integración
+        run: npm run test:integration
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test
+
+      # `npm run build` es `tsc -b && vite build`: typechequea src y tests, y
+      # sin eso no hay imagen (mismo criterio que frontend/Dockerfile).
+      - run: npm run build
