@@ -1,9 +1,27 @@
 import request from "supertest";
+import jwt from "jsonwebtoken";
 import { createApp } from "@/app";
 import { REFRESH_COOKIE } from "@/modules/auth/auth.router";
 import { prisma } from "./helpers/db";
 import { crearPlan } from "./helpers/factories";
 
+/**
+ * Autenticación de punta a punta contra la base real: alta self-serve, login,
+ * rotación de refresh y /me.
+ *
+ * Tres propiedades sostienen el esquema entero y son las que hay que leer acá:
+ *
+ * 1. Dos secretos distintos. El access token (15 min, cabecera Authorization)
+ *    se firma con JWT_SECRET; el refresh (7 días, cookie httpOnly) con
+ *    JWT_REFRESH_SECRET. Unificarlos convertiría un refresh robado en un
+ *    bearer válido por una semana.
+ * 2. Rotación. Cada /refresh revoca el token que usó y emite otro: la ventana
+ *    de un token filtrado es de un solo uso.
+ * 3. Detección de robo. Reusar un token ya rotado revoca TODAS las sesiones
+ *    del usuario. Es agresivo a propósito: ante dos usos del mismo token no
+ *    hay forma de saber cuál es el dueño, así que se echa a los dos, y el
+ *    legítimo se entera porque tiene que volver a entrar.
+ */
 const app = createApp();
 
 /** El alta self-serve exige que exista el plan por defecto. */
@@ -37,7 +55,11 @@ describe("alta self-serve", () => {
 
     // La contraseña nunca se guarda en claro ni vuelve en la respuesta.
     const user = await prisma.user.findFirst({ where: { email: ALTA.email } });
-    expect(user?.passwordHash).not.toBe(ALTA.password);
+    // El hash tiene que tener forma de bcrypt: not.toBe(password) pasaría
+    // igual con sha1(password) o con password + "!", y también si `user`
+    // viniera null. Si el proyecto migrara a argon2 este assert se pondría
+    // en rojo a propósito: el cambio de algoritmo merece tocar el test.
+    expect(user?.passwordHash).toMatch(/^\$2[aby]\$/);
     expect(JSON.stringify(res.body)).not.toContain(ALTA.password);
   });
 
@@ -46,9 +68,13 @@ describe("alta self-serve", () => {
     // llevaría y la rotación no serviría de nada.
     const res = await request(app).post("/api/auth/register").send(ALTA);
 
+    // La cookie entera, con atributos: cookieDeRefresh() los corta.
     const cookies = res.headers["set-cookie"] as unknown as string[];
     const refresh = cookies.find((c) => c.startsWith(`${REFRESH_COOKIE}=`));
     expect(refresh).toContain("HttpOnly");
+    // COOKIE_PATH acota la cookie a los endpoints de auth: sin este assert,
+    // sacarla silenciosamente mandaría el refresh a cualquier request.
+    expect(refresh).toContain("Path=/api/auth");
     expect(res.body.refreshToken).toBeUndefined();
   });
 
@@ -70,6 +96,10 @@ describe("alta self-serve", () => {
       .send({ ...ALTA, email: "otro@nueva.test" });
 
     expect(res.status).toBe(409);
+    // Los dos chequeos de unicidad de `provision` corren ANTES de abrir la
+    // transacción, así que este 409 ni la toca. Lo que se prueba es que ese
+    // chequeo previo corta el alta ENTERA —tenant, admin y suscripción—, no
+    // solo la pieza que chocó.
     expect(await prisma.tenant.count()).toBe(1);
     expect(await prisma.user.count()).toBe(1);
   });
@@ -82,24 +112,39 @@ describe("alta self-serve", () => {
       .send({ ...ALTA, slug: "otra-mas" });
 
     expect(res.status).toBe(409);
-    // Lo que se prueba es que la transacción no dejó el tenant creado con el
-    // usuario sin crear: sería una inmobiliaria a la que nadie puede entrar.
+    // Mismo chequeo previo que el caso del slug: corta antes de crear el
+    // tenant. Que la transacción de createTenantWithAdmin revierta bien es
+    // otra cosa, y no se puede probar desde acá: el único fallo alcanzable
+    // desde la API pública es el unique de slug, y ese salta en el primer
+    // statement de la transacción, cuando todavía no hay nada que revertir.
     expect(await prisma.tenant.count()).toBe(1);
   });
 });
 
 describe("login", () => {
+  // Sobre el plan que sembró el beforeEach del archivo: el login necesita un
+  // usuario, y darlo de alta por la API es lo que garantiza que el hash sea
+  // el real.
   beforeEach(async () => {
     await request(app).post("/api/auth/register").send(ALTA);
   });
 
-  it("con las credenciales correctas devuelve access token", async () => {
+  it("con las credenciales correctas devuelve un access token de 15 minutos", async () => {
     const res = await request(app)
       .post("/api/auth/login")
       .send({ email: ALTA.email, password: ALTA.password });
 
     expect(res.status).toBe(200);
-    expect(res.body.accessToken).toEqual(expect.any(String));
+    // Se decodifica en vez de conformarse con expect.any(String): un token
+    // vacío pasaría esa aserción. Y el TTL no está escrito en ningún test:
+    // `expiresIn: "15"` —sin la "m"— son 15 milisegundos para jsonwebtoken.
+    const payload = jwt.decode(res.body.accessToken) as {
+      exp: number;
+      iat: number;
+      role: string;
+    };
+    expect(payload.role).toBe("tenant_admin");
+    expect(payload.exp - payload.iat).toBe(15 * 60);
   });
 
   it("con la contraseña equivocada devuelve 401", async () => {
@@ -137,7 +182,7 @@ describe("login", () => {
   });
 });
 
-describe("rotación de refresh tokens", () => {
+describe("rotación y cierre de sesión", () => {
   it("cada refresh devuelve una cookie nueva y revoca la anterior", async () => {
     const alta = await request(app).post("/api/auth/register").send(ALTA);
     const primera = cookieDeRefresh(alta);
@@ -175,7 +220,7 @@ describe("rotación de refresh tokens", () => {
     const cookie = cookieDeRefresh(alta);
 
     const salida = await request(app).post("/api/auth/logout").set("Cookie", cookie);
-    expect(salida.status).toBeLessThan(300);
+    expect(salida.status).toBe(204);
 
     const despues = await request(app).post("/api/auth/refresh").set("Cookie", cookie);
     expect(despues.status).toBe(401);
@@ -184,6 +229,47 @@ describe("rotación de refresh tokens", () => {
   it("sin cookie, refresh devuelve 401", async () => {
     const res = await request(app).post("/api/auth/refresh");
     expect(res.status).toBe(401);
+  });
+
+  it("el refresh no sirve como bearer, ni el access como cookie de refresh", async () => {
+    // Los dos secretos son distintos a propósito. Si alguien los unificara
+    // "para simplificar", este test es lo único que se pondría en rojo: nada
+    // más en la suite distingue un secreto de otro.
+    const alta = await request(app).post("/api/auth/register").send(ALTA);
+    const refresh = cookieDeRefresh(alta).split("=")[1];
+
+    const comoBearer = await request(app)
+      .get("/api/auth/me")
+      .set("Authorization", `Bearer ${refresh}`);
+    expect(comoBearer.status).toBe(401);
+
+    const comoCookie = await request(app)
+      .post("/api/auth/refresh")
+      .set("Cookie", `${REFRESH_COOKIE}=${alta.body.accessToken}`);
+    expect(comoCookie.status).toBe(401);
+  });
+
+  it("dos sesiones del mismo usuario conviven", async () => {
+    // El escritorio y el celular. Vale escribirlo porque el test de reuso de
+    // arriba revoca TODAS las sesiones, y de ahí se concluye fácil que solo
+    // hay una: revocar la anterior en cada login parecería una mejora.
+    await request(app).post("/api/auth/register").send(ALTA);
+    const escritorio = await request(app)
+      .post("/api/auth/login")
+      .send({ email: ALTA.email, password: ALTA.password });
+    const celular = await request(app)
+      .post("/api/auth/login")
+      .send({ email: ALTA.email, password: ALTA.password });
+
+    const desdeElEscritorio = await request(app)
+      .post("/api/auth/refresh")
+      .set("Cookie", cookieDeRefresh(escritorio));
+    const desdeElCelular = await request(app)
+      .post("/api/auth/refresh")
+      .set("Cookie", cookieDeRefresh(celular));
+
+    expect(desdeElEscritorio.status).toBe(200);
+    expect(desdeElCelular.status).toBe(200);
   });
 });
 
