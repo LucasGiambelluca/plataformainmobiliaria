@@ -15,13 +15,17 @@ const app = createApp();
  * devuelve 404, no 403. Un 403 confirmaría que el recurso existe, y saber que
  * la propiedad X existe ya es filtrar información de la competencia.
  *
- * Cada caso afirma además lo propio, no solo la ausencia de lo ajeno: un
- * listado vacío pasaría igual si el endpoint estuviera roto y no devolviera
- * nada nunca, y ese test no probaría el aislamiento sino la nada.
+ * Ningún caso se conforma con la ausencia de lo ajeno, porque un endpoint roto
+ * que no devolviera nada nunca pasaría igual. Cada 404 viene con su control
+ * positivo — lo propio responde 200, o el listado trae exactamente lo suyo — y
+ * los pedidos de escritura releen además la fila ajena en la base para ver que
+ * sigue como estaba.
  */
 describe("aislamiento entre inquilinos", () => {
   let tokenNorte: string;
+  let propiedadDeNorte: string;
   let propiedadDeSur: string;
+  let adminDeSur: string;
   let tenantNorteId: string;
   let tenantSurId: string;
 
@@ -32,9 +36,11 @@ describe("aislamiento entre inquilinos", () => {
     const sur = await crearInmobiliariaCompleta("sur");
     tenantNorteId = norte.tenant.id;
     tenantSurId = sur.tenant.id;
+    adminDeSur = sur.admin.id;
 
-    await crearPropiedad(norte.tenant.id, { title: "Casa del norte" });
+    const propia = await crearPropiedad(norte.tenant.id, { title: "Casa del norte" });
     const ajena = await crearPropiedad(sur.tenant.id, { title: "Casa del sur" });
+    propiedadDeNorte = propia.id;
     propiedadDeSur = ajena.id;
 
     tokenNorte = await loguear(app, "admin@norte.test");
@@ -56,6 +62,16 @@ describe("aislamiento entre inquilinos", () => {
       .set(...comoUsuario(tokenNorte));
 
     expect(res.status).toBe(404);
+
+    // Control positivo: el 404 de arriba solo significa algo si el mismo
+    // endpoint, con el mismo token, sí sirve lo propio. Sin esto, un GET que
+    // respondiera 404 a todo el mundo pasaría el test.
+    const propia = await request(app)
+      .get(`/api/properties/${propiedadDeNorte}`)
+      .set(...comoUsuario(tokenNorte));
+
+    expect(propia.status).toBe(200);
+    expect(propia.body.property.title).toBe("Casa del norte");
   });
 
   it("editar una propiedad ajena devuelve 404 y no la modifica", async () => {
@@ -91,9 +107,30 @@ describe("aislamiento entre inquilinos", () => {
     expect(await prisma.property.findUnique({ where: { id: propiedadDeSur } })).not.toBeNull();
   });
 
+  it("la multimedia de una propiedad ajena tampoco se lee", async () => {
+    // media se monta anidado bajo properties y repite authorize/requireTenant
+    // en vez de confiar en dónde lo montan. Esto es lo que verifica que esa
+    // desconfianza siga estando.
+    const res = await request(app)
+      .get(`/api/properties/${propiedadDeSur}/media`)
+      .set(...comoUsuario(tokenNorte));
+
+    expect(res.status).toBe(404);
+
+    // Control positivo: la propia responde, aunque todavía no tenga fotos.
+    const propia = await request(app)
+      .get(`/api/properties/${propiedadDeNorte}/media`)
+      .set(...comoUsuario(tokenNorte));
+
+    expect(propia.status).toBe(200);
+    expect(propia.body.media).toEqual([]);
+  });
+
   it("mandar el tenantId de otro en el body no cambia dónde se crea", async () => {
     // El tenantId sale del JWT: si el body pudiera pisarlo, cualquiera
-    // publicaría en la web de la competencia.
+    // publicaría en la web de la competencia. Hoy el campo ni siquiera llega
+    // al router: lo descarta Zod, porque createPropertySchema es un z.object
+    // pelado y esos tiran las claves que no declaran.
     const res = await request(app)
       .post("/api/properties")
       .set(...comoUsuario(tokenNorte))
@@ -110,7 +147,6 @@ describe("aislamiento entre inquilinos", () => {
     const creada = await prisma.property.findFirst({
       where: { title: "Intento de intrusión" },
     });
-    expect(creada?.tenantId).not.toBe(tenantSurId);
     expect(creada?.tenantId).toBe(tenantNorteId);
   });
 
@@ -129,6 +165,7 @@ describe("aislamiento entre inquilinos", () => {
     await prisma.inquiry.create({
       data: {
         tenantId: tenantNorteId,
+        propertyId: propiedadDeNorte,
         name: "Consulta propia",
         email: "otro@test.com",
         message: "Me interesa la casa del norte.",
@@ -157,6 +194,23 @@ describe("aislamiento entre inquilinos", () => {
     for (const email of emails) {
       expect(email).not.toContain("@sur.test");
     }
+  });
+
+  it("desactivar al admin de otra inmobiliaria devuelve 404 y lo deja activo", async () => {
+    // El peor escritura cruzada que no toca propiedades: sur tiene un solo
+    // tenant_admin, así que desactivarlo la deja afuera de su propio panel sin
+    // nadie que pueda reactivarlo.
+    const res = await request(app)
+      .patch(`/api/users/${adminDeSur}`)
+      .set(...comoUsuario(tokenNorte))
+      .send({ isActive: false });
+
+    expect(res.status).toBe(404);
+
+    // El 404 no alcanza: si el endpoint escribiera antes de chequear la
+    // pertenencia, respondería igual y el daño ya estaría hecho.
+    const enBase = await prisma.user.findUnique({ where: { id: adminDeSur } });
+    expect(enBase?.isActive).toBe(true);
   });
 
   it("la configuración del sitio que se lee es la propia", async () => {
