@@ -465,9 +465,9 @@
 
   <header class="topbar">
     <div class="meta">
-      <span class="label">Auditoría de avance · 3 ago 2026, tercer corte</span>
+      <span class="label">Auditoría de avance · 3 ago 2026, cuarto corte</span>
       <h1>Plataforma inmobiliaria multitenant</h1>
-      <p class="sub">Estado real del código contra las 83 tareas del <em>plan_estratégico</em>. Cada fila se verificó contra archivos del repo, no contra el changelog. Los porcentajes se comparan con el corte del 31 de julio.</p>
+      <p class="sub">Estado real del código contra las 83 tareas del <em>plan_estratégico</em>. Cada fila se verificó contra archivos del repo, no contra el changelog. Los porcentajes se comparan con el corte anterior del mismo día, antes de la fase 5.</p>
     </div>
     <button class="theme-btn" id="theme" type="button">Cambiar tema</button>
   </header>
@@ -490,8 +490,8 @@
 
     <div class="hero-side">
       <p class="hero-lead">
-        <strong>Las fases 2, 3 y 4 están cerradas</strong>: el sitio público quedó completo con mapa en la ficha, SEO con sitemap propio por inmobiliaria, directorio contra datos reales y esqueletos de carga. Ya no queda ninguna pantalla leyendo datos falsos. De la fase 4 solo resta lo que no es código: <strong>cargar los registros DNS del VPS</strong>, sin los cuales el subdominio y el dominio propio de cada inmobiliaria no existen.
-        Y sigue faltando <strong>el paso grande: correr el deploy</strong>. La configuración está escrita pero nunca se ejecutó.
+        <strong>El aislamiento entre inquilinos ya está probado contra una base de verdad</strong>, que era el riesgo crítico del proyecto: 88 pruebas de integración nuevas contra PostgreSQL real, y ninguna fuga. No se dieron por buenas por pasar en verde — se rompió el código de producción a propósito para medir cuáles se ponían en rojo. En el camino apareció y se arregló un defecto real de producción: el email no tenía restricción de unicidad global en la base, y dos altas simultáneas dejaban a una inmobiliaria sin poder entrar nunca.
+        Falta <strong>el paso grande: correr el deploy</strong>. La configuración está escrita pero nunca se ejecutó.
       </p>
       <div class="legend">
         <span><i class="dot done"></i> Hecho y verificado en el repo</span>
@@ -560,8 +560,8 @@
 
   <footer>
     <p><strong>Método:</strong> cada tarea del plan se marcó hecha, parcial o pendiente buscando su implementación en el repo. El porcentaje pondera por las horas estimadas del plan; las parciales cuentan la fracción indicada en su fila. La comparación usa el mismo criterio sobre el corte anterior, así que los dos números son medibles con la misma vara.</p>
-    <p><strong>Verificado el 3 ago 2026</strong> sobre <code>main</code> @ <code>a91502e</code> — el trabajo de deploy y el cierre de la fase 4 todavía sin commitear. Backend: <code>npm test</code> → 329 pruebas en 29 suites, todas verdes. Frontend: <code>npx vitest run</code> → 68 pruebas en 7 archivos, todas verdes, y <code>npm run build</code> pasa el typecheck. <strong>Nada de esto corrió todavía en un servidor real.</strong></p>
-    <p><strong>Además del código:</strong> el circuito se recorrió a mano en el navegador —alta de inmobiliaria, propiedad con foto y video, sitio publicado, consulta que llega a la bandeja— y de ahí salieron tres errores que ya están corregidos: el rate limit compartido entre <code>/auth/login</code> y <code>/auth/refresh</code>, que echaba al usuario a las diez recargas; el cierre de sesión ante cualquier fallo del refresh, incluido un corte de red; y una espera con <code>requestAnimationFrame</code> que congelaba la subida de un video para siempre si la persona cambiaba de pestaña.</p>
+    <p><strong>Verificado el 3 ago 2026</strong> sobre la rama <code>fase-5-testing</code>. Backend: 329 pruebas unitarias en 29 suites más <strong>88 de integración en 9 suites contra PostgreSQL real</strong>, todas verdes. Frontend: 68 pruebas en 7 archivos y <code>npm run build</code> pasa el typecheck. Total: 485. <strong>Nada de esto corrió todavía en un servidor real.</strong></p>
+    <p><strong>Cómo se verificó que las pruebas sirven:</strong> una prueba que no puede fallar es peor que ninguna, porque fabrica confianza. Cada garantía crítica se comprobó rompiendo el código de producción a propósito y midiendo qué se ponía en rojo, no razonando sobre si la prueba serviría. La mutación que más enseñó: hacer que un endpoint escriba antes de chequear a quién pertenece el recurso. Sigue devolviendo 404, así que una prueba que solo mirara el código de estado pasaría igual — solo la caza volver a leer la fila en la base.</p>
     <p>Las horas del plan suman 487h en el detalle de tareas (el resumen ejecutivo dice 470h; se usa el detalle porque es lo que se puede auditar).</p>
   </footer>
 </div>
@@ -650,24 +650,24 @@
     // ---- Fase 4
     { f:4, id:'4.1',  h:8,  s:'done',    t:'Landing principal de la plataforma',                                ev:'<code>pages/Home.tsx</code> con datos reales del catálogo' },
     { f:4, id:'4.2',  h:10, s:'done',    t:'Catálogo general con búsqueda avanzada y filtros',                  ev:'<code>SearchResults.tsx</code>; la visibilidad la decide el servidor, no el filtro' },
-    { f:4, id:'4.3',  h:10, s:'done', p:{s:'partial', w:0.6}, t:'Ficha de propiedad: galería, video, mapa y contacto', ev:'Galería con foto y video, formulario de consulta y mapa. Lo último que faltaba era el mapa: se agregó con Leaflet' },
+    { f:4, id:'4.3',  h:10, s:'done', t:'Ficha de propiedad: galería, video, mapa y contacto', ev:'Galería con foto y video, formulario de consulta y mapa. Lo último que faltaba era el mapa: se agregó con Leaflet' },
     { f:4, id:'4.4',  h:8,  s:'done',    t:'Web por inmobiliaria: header y carrusel hero',                      ev:'<code>pages/AgencySite.tsx</code>' },
     { f:4, id:'4.5',  h:8,  s:'done',    t:'Web por inmobiliaria: grilla de propiedades con filtros',           ev:'<code>AgencySite</code> + <code>PropertyCard</code>' },
     { f:4, id:'4.6',  h:6,  s:'done',    t:'Tema dinámico con los colores y la marca del tenant',               ev:'Variables CSS en <code>index.css</code> reescritas por el sitio del tenant' },
-    { f:4, id:'4.7',  h:6,  s:'done', p:{s:'partial', w:0.3}, t:'Perfil público de la inmobiliaria (info, redes, propiedades)', ev:'<code>InmobiliariasList.tsx</code> contra <code>/api/public/agencies</code>, agrupado por la localidad donde cada una publica más. Era la última pantalla con datos falsos: <code>data/mock.ts</code> quedó solo con la publicidad' },
+    { f:4, id:'4.7',  h:6,  s:'done', t:'Perfil público de la inmobiliaria (info, redes, propiedades)', ev:'<code>InmobiliariasList.tsx</code> contra <code>/api/public/agencies</code>, agrupado por la localidad donde cada una publica más. Era la última pantalla con datos falsos: <code>data/mock.ts</code> quedó solo con la publicidad' },
     { f:4, id:'4.8',  h:4,  s:'done',    t:'Formulario de contacto que genera lead y avisa por email',          ev:'<code>ContactForm.tsx</code> → alta pública + correo al tenant' },
-    { f:4, id:'4.9',  h:4,  s:'done', p:{s:'todo'}, t:'SEO dinámico: meta tags por inmobiliaria y por propiedad', ev:'Hook <code>useSeo</code>: title, description, canonical, OpenGraph y Twitter por pantalla, más JSON-LD <code>RealEstateListing</code> en la ficha y <code>RealEstateAgent</code> en la web del tenant. <code>sitemap.xml</code> y <code>robots.txt</code> los sirve el backend y cambian según el host. Sigue siendo una SPA: Google ejecuta JS y las ve, los previsualizadores de WhatsApp y Facebook no' },
+    { f:4, id:'4.9',  h:4,  s:'done', t:'SEO dinámico: meta tags por inmobiliaria y por propiedad', ev:'Hook <code>useSeo</code>: title, description, canonical, OpenGraph y Twitter por pantalla, más JSON-LD <code>RealEstateListing</code> en la ficha y <code>RealEstateAgent</code> en la web del tenant. <code>sitemap.xml</code> y <code>robots.txt</code> los sirve el backend y cambian según el host. Sigue siendo una SPA: Google ejecuta JS y las ve, los previsualizadores de WhatsApp y Facebook no' },
     { f:4, id:'4.10', h:6,  s:'done', t:'Integración con Caddy para SSL automático',              ev:'<code>deploy/Caddyfile</code> con On-Demand TLS y el endpoint <code>/api/internal/caddy/ask</code> que autoriza qué hosts pueden pedir certificado' },
-    { f:4, id:'4.11', h:6,  s:'partial', w:0.95, p:{s:'partial', w:0.85}, t:'Routing completo: slug, subdominio y dominio propio', ev:'Cerrado el hueco del frontend: <code>lib/host.ts</code> hace que la raíz de un subdominio o dominio propio monte la web de la inmobiliaria y no la home del portal, pidiendo <code>/api/public/sites/current</code>. Antes el backend resolvía bien y la SPA igual mostraba el portal. Falta el único paso que no es código: los registros DNS del VPS' },
+    { f:4, id:'4.11', h:6,  s:'partial', w:0.95, t:'Routing completo: slug, subdominio y dominio propio', ev:'Cerrado el hueco del frontend: <code>lib/host.ts</code> hace que la raíz de un subdominio o dominio propio monte la web de la inmobiliaria y no la home del portal, pidiendo <code>/api/public/sites/current</code>. Antes el backend resolvía bien y la SPA igual mostraba el portal. Falta el único paso que no es código: los registros DNS del VPS' },
     { f:4, id:'4.12', h:8,  s:'done',    t:'Diseño responsive mobile-first en las vistas públicas',             ev:'Tailwind con breakpoints en todas las pantallas públicas' },
-    { f:4, id:'4.13', h:4,  s:'done', p:{s:'todo'}, t:'Mapa en la ficha (Google Maps o Leaflet)', ev:'<code>PropertyMap.tsx</code> con Leaflet y tiles de OpenStreetMap: sin API key ni cuenta de facturación. Se carga aparte del bundle principal (45 KB gzip) y solo si la propiedad tiene coordenadas' },
-    { f:4, id:'4.14', h:2,  s:'done', p:{s:'partial', w:0.7}, t:'Lazy loading de imágenes y skeleton loaders', ev:'<code>components/common/Skeleton.tsx</code> reemplaza al spinner en home, buscador, ficha, directorio y web del tenant, con las mismas columnas que la grilla real para que el layout no salte' },
+    { f:4, id:'4.13', h:4,  s:'done', t:'Mapa en la ficha (Google Maps o Leaflet)', ev:'<code>PropertyMap.tsx</code> con Leaflet y tiles de OpenStreetMap: sin API key ni cuenta de facturación. Se carga aparte del bundle principal (45 KB gzip) y solo si la propiedad tiene coordenadas' },
+    { f:4, id:'4.14', h:2,  s:'done', t:'Lazy loading de imágenes y skeleton loaders', ev:'<code>components/common/Skeleton.tsx</code> reemplaza al spinner en home, buscador, ficha, directorio y web del tenant, con las mismas columnas que la grilla real para que el layout no salte' },
 
     // ---- Fase 5
     { f:5, id:'5.1',  h:8,  s:'done',    t:'Tests unitarios de servicios, repositorios y límites',              ev:'329 pruebas en 29 suites en el backend y 68 en 7 archivos en el frontend, todas verdes' },
-    { f:5, id:'5.2',  h:6,  s:'todo',    t:'Tests de integración (auth, propiedades, webhooks)',                ev:'Todas las suites mockean Prisma; ninguna toca la base de verdad' },
-    { f:5, id:'5.3',  h:4,  s:'partial', w:0.5, t:'Tests de aislamiento entre inquilinos',                      ev:'<code>baseRepository.test.ts</code> y <code>public.repository.test.ts</code> cubren la regla; falta probarlo contra una base real' },
-    { f:5, id:'5.4',  h:3,  s:'todo',    t:'Test end-to-end de dominio propio hasta el SSL',                    ev:'Depende de 1.19, 1.20 y 4.10' },
+    { f:5, id:'5.2',  h:6,  s:'done', p:{s:'todo'}, t:'Tests de integración (auth, propiedades, webhooks)',      ev:'88 pruebas en 9 suites contra PostgreSQL real: auth de punta a punta, propiedades y límites del plan, catálogo público, leads, cobros, dominios y métricas. Levantan la app entera con supertest; solo se simulan los proveedores externos, que ya estaban detrás de una interfaz' },
+    { f:5, id:'5.3',  h:4,  s:'done', p:{s:'partial', w:0.5}, t:'Tests de aislamiento entre inquilinos',        ev:'<code>isolation.test.ts</code>: 11 casos con dos inmobiliarias cargadas de verdad. Verificado por mutación —romper el filtro y medir qué se pone en rojo—, incluido el caso de un endpoint que escribe antes de chequear la pertenencia: devuelve 404 igual y solo lo caza la relectura de la fila' },
+    { f:5, id:'5.4',  h:3,  s:'partial', w:0.7, p:{s:'todo'}, t:'Test end-to-end de dominio propio hasta el SSL', ev:'<code>domains.test.ts</code> cubre el camino entero menos la emisión del certificado: cupo del plan, que nace pendiente, que no hay endpoint para activarlo a mano, y que Caddy solo recibe autorización para hosts de alguna inmobiliaria. El SSL de verdad necesita un host público' },
     { f:5, id:'5.5',  h:4,  s:'partial', w:0.25, t:'Optimización de rendimiento (N+1, compresión, lazy)',       ev:'Hay lazy loading e índices en Prisma; sin auditoría de queries ni caché' },
     { f:5, id:'5.6',  h:6,  s:'done', t:'Docker Compose de producción (backend, frontend, PG, Caddy)', ev:'<code>docker-compose.prod.yml</code> con 7 servicios y Dockerfiles multi-etapa. Escrito, todavía no ejecutado: esta máquina no tiene Docker' },
     { f:5, id:'5.7',  h:4,  s:'todo',    t:'Deploy en el servidor del cliente',                                 ev:'Es el paso que falta. Nada del compose corrió nunca de verdad' },
@@ -723,15 +723,15 @@
       items: [
         { s:'done', n:'Postgres 16 + MinIO', d:'Docker Compose y binarios portables para la PC sin Docker' },
         { s:'done', n:'Prisma',              d:'15 modelos, 12 enums, 3 migraciones' },
-        { s:'done', n:'Aislamiento por tenant', d:'BaseRepository obligatorio + pruebas que lo custodian' },
+        { s:'done', n:'Aislamiento por tenant', d:'BaseRepository obligatorio, más 11 pruebas contra base real que lo custodian' },
         { s:'done', n:'Seguridad de pagos',  d:'Firma HMAC verificada antes del cuerpo; el plan sube recién al confirmarse' },
-        { s:'done', n:'397 pruebas verdes',  d:'329 backend + 68 frontend' },
+        { s:'done', n:'485 pruebas verdes',  d:'329 unitarias + 88 de integración + 68 de frontend' },
         { s:'done', n:'Dockerfiles',         d:'Multi-etapa, runtime sin devDependencies y sin root' },
         { s:'done', n:'Caddy',               d:'On-Demand TLS con endpoint de autorización propio' },
         { s:'done', n:'Guía de deploy',      d:'docs/deploy.md: DNS, arranque, backups y diagnóstico' },
         { s:'todo', n:'Deploy ejecutado',    d:'Nada de esto corrió todavía en un servidor real' },
-        { s:'todo', n:'CI',                  d:'Sin .github/workflows: nada corre las pruebas solo' },
-        { s:'todo', n:'Tests de integración', d:'Todo mockeado contra Prisma' },
+        { s:'done', n:'CI',                  d:'GitHub Actions con servicio postgres:16: typecheck, unitarias e integración en cada push' },
+        { s:'done', n:'Tests de integración', d:'88 contra PostgreSQL real, verificadas por mutación' },
       ],
     },
   ]
@@ -741,16 +741,14 @@
       why:'Es lo único que separa al producto de estar en el aire. Dockerfiles, compose y Caddyfile están escritos, pero nunca se ejecutaron: la máquina de desarrollo no tiene Docker, así que se prueban recién en el servidor. Tarea 5.7.' },
     { sev:'Bloqueante', tone:'var(--danger)', h:'0h', what:'Cargar los registros DNS del VPS',
       why:'Es lo único que le falta a la tarea 4.11 y no es código: sin el A del dominio y el wildcard de los subdominios, ni la web por subdominio ni los dominios propios existen, por más que backend, Caddy y frontend ya los resuelvan. Está el paso a paso en docs/deploy.md §2.' },
-    { sev:'Alto', tone:'var(--accent)', h:'10h', what:'Tests de integración y de aislamiento contra una base real',
-      why:'Las 397 pruebas mockean Prisma. El aislamiento entre inquilinos es el riesgo crítico del proyecto y hoy nadie lo verifica contra una base de verdad. Tareas 5.2, 5.3 y 5.4.' },
     { sev:'Alto', tone:'var(--accent)', h:'0h', what:'Credenciales de correo y de cobro',
       why:'Arranca con los dos proveedores en modo simulado: los leads se guardan pero no sale el aviso por mail, y las suscripciones se cargan a mano. No es trabajo de desarrollo, son cuentas que hay que dar de alta.' },
     { sev:'Medio', tone:'var(--accent)', h:'5h', what:'Reintento automático de verificación de dominios',
       why:'Hoy un dominio que propaga tarde queda esperando a que alguien vuelva a apretar Verificar. Con el job, se activa solo. Tarea 1.20.' },
     { sev:'Medio', tone:'var(--accent)', h:'8h', what:'Prerender o SSR para las fichas',
       why:'El SEO de la tarea 4.9 lo escribe el navegador: Google ejecuta JS y lo ve, pero WhatsApp, Facebook y X leen el HTML crudo y muestran siempre el mismo título del portal. Compartir una propiedad por WhatsApp es como se mueve la mitad del mercado.' },
-    { sev:'Bajo', tone:'var(--brand)', h:'1h', what:'Config de ESLint 9 en el backend',
-      why:'npm run lint viene fallando desde antes de este corte: el script existe pero no hay eslint.config.js, y ESLint 9 ya no lee .eslintrc. Ninguna regla se está aplicando.' },
+    { sev:'Medio', tone:'var(--accent)', h:'1h', what:'Config de ESLint 9 en el backend',
+      why:'npm run lint viene fallando desde antes de este corte: el script existe pero no hay eslint.config.js, y ESLint 9 ya no lee .eslintrc. Ninguna regla se está aplicando en ningún commit, y por eso el CI nuevo tampoco lo corre: meter un comando que siempre sale con error dejaría el pipeline en rojo por algo que no es el código.' },
     { sev:'Bajo', tone:'var(--brand)', h:'4h', what:'Swagger y manual de usuario',
       why:'No frena el lanzamiento pero sí la entrega formal y el traspaso. Tareas 0.10 y 5.10.' },
   ]
@@ -758,7 +756,7 @@
   const KPIS = [
     { k:'Horas del plan cumplidas', v: null, id:'hours' },
     { k:'Tareas del plan', v:'83' },
-    { k:'Pruebas verdes', v:'397' },
+    { k:'Pruebas verdes', v:'485' },
     { k:'Módulos de backend', v:'15/15' },
     { k:'Pantallas de frontend', v:'21' },
     { k:'Pantallas con datos falsos', v:'0' },
