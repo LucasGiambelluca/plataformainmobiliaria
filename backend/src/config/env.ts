@@ -24,6 +24,14 @@ const envSchema = z.object({
   // dominio de prueba apunta a esta máquina. En producción va "node".
   DNS_RESOLVER: z.enum(["node", "fake"]).default("node"),
 
+  // Índices de las calculadoras. "oficial" sale al BCRA (ICL) y a
+  // datos.gob.ar (IPC); "fake" usa series inventadas y no toca la red.
+  INDEX_PROVIDER: z.enum(["oficial", "fake"]).default("oficial"),
+  // Horas que vale lo cacheado antes de volver a pedir la serie. El ICL se
+  // publica una vez por día y el IPC una vez por mes: refrescar más seguido
+  // solo agrega carga sobre APIs ajenas.
+  INDEX_TTL_HORAS: z.coerce.number().positive().default(12),
+
   // Secreto que Caddy manda al preguntar si puede emitir un certificado para
   // un host. Vacío = el endpoint no autoriza nada, que es lo correcto fuera de
   // producción: sin Caddy adelante, nadie tiene por qué preguntar.

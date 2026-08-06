@@ -1,4 +1,5 @@
 import {
+  ClipboardList,
   Building2,
   CreditCard,
   Globe,
@@ -14,6 +15,7 @@ const items: NavItem[] = [
   { to: '/panel', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/panel/propiedades', label: 'Propiedades', icon: Building2 },
   { to: '/panel/leads', label: 'Leads', icon: Inbox },
+  { to: '/panel/tasaciones', label: 'Tasaciones', icon: ClipboardList },
   { to: '/panel/equipo', label: 'Equipo', icon: Users, adminOnly: true },
   { to: '/panel/mi-sitio', label: 'Mi Sitio Web', icon: Globe, adminOnly: true },
   { to: '/panel/dominio', label: 'Dominio Propio', icon: Globe, adminOnly: true },

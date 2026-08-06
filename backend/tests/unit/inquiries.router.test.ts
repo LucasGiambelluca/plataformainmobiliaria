@@ -61,6 +61,7 @@ function makeApp(repo: InquiriesRepository) {
     inmobiliariaCreada: jest.fn().mockResolvedValue(undefined),
     pagoConfirmado: jest.fn().mockResolvedValue(undefined),
     pagoFallido: jest.fn().mockResolvedValue(undefined),
+    tasacionRecibida: jest.fn().mockResolvedValue(undefined),
   };
   const service = new InquiriesService(repo, notifier, "https://app.test/panel/leads");
   const app = express();

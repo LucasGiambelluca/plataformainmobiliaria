@@ -2,10 +2,12 @@ import { logger } from "@/config/logger";
 import type { EmailProvider } from "@/shared/services/email";
 import {
   bienvenida,
+  nuevaTasacion,
   nuevoLead,
   pagoAprobado,
   pagoRechazado,
   type BienvenidaData,
+  type NuevaTasacionData,
   type NuevoLeadData,
   type PagoData,
 } from "./templates";
@@ -21,6 +23,7 @@ export interface Notifier {
   inmobiliariaCreada(to: string, data: BienvenidaData): Promise<void>;
   pagoConfirmado(to: string | null, data: PagoData): Promise<void>;
   pagoFallido(to: string | null, data: PagoData): Promise<void>;
+  tasacionRecibida(to: string | null, data: NuevaTasacionData): Promise<void>;
 }
 
 export class NotificationsService implements Notifier {
@@ -40,6 +43,10 @@ export class NotificationsService implements Notifier {
 
   pagoFallido(to: string | null, data: PagoData): Promise<void> {
     return this.enviar(to, () => pagoRechazado(to as string, data), "pago rechazado");
+  }
+
+  tasacionRecibida(to: string | null, data: NuevaTasacionData): Promise<void> {
+    return this.enviar(to, () => nuevaTasacion(to as string, data), "tasación recibida");
   }
 
   /**
@@ -71,4 +78,5 @@ export const noopNotifier: Notifier = {
   inmobiliariaCreada: () => Promise.resolve(),
   pagoConfirmado: () => Promise.resolve(),
   pagoFallido: () => Promise.resolve(),
+  tasacionRecibida: () => Promise.resolve(),
 };

@@ -16,6 +16,7 @@ const plans = [
     maxUsers: 2,
     maxStorageMb: 500,
     maxDomains: 0,
+    hasOnlineAppraisals: false,
   },
   {
     name: "Pro",
@@ -25,6 +26,7 @@ const plans = [
     maxUsers: 10,
     maxStorageMb: 5000,
     maxDomains: 1,
+    hasOnlineAppraisals: false,
   },
   {
     name: "Enterprise",
@@ -34,6 +36,9 @@ const plans = [
     maxUsers: 50,
     maxStorageMb: 50000,
     maxDomains: 5,
+    // Las tasaciones online son del plan premium: es la capacidad que lo
+    // distingue además de los cupos.
+    hasOnlineAppraisals: true,
   },
 ];
 
@@ -49,6 +54,7 @@ async function main(): Promise<void> {
         maxUsers: p.maxUsers,
         maxStorageMb: p.maxStorageMb,
         maxDomains: p.maxDomains,
+        hasOnlineAppraisals: p.hasOnlineAppraisals,
       },
       create: { ...p, priceCurrency: "ARS", billingInterval: "monthly" },
     });

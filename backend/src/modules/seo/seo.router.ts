@@ -24,7 +24,13 @@ import { tenantResolverRepository } from "@/modules/sites/sites.repository";
  */
 
 /** Páginas fijas del portal. La home va aparte porque también existe en el sitio de cada tenant. */
-const RUTAS_DEL_PORTAL = ["/buscar", "/inmobiliarias", "/publicar"];
+const RUTAS_DEL_PORTAL = [
+  "/buscar",
+  "/inmobiliarias",
+  "/publicar",
+  "/calculadoras",
+  "/tasaciones",
+];
 
 /**
  * Escapa lo que va dentro de una etiqueta XML. Hoy las URLs se arman con uuids

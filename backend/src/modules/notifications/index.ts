@@ -19,6 +19,7 @@ export const notifier = new NotificationsService(emailProvider);
 /** URLs del panel que van en los correos. */
 export const panelUrls = {
   leads: `${env.FRONTEND_URL}/panel/leads`,
+  tasaciones: `${env.FRONTEND_URL}/panel/tasaciones`,
   panel: `${env.FRONTEND_URL}/panel`,
   suscripcion: `${env.FRONTEND_URL}/panel/suscripcion`,
 };

@@ -149,3 +149,45 @@ export function pagoRechazado(to: string, d: PagoData): EmailMessage {
     ].join("\n"),
   };
 }
+
+export interface NuevaTasacionData {
+  agencyName: string;
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
+  address: string;
+  propertyType: string;
+  panelUrl: string;
+}
+
+/**
+ * Aviso de solicitud de tasación a la inmobiliaria asignada.
+ *
+ * El nombre, la dirección y la localidad los escribe un propietario desde un
+ * formulario abierto: pasan por `escapar` como todo lo que viene de afuera.
+ */
+export function nuevaTasacion(to: string, d: NuevaTasacionData): EmailMessage {
+  const ubicacion = [d.address, d.city].filter(Boolean).join(", ");
+
+  return {
+    to,
+    subject: `Nueva solicitud de tasación en ${d.city}`,
+    html: layout(
+      "Recibiste una solicitud de tasación",
+      p(
+        `<strong>${escapar(d.name)}</strong> pidió una tasación de un inmueble en <strong>${escapar(ubicacion)}</strong>.`,
+      ) +
+        p(`Tipo de propiedad: ${escapar(d.propertyType)}`) +
+        p(`Contacto: ${escapar(`${d.email} · ${d.phone}`)}`),
+      { url: d.panelUrl, label: "Ver la solicitud" },
+    ),
+    text: [
+      `${d.name} pidió una tasación de un inmueble en ${ubicacion}.`,
+      `Tipo de propiedad: ${d.propertyType}`,
+      `Contacto: ${d.email} · ${d.phone}`,
+      "",
+      `Ver la solicitud: ${d.panelUrl}`,
+    ].join("\n"),
+  };
+}
