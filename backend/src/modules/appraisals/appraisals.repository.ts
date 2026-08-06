@@ -248,7 +248,21 @@ export class PrismaAppraisalsRepository implements AppraisalsRepository {
   async listUnassigned(query: ListQuery): Promise<Paginated<AppraisalRecord>> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
-    const where: Prisma.AppraisalWhereInput = { tenantId: null };
+    // `status: "unassigned"` además de `tenantId: null`, y las dos condiciones
+    // hacen falta. La relación con Tenant es ON DELETE SET NULL, así que borrar
+    // una inmobiliaria le pone tenant_id en null a TODAS sus tasaciones sin
+    // tocarles el estado: sin este filtro, su historial entero —contactadas,
+    // completadas, descartadas— aparecía en la cola del super admin mezclado
+    // con las que de verdad nadie pudo tomar.
+    //
+    // El filtro de estado que llega por query se respeta dentro de eso, igual
+    // que en `listByTenant`. Antes se ignoraba en silencio: el endpoint
+    // aceptaba `?status=` y devolvía todo igual, con un 200 y sin ninguna señal
+    // de que el filtro no había hecho nada.
+    const where: Prisma.AppraisalWhereInput = {
+      tenantId: null,
+      status: query.status ?? "unassigned",
+    };
 
     const [filas, total] = await Promise.all([
       prisma.appraisal.findMany({

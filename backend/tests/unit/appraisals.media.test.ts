@@ -50,8 +50,11 @@ describe("AppraisalMediaService - firma de subida", () => {
     expect(r.mediaId).toBe("media-1");
   });
 
-  it("reusa el draft cuando ya viene uno", async () => {
-    const { service } = makeService(makeRepo());
+  it("reusa el draft cuando ya tiene fotos: es la segunda de la misma solicitud", async () => {
+    // `countByDraft` > 0 es la prueba de que ese draft salió de una llamada
+    // anterior a este mismo método.
+    const repo = makeRepo({ countByDraft: jest.fn().mockResolvedValue(1) });
+    const { service } = makeService(repo);
 
     const r = await service.createUploadUrl({
       draftId: DRAFT,
@@ -60,6 +63,23 @@ describe("AppraisalMediaService - firma de subida", () => {
     });
 
     expect(r.draftId).toBe(DRAFT);
+  });
+
+  it("ignora un draft inventado y emite uno propio", async () => {
+    // El draft lo emite el servidor. Si se aceptara el que manda el cliente,
+    // cualquiera elegiría el identificador con el que se guardan los archivos y
+    // al que se le cuentan las fotos, sin haber subido nada.
+    const repo = makeRepo({ countByDraft: jest.fn().mockResolvedValue(0) });
+    const { service } = makeService(repo);
+
+    const r = await service.createUploadUrl({
+      draftId: DRAFT,
+      contentType: "image/png",
+      sizeBytes: 1000,
+    });
+
+    expect(r.draftId).not.toBe(DRAFT);
+    expect(r.draftId).toBeTruthy();
   });
 
   it("guarda el objeto bajo un prefijo propio, fuera del árbol de propiedades", async () => {

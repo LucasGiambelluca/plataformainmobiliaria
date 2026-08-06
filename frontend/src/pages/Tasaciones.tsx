@@ -217,14 +217,19 @@ export default function Tasaciones() {
         </p>
       </section>
 
-      {participantes.data && participantes.data.length > 0 && (
-        <FormularioTasacion agencias={participantes.data} />
-      )}
+      {participantes.data && participantes.data.length > 0 && <FormularioTasacion />}
     </div>
   )
 }
 
-function FormularioTasacion({ agencias }: { agencias: AppraisalAgency[] }) {
+/**
+ * No recibe la lista de inmobiliarias: la pide por localidad.
+ *
+ * La lista global la sigue usando la pantalla de arriba, pero solo para decidir
+ * si vale la pena mostrar el formulario. Quién aparece en el selector lo decide
+ * la localidad que se eligió.
+ */
+function FormularioTasacion() {
   const [extras, setExtras] = useState<Extras>(EXTRAS_VACIOS)
   const [enviado, setEnviado] = useState<{ assigned: boolean } | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
@@ -236,10 +241,28 @@ function FormularioTasacion({ agencias }: { agencias: AppraisalAgency[] }) {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<AppraisalForm>({
     resolver: zodResolver(appraisalFormSchema) as never,
   })
+
+  /**
+   * Inmobiliarias que operan en la localidad elegida.
+   *
+   * El selector mostraba la lista global, así que ofrecía inmobiliarias que
+   * trabajan a trescientos kilómetros y el aviso de "acá no hay ninguna" recién
+   * llegaba después de completar cincuenta campos — justo lo que el comentario
+   * de arriba de este archivo dice que la pantalla evita. Peor: elegir una de
+   * esas la asignaba igual, porque `findParticipantById` no chequea localidad,
+   * y eso saltea la regla que el reparto automático sí respeta.
+   */
+  const ciudad = watch('city')
+  const porLocalidad = useResource<AppraisalAgency[]>(
+    () => (ciudad ? listAppraisalParticipants(ciudad) : Promise.resolve([])),
+    [ciudad],
+  )
+  const deLaZona = porLocalidad.data ?? []
 
   const onSubmit = handleSubmit(async (values) => {
     setFailure(null)
@@ -278,6 +301,21 @@ function FormularioTasacion({ agencias }: { agencias: AppraisalAgency[] }) {
       </div>
 
       <form onSubmit={onSubmit} className="mt-6 space-y-8" noValidate>
+        {/*
+          Honeypot: los humanos no lo ven, los bots lo llenan. El backend ya
+          respondía 201 sin guardar nada cuando venía cargado, pero este campo
+          no existía en el formulario, así que la trampa no tenía carnada. Sin
+          él la única defensa era el rate limit por IP.
+        */}
+        <input
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          className="absolute h-0 w-0 overflow-hidden opacity-0"
+          {...register('website')}
+        />
+
         {failure && (
           <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
             {failure}
@@ -388,11 +426,25 @@ function FormularioTasacion({ agencias }: { agencias: AppraisalAgency[] }) {
           <div className="mt-3">
             <Select
               label="Inmobiliaria"
-              options={agencias.map((a) => ({ value: a.id, label: a.name }))}
+              options={deLaZona.map((a) => ({ value: a.id, label: a.name }))}
               placeholder="Que el portal elija por mí"
+              disabled={!ciudad || porLocalidad.loading}
               error={errors.tenantId?.message}
               {...register('tenantId')}
             />
+
+            {!ciudad && (
+              <p className="mt-1.5 text-xs text-muted">
+                Elegí primero la localidad para ver qué inmobiliarias operan ahí.
+              </p>
+            )}
+
+            {ciudad && !porLocalidad.loading && deLaZona.length === 0 && (
+              <p className="mt-1.5 text-xs text-muted">
+                Todavía no hay inmobiliarias participantes en {ciudad}. Podés enviar la
+                solicitud igual: queda registrada y el portal se va a contactar con vos.
+              </p>
+            )}
           </div>
         </fieldset>
 

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
+import { z } from "zod";
 import { isTest } from "@/config/env";
 import { authenticate } from "@/shared/middleware/authenticate";
 import { authorize } from "@/shared/middleware/authorize";
@@ -7,7 +8,7 @@ import { requireTenant } from "@/shared/middleware/requireTenant";
 import { validate } from "@/shared/middleware/validate";
 import { publicLimiter } from "@/shared/middleware/rateLimit";
 import { asyncHandler } from "@/shared/utils/asyncHandler";
-import { ValidationError } from "@/shared/errors";
+import { NotFoundError, ValidationError } from "@/shared/errors";
 import { notifier, panelUrls } from "@/modules/notifications";
 import {
   appraisalConfirmMediaSchema,
@@ -109,8 +110,18 @@ export function createPublicAppraisalsRouter(
       uploadLimiter,
       validate(appraisalConfirmMediaSchema),
       asyncHandler(async (req, res) => {
+        // El id del parámetro se valida igual que los del body. Sin esto un
+        // `:id` que no es un UUID llegaba a Prisma, Postgres rechazaba el cast
+        // y el handler global lo devolvía como 500 en un endpoint público —
+        // cuando lo que corresponde es el 404 que ya produce `findPending`
+        // cuando no encuentra la fila.
+        const id = z.string().uuid().safeParse(req.params.id);
+        if (!id.success) {
+          throw new NotFoundError("Foto no encontrada");
+        }
+
         const { draftId } = req.body as AppraisalConfirmMediaBody;
-        await media.confirm(req.params.id, draftId);
+        await media.confirm(id.data, draftId);
         res.json({ ok: true });
       }),
     );

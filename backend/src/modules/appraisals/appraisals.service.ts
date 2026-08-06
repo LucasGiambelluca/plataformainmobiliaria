@@ -213,12 +213,36 @@ export class AppraisalsService {
       assignedAt: destino ? cuando : null,
     });
 
+    // Todo lo que sigue al create es accesorio, y por eso ninguno de los dos
+    // puede tirar la operación. La solicitud ya está guardada: si `touchAssignment`
+    // o `attachMedia` fallan y se propaga el error, el propietario ve "no se pudo
+    // enviar", vuelve a mandar el formulario y quedan dos solicitudes — y como el
+    // aviso viene después, la inmobiliaria no se entera de ninguna de las dos.
+    //
+    // El costo de tragárselos es acotado: un turno que no avanza le da la
+    // siguiente tasación a la misma inmobiliaria, y unas fotos que no se
+    // adjuntan dejan la solicitud sin imágenes. Las dos cosas son molestas y
+    // ninguna pierde a la persona que dejó su teléfono.
     if (destino) {
-      await this.repo.touchAssignment(destino.id, cuando);
+      try {
+        await this.repo.touchAssignment(destino.id, cuando);
+      } catch (err) {
+        logger.error(
+          { err, tenantId: destino.id },
+          "No se pudo avanzar el turno de reparto de tasaciones",
+        );
+      }
     }
 
     if (draftId) {
-      await this.repo.attachMedia(creada.id, draftId);
+      try {
+        await this.repo.attachMedia(creada.id, draftId);
+      } catch (err) {
+        logger.error(
+          { err, appraisalId: creada.id },
+          "No se pudieron adjuntar las fotos a la tasación",
+        );
+      }
     }
 
     // Un correo caído no puede voltear la solicitud: la persona ya dejó sus

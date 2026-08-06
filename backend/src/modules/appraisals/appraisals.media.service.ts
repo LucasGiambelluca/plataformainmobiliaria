@@ -105,8 +105,25 @@ export class AppraisalMediaService {
       );
     }
 
-    // El draft lo emite el servidor: sin uno, no se firma nada.
-    const draftId = input.draftId ?? randomUUID();
+    // **El draft lo emite el servidor.** Un `draftId` que llega del cliente
+    // solo se acepta si ya tiene fotos, o sea si salió de una llamada anterior
+    // a este mismo método; uno inventado se descarta y se emite uno nuevo.
+    //
+    // Antes se tomaba tal cual venía (`input.draftId ?? randomUUID()`), lo que
+    // dejaba al cliente fijar el identificador: podía elegir el prefijo bajo el
+    // que se guardan los archivos y anclar el conteo a un id de su elección,
+    // cuando el comentario de arriba decía justo lo contrario.
+    //
+    // Esto NO convierte el draft en un secreto a prueba de todo: sigue siendo
+    // la única credencial que separa a dos anónimos, así que quien lo obtenga
+    // puede reclamar esas fotos al dar de alta la solicitud. Eso es el diseño y
+    // está documentado; lo que se cierra acá es que cualquiera pueda decidir el
+    // identificador sin haber subido nada. El tope real contra la subida masiva
+    // sigue siendo el rate limit por IP, porque pedir un draft nuevo en cada
+    // llamada siempre va a estar permitido.
+    const propuesto = input.draftId;
+    const yaExiste = propuesto ? (await this.repo.countByDraft(propuesto)) > 0 : false;
+    const draftId = yaExiste && propuesto ? propuesto : randomUUID();
 
     const yaSubidas = await this.repo.countByDraft(draftId);
     if (yaSubidas >= MAX_FILES_POR_SOLICITUD) {
