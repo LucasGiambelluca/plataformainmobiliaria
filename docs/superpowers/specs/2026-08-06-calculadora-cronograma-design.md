@@ -126,14 +126,14 @@ Devuelve:
     aumento: number,     // fracción respecto del tramo anterior; 0 en el primero
     valor: number,       // el alquiler a partir de esa fecha
   }>,
-  vigente: {
-    // null cuando solo hay un tramo: el contrato todavía no se ajustó nunca
-    hasta: { mes: string, anio: number, valor: number } | null,
-    desde: { mes: string, anio: number, valor: number },
-  },
   sincronizadoEn: string | null,
 }
 ```
+
+Las tarjetas HASTA/DESDE **no** viajan en la respuesta: salen de los dos últimos
+tramos (`hasta` es el valor del anteúltimo y el mes anterior al del último;
+`desde`, el último). Mandarlas sería repetir en el cuerpo algo que ya está en
+`tramos`, con el riesgo de que las dos versiones se contradigan.
 
 **Generación de tramos.** Tramo *n* cae en `fechaInicio + n · mesesPeriodo`
 meses. Si el día del mes no existe en el mes destino (31 de enero + 1 mes), se
@@ -165,10 +165,6 @@ Arrastrar el valor anterior acumularía el redondeo a centavos de cada tramo. El
 cociente contra el índice inicial da el mismo número que el original —verificado
 contra la corrida capturada, los cuatro valores coinciden al peso— y no depende
 de cuántos tramos haya en el medio.
-
-**`vigente`** sale de los dos últimos tramos: `desde` es el mes y el valor del
-último, `hasta` es el mes anterior a ese y el valor del anteúltimo. Con un solo
-tramo, `hasta` es null.
 
 **Errores.** `422` si `fechaInicio` es anterior al primer dato de la serie
 elegida (con el mensaje que diga desde cuándo rige ese índice) o si es posterior
