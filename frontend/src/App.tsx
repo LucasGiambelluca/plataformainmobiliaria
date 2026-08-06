@@ -11,10 +11,13 @@ import Login from './pages/Login'
 import AgencySite from './pages/AgencySite'
 import ComoPublicar from './pages/ComoPublicar'
 import InmobiliariasList from './pages/InmobiliariasList'
+import Calculadoras from './pages/Calculadoras'
+import Tasaciones from './pages/Tasaciones'
 import EnConstruccion from './pages/EnConstruccion'
 import Dashboard from './pages/panel/Dashboard'
 import Properties from './pages/panel/Properties'
 import Leads from './pages/panel/Leads'
+import TasacionesPanel from './pages/panel/TasacionesPanel'
 import Agentes from './pages/panel/Agentes'
 import MiSitio from './pages/panel/MiSitio'
 import Dominio from './pages/panel/Dominio'
@@ -55,8 +58,8 @@ export default function App() {
         <Route path="/registro" element={<Register />} />
         <Route path="/publicar" element={<ComoPublicar />} />
         <Route path="/inmobiliarias" element={<InmobiliariasList />} />
-        <Route path="/calculadoras" element={<EnConstruccion title="Calculadoras" />} />
-        <Route path="/tasaciones" element={<EnConstruccion title="Tasaciones Online" />} />
+        <Route path="/calculadoras" element={<Calculadoras />} />
+        <Route path="/tasaciones" element={<Tasaciones />} />
         <Route path="/garantias" element={<EnConstruccion title="Garantías de Alquiler" />} />
         <Route path="/seguros" element={<EnConstruccion title="Seguros" />} />
       </Route>
@@ -75,6 +78,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="propiedades" element={<Properties />} />
           <Route path="leads" element={<Leads />} />
+          <Route path="tasaciones" element={<TasacionesPanel />} />
 
           {/* Secciones que el backend reserva al tenant_admin. El portero se
               repite acá para que un agente que escriba la URL a mano tampoco

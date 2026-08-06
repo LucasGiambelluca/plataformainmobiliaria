@@ -22,6 +22,12 @@ import {
   platformMetricsRouter,
   tenantMetricsRouter,
 } from "@/modules/analytics/analytics.router";
+import { calculatorsRouter } from "@/modules/calculators/calculators.router";
+import {
+  adminAppraisalsRouter,
+  appraisalsRouter,
+  publicAppraisalsRouter,
+} from "@/modules/appraisals/appraisals.router";
 
 // Router raíz de la API. Cada módulo monta su sub-router acá.
 export const apiRouter = Router();
@@ -41,10 +47,15 @@ apiRouter.use("/properties", propertiesRouter);
 apiRouter.use("/site", sitesRouter);
 // Catálogo abierto: sin login y cruzando inmobiliarias.
 apiRouter.use("/public", publicRouter);
+// Calculadoras de indexación del portal. Abiertas: no hay tenant de por medio.
+apiRouter.use("/calculators", calculatorsRouter);
 // Web pública de cada inmobiliaria: /api/public/sites/:slug
 apiRouter.use("/public/sites", publicSitesRouter);
 // Bandeja de consultas de la inmobiliaria.
 apiRouter.use("/inquiries", inquiriesRouter);
+// Tasaciones online: alta pública del propietario y bandeja de la inmobiliaria.
+apiRouter.use("/public/appraisals", publicAppraisalsRouter);
+apiRouter.use("/appraisals", appraisalsRouter);
 // Cobros: checkout del tenant + webhook público de la pasarela.
 apiRouter.use("/billing", billingRouter);
 // Dominios propios de la inmobiliaria autenticada.
@@ -56,6 +67,8 @@ apiRouter.use("/internal/caddy", caddyRouter);
 apiRouter.use("/admin/audit", auditRouter);
 apiRouter.use("/admin/domains", adminDomainsRouter);
 apiRouter.use("/admin/metrics", platformMetricsRouter);
+// Tasaciones que ninguna inmobiliaria pudo tomar.
+apiRouter.use("/admin/appraisals", adminAppraisalsRouter);
 // Métricas propias de la inmobiliaria.
 apiRouter.use("/metrics", tenantMetricsRouter);
 // Alta de consulta desde la ficha pública, sin login.

@@ -183,3 +183,42 @@ export function AgencySiteSkeleton() {
     </div>
   )
 }
+
+/** Silueta de la calculadora: solapas, campos del formulario y botón. */
+export function CalculadoraSkeleton() {
+  return (
+    <div role="status" aria-label="Cargando la calculadora">
+      <div className="rounded-xl border border-line bg-surface p-6 shadow-card">
+        {/* Monto y fecha */}
+        {Array.from({ length: 2 }, (_, i) => (
+          <div key={i} className={i === 0 ? '' : 'mt-5'}>
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="mt-2 h-11 w-full rounded-md" />
+          </div>
+        ))}
+
+        {/* Botonera de periodicidad */}
+        <div className="mt-5">
+          <Skeleton className="h-3 w-52" />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {Array.from({ length: 12 }, (_, i) => (
+              <Skeleton key={i} className="h-10 w-12 rounded-md" />
+            ))}
+          </div>
+        </div>
+
+        {/* Botonera de índices */}
+        <div className="mt-5">
+          <Skeleton className="h-3 w-44" />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-10 w-16 rounded-md" />
+            ))}
+          </div>
+        </div>
+
+        <Skeleton className="mt-6 h-11 w-full rounded" />
+      </div>
+    </div>
+  )
+}
