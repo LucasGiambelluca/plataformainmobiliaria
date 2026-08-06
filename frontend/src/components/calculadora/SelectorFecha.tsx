@@ -6,10 +6,10 @@ interface Props {
   /** Fecha ISO (AAAA-MM-DD). */
   value: string
   onChange: (iso: string) => void
-  /** Primer año elegible, tomado del rango de la serie. */
-  anioDesde: number
-  /** Último año elegible. */
-  anioHasta: number
+  /** Primera fecha elegible, en ISO. Sale del rango de la serie. */
+  min: string
+  /** Última fecha elegible, en ISO. */
+  max: string
   error?: string
 }
 
@@ -28,8 +28,6 @@ const MESES = [
   'Diciembre',
 ]
 
-const opcionesMes = MESES.map((label, i) => ({ value: String(i + 1), label }))
-
 function pad(n: number): string {
   return String(n).padStart(2, '0')
 }
@@ -39,6 +37,17 @@ function diasDelMes(anio: number, mes: number): number {
   return new Date(Date.UTC(anio, mes, 0)).getUTCDate()
 }
 
+function partes(iso: string): [number, number, number] {
+  const [a, m, d] = iso.split('-').map(Number)
+  return [a, m, d]
+}
+
+function opciones(desde: number, hasta: number, etiqueta: (n: number) => string) {
+  const items: { value: string; label: string }[] = []
+  for (let n = desde; n <= hasta; n++) items.push({ value: String(n), label: etiqueta(n) })
+  return items
+}
+
 /**
  * Mes y año de inicio del contrato, con el día escondido detrás de un enlace.
  *
@@ -46,31 +55,55 @@ function diasDelMes(anio: number, mes: number): number {
  * mayoría de los contratos arranca el 1. Pedirlo de entrada agregaría un
  * selector que el 90 % de las veces se deja como está, así que aparece solo si
  * alguien lo pide — igual que en la calculadora del Colegio.
+ *
+ * **Los tres selectores se acotan contra el rango real, no solo el año.** Antes
+ * se limitaba únicamente el año: con el ICL, que arranca el 1/7/2020, el año
+ * 2020 entraba entero y se podía elegir marzo de 2020 —o diciembre de 2026,
+ * pasado el último dato publicado— y el cálculo volvía con un 422 sin que nada
+ * en la pantalla hubiera avisado.
  */
-export default function SelectorFecha({
-  label,
-  value,
-  onChange,
-  anioDesde,
-  anioHasta,
-  error,
-}: Props) {
-  const [anio, mes, dia] = value.split('-').map(Number)
+export default function SelectorFecha({ label, value, onChange, min, max, error }: Props) {
+  const [anio, mes, dia] = partes(value)
+  const [anioMin, mesMin, diaMin] = partes(min)
+  const [anioMax, mesMax, diaMax] = partes(max)
+
   const [mostrarDia, setMostrarDia] = useState(dia !== 1)
 
-  const anios: { value: string; label: string }[] = []
-  for (let a = anioHasta; a >= anioDesde; a--) anios.push({ value: String(a), label: String(a) })
+  // Los años van del más nuevo al más viejo: el contrato que se consulta suele
+  // ser reciente.
+  const anios = opciones(anioMin, anioMax, String).reverse()
 
-  const dias = Array.from({ length: diasDelMes(anio, mes) }, (_, i) => ({
-    value: String(i + 1),
-    label: String(i + 1),
-  }))
+  // En los años de borde el rango de meses se recorta al del propio dato.
+  const primerMes = anio === anioMin ? mesMin : 1
+  const ultimoMes = anio === anioMax ? mesMax : 12
+  const meses = opciones(primerMes, ultimoMes, (n) => MESES[n - 1])
 
+  const primerDia = anio === anioMin && mes === mesMin ? diaMin : 1
+  const ultimoDia =
+    anio === anioMax && mes === mesMax ? diaMax : diasDelMes(anio, mes)
+  const dias = opciones(primerDia, ultimoDia, String)
+
+  /**
+   * Emite la fecha ya acotada al rango.
+   *
+   * Cambiar de año o de mes puede dejar el resto fuera de rango —de un año del
+   * medio a un año de borde, o un 31 en un mes de 30—, así que cada parte se
+   * recorta antes de emitir en vez de mandar una fecha que el backend va a
+   * rechazar.
+   */
   function emitir(nuevoAnio: number, nuevoMes: number, nuevoDia: number) {
-    // Si el día no existe en el mes destino (31 de enero → febrero), se corre
-    // al último del mes en vez de emitir una fecha que no existe.
-    const tope = diasDelMes(nuevoAnio, nuevoMes)
-    onChange(`${nuevoAnio}-${pad(nuevoMes)}-${pad(Math.min(nuevoDia, tope))}`)
+    const mesTope = nuevoAnio === anioMax ? mesMax : 12
+    const mesPiso = nuevoAnio === anioMin ? mesMin : 1
+    const mesFinal = Math.min(Math.max(nuevoMes, mesPiso), mesTope)
+
+    const diaTope =
+      nuevoAnio === anioMax && mesFinal === mesMax
+        ? diaMax
+        : diasDelMes(nuevoAnio, mesFinal)
+    const diaPiso = nuevoAnio === anioMin && mesFinal === mesMin ? diaMin : 1
+    const diaFinal = Math.min(Math.max(nuevoDia, diaPiso), diaTope)
+
+    onChange(`${nuevoAnio}-${pad(mesFinal)}-${pad(diaFinal)}`)
   }
 
   return (
@@ -80,7 +113,7 @@ export default function SelectorFecha({
       <div className={`grid gap-3 ${mostrarDia ? 'grid-cols-3' : 'grid-cols-2'}`}>
         <Select
           aria-label="Mes de inicio"
-          options={opcionesMes}
+          options={meses}
           value={String(mes)}
           onChange={(e) => emitir(anio, Number(e.target.value), dia)}
         />

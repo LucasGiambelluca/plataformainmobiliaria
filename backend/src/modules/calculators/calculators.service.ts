@@ -137,8 +137,21 @@ export class CalculatorsService {
     return puntos;
   }
 
-  async estadoIndices(): Promise<Record<Serie, EstadoSerie>> {
-    const entradas = await Promise.all(
+  /**
+   * Estado de cada serie que se pueda resolver.
+   *
+   * Devuelve un mapa **parcial** a propósito: una serie que no se pudo bajar y
+   * no tiene nada cacheado se omite, y las demás se informan igual. Antes esto
+   * era un `Promise.all`, así que el INDEC retirando el id del IPIM tiraba el
+   * endpoint entero con 503 y la calculadora quedaba muerta con ICL, CER, UVA,
+   * IPC e IS perfectamente cacheados. Eso contradecía la regla de este módulo:
+   * un organismo caído no puede voltear la pantalla.
+   *
+   * Si no se pudo resolver **ninguna**, ahí sí corresponde el 503: no hay nada
+   * que calcular.
+   */
+  async estadoIndices(): Promise<Partial<Record<Serie, EstadoSerie>>> {
+    const resultados = await Promise.allSettled(
       SERIES.map(async (serie) => {
         // El sync se lee DESPUÉS de resolver la serie, no en paralelo: si la
         // caché estaba vacía, `serie()` acaba de bajarla y escribir el sync.
@@ -161,7 +174,29 @@ export class CalculatorsService {
       }),
     );
 
-    return Object.fromEntries(entradas) as Record<Serie, EstadoSerie>;
+    const estados: Partial<Record<Serie, EstadoSerie>> = {};
+
+    for (const [i, resultado] of resultados.entries()) {
+      if (resultado.status === "fulfilled") {
+        const [serie, estado] = resultado.value;
+        estados[serie] = estado;
+      } else {
+        logger.error(
+          { err: resultado.reason, serie: SERIES[i] },
+          "No se pudo resolver la serie; se informa el resto",
+        );
+      }
+    }
+
+    if (Object.keys(estados).length === 0) {
+      throw new AppError(
+        "No se pudo obtener ningún índice en este momento. Reintentá en unos minutos.",
+        503,
+        "INDEX_UNAVAILABLE",
+      );
+    }
+
+    return estados;
   }
 
   // ── Cronograma ────────────────────────────────────────────

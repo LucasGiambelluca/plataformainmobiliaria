@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { Calculator, Info } from 'lucide-react'
 import { calcularCronograma, getIndices } from '../api/calculators'
 import {
-  SERIES,
   cronogramaFormSchema,
   type CronogramaResult,
+  type EstadoSerie,
   type Indices,
   type Serie,
 } from '../api/schemas'
@@ -47,6 +47,28 @@ function primeroDelMes(iso: string): string {
   return `${iso.slice(0, 7)}-01`
 }
 
+/** Día 1 del mes siguiente al de una fecha ISO. */
+function mesSiguiente(iso: string): string {
+  const [anio, mes] = iso.split('-').map(Number)
+  return mes === 12
+    ? `${anio + 1}-01-01`
+    : `${anio}-${String(mes + 1).padStart(2, '0')}-01`
+}
+
+/**
+ * Primera fecha en la que un contrato puede arrancar con esta serie.
+ *
+ * En las mensuales no es el primer dato sino el mes siguiente: cada tramo se
+ * calcula contra el índice del mes anterior, así que arrancar en el primer mes
+ * de la serie no tiene base contra la cual comparar y el backend responde 422.
+ * Ofrecerlo era garantizar ese 422.
+ */
+function inicioMinimo(estado: EstadoSerie): string {
+  return estado.frecuencia === 'mensual'
+    ? mesSiguiente(estado.desde)
+    : estado.desde
+}
+
 export default function Calculadoras() {
   const indices = useResource<Indices>(getIndices, [])
 
@@ -74,11 +96,25 @@ export default function Calculadoras() {
   )
 }
 
+/**
+ * Serie con la que arranca la pantalla.
+ *
+ * El ICL es el índice de la Ley 27.551 y el que busca la mayoría, pero puede no
+ * estar si el BCRA se cayó y no había nada cacheado: en ese caso se arranca con
+ * cualquiera de las que sí llegaron, en vez de dejar la pantalla sin nada
+ * seleccionado.
+ */
+function seriePorDefecto(indices: Indices): Serie {
+  return 'icl' in indices ? 'icl' : Object.keys(indices)[0]
+}
+
 function Formulario({ indices }: { indices: Indices }) {
-  const [serie, setSerie] = useState<Serie>('icl')
+  const [serie, setSerie] = useState<Serie>(() => seriePorDefecto(indices))
   const [monto, setMonto] = useState('')
   const [mesesPeriodo, setMesesPeriodo] = useState(12)
-  const [fechaInicio, setFechaInicio] = useState(() => primeroDelMes(indices.icl.hasta))
+  const [fechaInicio, setFechaInicio] = useState(() =>
+    primeroDelMes(indices[seriePorDefecto(indices)].hasta),
+  )
 
   const [errores, setErrores] = useState<Partial<Record<string, string>>>({})
   const [failure, setFailure] = useState<string | null>(null)
@@ -133,14 +169,20 @@ function Formulario({ indices }: { indices: Indices }) {
    *
    * Sin esto, pasar del ICL (desde 2020) al IPIM (desde 2015) dejaría elegida
    * una fecha que la serie nueva no cubre y el primer cálculo sería un 422.
+   *
+   * El piso es `inicioMinimo`, no `desde`: en una serie mensual el primer mes
+   * publicado es justamente el que el backend rechaza, así que acomodar a
+   * `desde` cambiaba un 422 por otro.
    */
   function cambiarSerie(nueva: Serie) {
     setSerie(nueva)
     setResultado(null)
 
-    const { desde, hasta } = indices[nueva]
-    if (fechaInicio < desde) setFechaInicio(primeroDelMes(desde))
-    else if (fechaInicio > hasta) setFechaInicio(primeroDelMes(hasta))
+    const estadoNuevo = indices[nueva]
+    const minimo = inicioMinimo(estadoNuevo)
+
+    if (fechaInicio < minimo) setFechaInicio(minimo)
+    else if (fechaInicio > estadoNuevo.hasta) setFechaInicio(primeroDelMes(estadoNuevo.hasta))
   }
 
   if (resultado && entrada) {
@@ -184,8 +226,8 @@ function Formulario({ indices }: { indices: Indices }) {
           label="Fecha de inicio de contrato"
           value={fechaInicio}
           onChange={setFechaInicio}
-          anioDesde={Number(estado.desde.slice(0, 4))}
-          anioHasta={Number(estado.hasta.slice(0, 4))}
+          min={inicioMinimo(estado)}
+          max={estado.hasta}
           error={errores.fechaInicio}
         />
 
@@ -199,9 +241,12 @@ function Formulario({ indices }: { indices: Indices }) {
         <div>
           <Botonera
             label="Índice de actualización"
-            options={SERIES.map((s) => ({ value: s, label: indices[s].etiqueta }))}
+            options={Object.entries(indices).map(([s, e]) => ({
+              value: s,
+              label: e.etiqueta,
+            }))}
             value={serie}
-            onChange={(v) => cambiarSerie(v as Serie)}
+            onChange={cambiarSerie}
           />
           <p className="mt-1.5 text-xs text-muted">{estado.nombre}</p>
         </div>
@@ -224,7 +269,7 @@ function Formulario({ indices }: { indices: Indices }) {
  * la calculadora sigue respondiendo con lo último que bajó, y quien la usa tiene
  * derecho a saber de cuándo es ese número antes de firmar algo.
  */
-function NotaLegal({ estado }: { estado: Indices[Serie] }) {
+function NotaLegal({ estado }: { estado: EstadoSerie }) {
   return (
     <div className="mt-6 flex gap-3 border-t border-line pt-5 text-xs text-muted">
       <Info className="h-4 w-4 shrink-0 text-accent" aria-hidden />

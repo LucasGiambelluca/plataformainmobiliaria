@@ -797,8 +797,17 @@ export type DomainForm = z.infer<typeof domainFormSchema>
 // Espejo de backend/src/modules/calculators/. Los índices son públicos y
 // nacionales: no hay tenant en ninguno de estos contratos.
 
-export const SERIES = ['icl', 'cer', 'uva', 'ipc', 'is', 'ipim'] as const
-export type Serie = (typeof SERIES)[number]
+/**
+ * Una serie es lo que el backend diga que es.
+ *
+ * Acá no hay lista: `catalogo.ts` del backend es la única fuente de verdad y
+ * `GET /calculators/indices` la devuelve entera con su metadata. Copiarla de
+ * este lado —como estaba— hacía que retirar una serie rompiera el parse de Zod
+ * y matara la pantalla entera en vez de degradar a las que sí quedan, que es
+ * exactamente el motivo por el que el catálogo de localidades tampoco se
+ * duplica.
+ */
+export type Serie = string
 
 const estadoSerieSchema = z.object({
   desde: z.string(),
@@ -813,17 +822,15 @@ const estadoSerieSchema = z.object({
 })
 export type EstadoSerie = z.infer<typeof estadoSerieSchema>
 
-// Las seis se escriben una por una en vez de con z.record: así una respuesta a
-// la que le falte una serie falla en la validación en lugar de dejar la
-// botonera a medio dibujar.
-export const indicesResponseSchema = z.object({
-  icl: estadoSerieSchema,
-  cer: estadoSerieSchema,
-  uva: estadoSerieSchema,
-  ipc: estadoSerieSchema,
-  is: estadoSerieSchema,
-  ipim: estadoSerieSchema,
-})
+/**
+ * Mapa de series, sin claves fijas.
+ *
+ * El backend omite las series que no pudo resolver, así que la respuesta es
+ * parcial por diseño: si el INDEC está caído para el IPIM, llegan las otras
+ * cinco y la calculadora funciona con esas. Exigir las seis por nombre —como
+ * estaba— convertía la caída de un organismo en una pantalla rota.
+ */
+export const indicesResponseSchema = z.record(z.string(), estadoSerieSchema)
 export type Indices = z.infer<typeof indicesResponseSchema>
 
 const tramoSchema = z.object({
@@ -837,8 +844,11 @@ const tramoSchema = z.object({
 export type Tramo = z.infer<typeof tramoSchema>
 
 export const cronogramaResultSchema = z.object({
-  serie: z.enum(SERIES),
-  tramos: z.array(tramoSchema),
+  serie: z.string(),
+  // Al menos uno: el backend tira 422 antes de devolver un cronograma vacío, y
+  // la pantalla lee el último tramo sin preguntar. Fijarlo acá hace que una
+  // respuesta vacía sea un error de red y no un TypeError en pleno render.
+  tramos: z.array(tramoSchema).min(1),
   sincronizadoEn: z.string().nullable(),
 })
 export type CronogramaResult = z.infer<typeof cronogramaResultSchema>
@@ -861,7 +871,8 @@ export const cronogramaFormSchema = z.object({
   montoInicial: montoContrato,
   fechaInicio: fechaContrato,
   mesesPeriodo: z.coerce.number().int().min(1).max(12),
-  serie: z.enum(SERIES),
+  // Qué series valen lo decide el backend: acá solo se exige haber elegido una.
+  serie: z.string().min(1, 'Elegí un índice'),
 })
 export type CronogramaForm = z.infer<typeof cronogramaFormSchema>
 
@@ -981,6 +992,10 @@ export const appraisalFormSchema = z.object({
   email: z.string().trim().email('Correo inválido').max(255),
 
   city: z.string().trim().min(1, 'Elegí una localidad'),
+  // Honeypot: el backend ya lo chequeaba, pero el formulario nunca lo dibujaba,
+  // así que no había nada que un bot pudiera llenar y la trampa no atrapaba a
+  // nadie. Va acá para que el valor llegue al body.
+  website: z.string().max(200).optional(),
   neighborhood: textoOpcional(120),
   address: z.string().trim().min(3, 'Ingresá la dirección').max(255),
   propertyType: z.enum(APPRAISAL_PROPERTY_TYPES, {

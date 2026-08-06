@@ -1,6 +1,17 @@
 import { z } from "zod";
 
 /**
+ * La provincia no se carga: se deduce.
+ *
+ * Las setenta y una localidades del catálogo son de Entre Ríos, así que pedirle
+ * la provincia a quien publica es pedirle un dato que ya está implícito en la
+ * localidad y que puede escribir mal. Vive como constante porque igual hace
+ * falta para el `addressRegion` del JSON-LD y para mostrar la ubicación
+ * completa en la ficha.
+ */
+export const PROVINCIA = "Entre Ríos";
+
+/**
  * Localidades de Entre Ríos donde opera la plataforma.
  *
  * Es un **catálogo cerrado**: el alta de una propiedad, el formulario público
@@ -30,17 +41,6 @@ import { z } from "zod";
  * "Sauce Montrull" (llegaron pegados, se separaron en dos), "Gualeguaychú"
  * (llegó sin la G inicial) y "Neuquén" (raro en una lista de Entre Ríos).
  */
-/**
- * La provincia no se carga: se deduce.
- *
- * Las setenta y una localidades del catálogo son de Entre Ríos, así que pedirle
- * la provincia a quien publica es pedirle un dato que ya está implícito en la
- * localidad y que puede escribir mal. Vive como constante porque igual hace
- * falta para el `addressRegion` del JSON-LD y para mostrar la ubicación
- * completa en la ficha.
- */
-export const PROVINCIA = "Entre Ríos";
-
 export const LOCALIDADES = [
   "Aldea San Antonio",
   "Aldea San Juan",
@@ -129,13 +129,23 @@ export const localidadSchema = z.enum(LOCALIDADES, {
   errorMap: () => ({ message: "Elegí una localidad de la lista" }),
 });
 
-/** Clave de comparación: sin tildes, sin mayúsculas y sin espacios de más. */
+/**
+ * Clave de comparación: sin tildes, sin mayúsculas y sin espacios de más.
+ *
+ * El descarte de diacríticos usa la propiedad Unicode `\p{Diacritic}` y no un
+ * rango de caracteres escrito a mano. La versión anterior llevaba los propios
+ * caracteres combinantes literales dentro de la clase: bytes invisibles en el
+ * fuente que cualquier reguardado en otra codificación, o cualquier
+ * herramienta que normalice el archivo, rompía sin avisar. Cuando eso pasa la
+ * clase deja de matchear, `clave("Paraná")` devuelve "paraná" en vez de
+ * "parana", y el script de normalización reporta las cuarenta y pico de
+ * localidades con tilde como "sin correspondencia en el catálogo". Escrito así
+ * es todo ASCII y no hay nada que se pueda corromper en silencio.
+ */
 function clave(texto: string): string {
   return texto
     .normalize("NFD")
-    // Marcas diacríticas combinantes: es lo que separa "Paraná" de "Parana"
-    // una vez descompuesta la cadena.
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/\p{Diacritic}/gu, "")
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();

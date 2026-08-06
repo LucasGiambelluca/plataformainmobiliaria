@@ -154,7 +154,7 @@ describe('cronogramaFormSchema', () => {
     }
   })
 
-  it('rechaza un período fuera del 1..12 y un índice desconocido', () => {
+  it('rechaza un período fuera del 1..12', () => {
     expect(
       cronogramaFormSchema.safeParse({
         montoInicial: '300000',
@@ -163,14 +163,19 @@ describe('cronogramaFormSchema', () => {
         serie: 'icl',
       }).success,
     ).toBe(false)
+  })
 
-    // CAC y CasaPropia quedaron afuera: no tienen API pública.
+  it('exige haber elegido un índice, pero no valida cuál', () => {
+    // Qué series existen lo dice el catálogo del backend, que es quien rechaza
+    // una desconocida con 422. Duplicar la lista acá haría que retirar una
+    // serie rompiera el parse y matara la pantalla entera, que es justo lo que
+    // este cambio vino a sacar.
     expect(
       cronogramaFormSchema.safeParse({
         montoInicial: '300000',
         fechaInicio: '2024-08-01',
         mesesPeriodo: 6,
-        serie: 'cac',
+        serie: '',
       }).success,
     ).toBe(false)
   })

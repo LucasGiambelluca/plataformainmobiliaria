@@ -274,7 +274,37 @@ describe("CalculatorsService - estado de las series", () => {
 
     const estado = await makeService(repo).estadoIndices();
 
-    expect(estado.icl.sincronizadoEn).toBe(AHORA.toISOString());
-    expect(estado.ipim.sincronizadoEn).toBe(AHORA.toISOString());
+    expect(estado.icl?.sincronizadoEn).toBe(AHORA.toISOString());
+    expect(estado.ipim?.sincronizadoEn).toBe(AHORA.toISOString());
+  });
+
+  it("informa las series que sí pudo resolver aunque una falle", async () => {
+    // Una serie caída no puede voltear la pantalla: es la regla del módulo, y
+    // antes un Promise.all la rompía. Acá el proveedor solo sabe del ICL, así
+    // que las otras cinco quedan sin caché y sin bajada posible.
+    const { repo } = makeRepo();
+    const provider = new FakeIndexProvider({ icl: ICL });
+    jest.spyOn(provider, "obtener").mockImplementation(async (serie) => {
+      if (serie !== "icl") throw new Error(`${serie} caído`);
+      return ICL;
+    });
+
+    const estado = await makeService(repo, provider).estadoIndices();
+
+    expect(Object.keys(estado)).toEqual(["icl"]);
+    expect(estado.icl?.desde).toBe("2024-08-01");
+  });
+
+  it("recién tira 503 cuando no se pudo resolver ninguna", async () => {
+    const { repo } = makeRepo();
+    const provider = new FakeIndexProvider({ icl: ICL });
+    jest.spyOn(provider, "obtener").mockRejectedValue(new Error("todo caído"));
+
+    const error = await makeService(repo, provider)
+      .estadoIndices()
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).statusCode).toBe(503);
   });
 });
