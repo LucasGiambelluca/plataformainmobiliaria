@@ -141,6 +141,7 @@ describe("aislamiento entre inquilinos", () => {
         propertyType: "house",
         operationType: "sale",
         price: "100000.00",
+        city: "Paraná",
       });
 
     expect(res.status).toBe(201);
