@@ -169,6 +169,18 @@ describe('propertyJsonLd', () => {
     )
     expect(sinCoordenadas.geo).toBeUndefined()
   })
+
+  it('pone la provincia aunque la propiedad no la traiga cargada', () => {
+    // Desde que la localidad es un catálogo cerrado de Entre Ríos, el campo
+    // provincia dejó de existir en el alta y las propiedades nuevas llegan con
+    // `state` en null. El addressRegion sale de la constante, no del dato.
+    const sinProvincia = propertyJsonLd(
+      { ...PROPIEDAD, state: null },
+      'https://plataforma.com/propiedad/p1',
+    )
+
+    expect(sinProvincia.address).toMatchObject({ addressRegion: 'Entre Ríos' })
+  })
 })
 
 describe('agencyJsonLd', () => {
@@ -187,6 +199,10 @@ describe('propertySummary', () => {
     expect(propertySummary(PROPIEDAD)).toBe(
       'Casa en venta · Oro Verde, Entre Ríos · 4 ambientes · 185 m² · USD 189.500',
     )
+  })
+
+  it('nombra la provincia aunque la propiedad no la traiga cargada', () => {
+    expect(propertySummary({ ...PROPIEDAD, state: null })).toContain('Oro Verde, Entre Ríos')
   })
 })
 

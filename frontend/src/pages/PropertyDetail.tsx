@@ -17,6 +17,7 @@ import { PropertyDetailSkeleton, Skeleton } from '../components/common/Skeleton'
 import { useResource } from '../hooks/useResource'
 import { useSeo } from '../hooks/useSeo'
 import { getPublicProperty } from '../api/publicCatalog'
+import { PROVINCIA } from '../lib/localidades'
 import { formatPrice, operationLabels, typeLabels } from '../lib/propertyLabels'
 import { propertyJsonLd, propertySummary } from '../lib/seo'
 
@@ -67,7 +68,9 @@ export default function PropertyDetail() {
   }
 
   const property = datos
-  const ubicacion = [property.address, property.city, property.state]
+  // La provincia es la constante, no `property.state`: todas las localidades
+  // del catálogo son de Entre Ríos y el campo dejó de cargarse.
+  const ubicacion = [property.address, property.city, PROVINCIA]
     .filter(Boolean)
     .join(', ')
   const galeria = property.media

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { localidadSchema } from "@/shared/constants/localidades";
 
 export const propertyTypeSchema = z.enum([
   "apartment",
@@ -41,8 +42,14 @@ const baseProperty = {
   price: priceSchema,
   currency: z.string().length(3).toUpperCase().optional(),
   address: z.string().trim().max(500).optional(),
-  city: z.string().trim().max(120).optional(),
-  state: z.string().trim().max(120).optional(),
+  // Obligatoria y del catálogo. Una propiedad sin localidad no aparece en el
+  // filtro del portal ni cuenta para el reparto de tasaciones, así que la
+  // inmobiliaria queda fuera de esa localidad sin enterarse.
+  city: localidadSchema,
+  // `state` no está y no es un olvido: todas las localidades del catálogo son
+  // de Entre Ríos, así que la provincia se deduce de la localidad. La constante
+  // `PROVINCIA` es la que se muestra y la que va al JSON-LD. La columna sigue
+  // existiendo en la base por las filas viejas; nada nuevo la escribe.
   country: z.string().trim().max(120).optional(),
   lat: latitude.optional(),
   lng: longitude.optional(),
@@ -63,6 +70,9 @@ export const updatePropertySchema = z
   .object({
     ...baseProperty,
     title: baseProperty.title.optional(),
+    // En la edición es opcional como el resto: un PATCH que no la manda deja
+    // la que ya estaba. Lo que no puede es mandarla vacía o fuera del catálogo.
+    city: localidadSchema.optional(),
     propertyType: propertyTypeSchema.optional(),
     operationType: operationTypeSchema.optional(),
     price: priceSchema.optional(),
@@ -81,7 +91,7 @@ export const listPropertiesQuerySchema = z.object({
   status: propertyStatusSchema.optional(),
   propertyType: propertyTypeSchema.optional(),
   operationType: operationTypeSchema.optional(),
-  city: z.string().trim().min(1).optional(),
+  city: localidadSchema.optional(),
   minPrice: z.coerce.number().nonnegative().optional(),
   maxPrice: z.coerce.number().nonnegative().optional(),
   page: z.coerce.number().int().positive().optional(),

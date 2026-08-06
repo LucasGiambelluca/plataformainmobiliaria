@@ -1,4 +1,5 @@
 import type { PublicPropertyDetail, PublicSite } from '../api/schemas'
+import { PROVINCIA } from './localidades'
 import { formatPrice, operationLabels, typeLabels } from './propertyLabels'
 
 /**
@@ -134,7 +135,8 @@ export function propertyJsonLd(
   const direccion: Record<string, string> = {}
   if (property.address) direccion.streetAddress = property.address
   if (property.city) direccion.addressLocality = property.city
-  if (property.state) direccion.addressRegion = property.state
+  // La provincia es constante: el catálogo de localidades es solo de Entre Ríos.
+  direccion.addressRegion = PROVINCIA
   direccion.addressCountry = property.country ?? 'AR'
   json.address = { '@type': 'PostalAddress', ...direccion }
 
@@ -192,7 +194,7 @@ export function agencyJsonLd(site: PublicSite, url: string): Record<string, unkn
 export function propertySummary(property: PublicPropertyDetail): string {
   const partes = [
     `${typeLabels[property.propertyType]} en ${operationLabels[property.operationType].toLowerCase()}`,
-    [property.city, property.state].filter(Boolean).join(', '),
+    [property.city, PROVINCIA].filter(Boolean).join(', '),
     property.rooms ? `${property.rooms} ambientes` : '',
     property.areaM2 ? `${Number(property.areaM2)} m²` : '',
     formatPrice(property.price, property.currency),

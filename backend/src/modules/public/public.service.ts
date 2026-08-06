@@ -1,5 +1,6 @@
 import type { OperationType, PropertyType } from "@prisma/client";
 import { BadRequestError, NotFoundError } from "@/shared/errors";
+import { LOCALIDADES, type Localidad } from "@/shared/constants/localidades";
 
 /**
  * Estados que el público puede ver. Es la regla de negocio más delicada de este
@@ -189,6 +190,20 @@ export class PublicService {
 
   cities(): Promise<{ city: string; count: number }[]> {
     return this.repo.listCities();
+  }
+
+  /**
+   * Catálogo de localidades donde opera la plataforma.
+   *
+   * No sale de la base ni del repositorio: es una constante del código. Existe
+   * como endpoint para que los formularios no repitan la lista del otro lado
+   * —si divergieran, el desplegable ofrecería una localidad que el servidor
+   * rechaza con 422— y es distinto de `cities()`, que devuelve solo las
+   * localidades **con propiedades publicadas** y por eso sirve para filtrar
+   * pero no para dar de alta.
+   */
+  localidades(): readonly Localidad[] {
+    return LOCALIDADES;
   }
 
   plans(): Promise<PublicPlan[]> {

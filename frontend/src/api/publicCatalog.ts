@@ -3,6 +3,7 @@ import {
   publicAgenciesResponseSchema,
   publicCatalogResponseSchema,
   publicCitiesResponseSchema,
+  publicLocalidadesResponseSchema,
   publicPropertyResponseSchema,
   type OperationType,
   type PropertyType,
@@ -49,9 +50,23 @@ export async function getPublicProperty(id: string): Promise<PublicPropertyDetai
   return property
 }
 
+/** Localidades con propiedades publicadas, con su conteo. Alimenta los filtros. */
 export async function getCities(): Promise<{ city: string; count: number }[]> {
   const { cities } = await getJson('/public/cities', publicCitiesResponseSchema)
   return cities
+}
+
+/**
+ * Catálogo completo de localidades donde opera la plataforma, tengan
+ * propiedades o no. Llena los desplegables del alta de propiedad y del
+ * formulario de tasación.
+ */
+export async function getLocalidades(): Promise<string[]> {
+  const { localidades } = await getJson(
+    '/public/localidades',
+    publicLocalidadesResponseSchema,
+  )
+  return localidades
 }
 
 /** Inmobiliarias activas, con cuántas propiedades visibles publica cada una. */

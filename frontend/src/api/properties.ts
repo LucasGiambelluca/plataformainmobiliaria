@@ -57,7 +57,6 @@ function toPayload(form: PropertyForm) {
     ...texto('description', form.description),
     ...texto('address', form.address),
     ...texto('city', form.city),
-    ...texto('state', form.state),
     ...numero('areaM2', form.areaM2),
     ...numero('rooms', form.rooms),
     ...numero('bathrooms', form.bathrooms),

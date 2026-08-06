@@ -50,6 +50,9 @@ const CREATE_BODY = {
   propertyType: "house",
   operationType: "sale",
   price: "185000.00",
+  // La localidad es obligatoria y sale del catálogo: una propiedad sin ella
+  // queda fuera del filtro del portal y del reparto de tasaciones.
+  city: "Paraná",
 };
 
 describe("properties router (panel inmobiliaria)", () => {
@@ -114,6 +117,36 @@ describe("properties router (panel inmobiliaria)", () => {
     );
   });
 
+  it("POST /: sin localidad → 422", async () => {
+    const { app, service } = makeApp();
+    const { city: _city, ...sinLocalidad } = CREATE_BODY;
+
+    const res = await request(app)
+      .post("/api/properties")
+      .set("Authorization", `Bearer ${adminToken()}`)
+      .send(sinLocalidad);
+
+    expect(res.status).toBe(422);
+    expect(service.create).not.toHaveBeenCalled();
+  });
+
+  it("POST /: localidad fuera del catálogo → 422", async () => {
+    // "Parana" sin tilde es el caso que motivó cerrar el catálogo: convivía en
+    // la base con "Paraná" y el reparto de tasaciones no las cruzaba.
+    const { app, service } = makeApp();
+
+    for (const city of ["Parana", "Rosario", ""]) {
+      const res = await request(app)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${adminToken()}`)
+        .send({ ...CREATE_BODY, city });
+
+      expect(res.status).toBe(422);
+    }
+
+    expect(service.create).not.toHaveBeenCalled();
+  });
+
   it("POST /: precio con formato de float → 422", async () => {
     const { app, service } = makeApp();
     const res = await request(app)
@@ -123,6 +156,20 @@ describe("properties router (panel inmobiliaria)", () => {
 
     expect(res.status).toBe(422);
     expect(service.create).not.toHaveBeenCalled();
+  });
+
+  it("POST /: la provincia no se carga, se deduce de la localidad", async () => {
+    // Las 71 localidades del catálogo son de Entre Ríos, así que `state` salió
+    // del contrato. Si alguien lo manda igual, se descarta en vez de guardarse.
+    const { app, service } = makeApp();
+
+    await request(app)
+      .post("/api/properties")
+      .set("Authorization", `Bearer ${adminToken()}`)
+      .send({ ...CREATE_BODY, state: "Santa Fe" });
+
+    const [, body] = (service.create as jest.Mock).mock.calls[0];
+    expect(body).not.toHaveProperty("state");
   });
 
   it("POST /: el status no se puede fijar al crear (nace en draft)", async () => {

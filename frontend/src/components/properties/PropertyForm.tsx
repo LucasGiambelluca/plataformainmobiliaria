@@ -11,6 +11,8 @@ import {
   type PropertyForm as PropertyFormValues,
 } from '../../api/schemas'
 import { createProperty, updateProperty } from '../../api/properties'
+import { getLocalidades } from '../../api/publicCatalog'
+import { useResource } from '../../hooks/useResource'
 import { ApiError } from '../../lib/apiError'
 
 import { operationOptions, typeOptions } from '../../lib/propertyLabels'
@@ -41,7 +43,6 @@ function defaults(property?: PropertyDetail): Partial<PropertyFormValues> {
     currency: property.currency === 'ARS' ? 'ARS' : 'USD',
     address: property.address ?? '',
     city: property.city ?? '',
-    state: property.state ?? '',
     areaM2: num(property.areaM2),
     rooms: property.rooms ?? undefined,
     bathrooms: property.bathrooms ?? undefined,
@@ -54,6 +55,8 @@ function defaults(property?: PropertyDetail): Partial<PropertyFormValues> {
 
 export default function PropertyForm({ property, onSaved, onCancel }: Props) {
   const [failure, setFailure] = useState<string | null>(null)
+  // El catálogo de localidades sale del backend, que es quien valida contra él.
+  const localidades = useResource<string[]>(getLocalidades, [])
   const {
     register,
     handleSubmit,
@@ -146,10 +149,34 @@ export default function PropertyForm({ property, onSaved, onCancel }: Props) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Input label="Ciudad" error={errors.city?.message} {...register('city')} />
-        <Input label="Provincia" error={errors.state?.message} {...register('state')} />
-      </div>
+      {/*
+        No hay campo de provincia: todas las localidades del catálogo son de
+        Entre Ríos, así que la provincia se deduce de la localidad.
+
+        El desplegable se monta recién cuando llegaron las opciones. Si se
+        montara vacío, react-hook-form escribiría el valor por defecto de una
+        propiedad que se está editando sobre un select sin esa opción y el campo
+        aparecería en blanco.
+      */}
+      {localidades.data ? (
+        <Select
+          label="Localidad"
+          placeholder="Elegí una localidad"
+          options={localidades.data.map((l) => ({ value: l, label: l }))}
+          error={errors.city?.message}
+          {...register('city')}
+        />
+      ) : (
+        <Select
+          label="Localidad"
+          options={[]}
+          placeholder={
+            localidades.error ? 'No se pudieron cargar' : 'Cargando localidades…'
+          }
+          error={localidades.error ? 'Recargá la página para elegir la localidad' : undefined}
+          disabled
+        />
+      )}
 
       <Input label="Dirección" error={errors.address?.message} {...register('address')} />
 

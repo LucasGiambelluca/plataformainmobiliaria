@@ -3,6 +3,7 @@ import {
   operationTypeSchema,
   propertyTypeSchema,
 } from "@/modules/properties/properties.schemas";
+import { localidadSchema } from "@/shared/constants/localidades";
 
 // El catálogo público no acepta filtro de estado: qué es visible lo decide el
 // servidor, nunca el cliente.
@@ -10,7 +11,9 @@ export const publicCatalogQuerySchema = z.object({
   search: z.string().trim().min(1).max(120).optional(),
   operationType: operationTypeSchema.optional(),
   propertyType: propertyTypeSchema.optional(),
-  city: z.string().trim().min(1).max(120).optional(),
+  // Del catálogo: una localidad inventada da 422 en vez de cero resultados en
+  // silencio, que es lo que pasaba cuando el filtro aceptaba cualquier texto.
+  city: localidadSchema.optional(),
   minPrice: z.coerce.number().nonnegative().optional(),
   maxPrice: z.coerce.number().nonnegative().optional(),
   minRooms: z.coerce.number().int().nonnegative().max(100).optional(),

@@ -54,13 +54,21 @@ export function createPublicRouter(service: PublicService): Router {
     }),
   );
 
-  // Alimenta el buscador por localidad de la home.
+  // Alimenta el buscador por localidad de la home: son las localidades que hoy
+  // tienen propiedades publicadas, con su conteo.
   router.get(
     "/cities",
     asyncHandler(async (_req, res) => {
       res.json({ cities: await service.cities() });
     }),
   );
+
+  // El catálogo completo, tengan propiedades o no. Es lo que llena los
+  // desplegables del alta de propiedad y del formulario de tasación: ahí hace
+  // falta poder elegir una localidad donde todavía no publicó nadie.
+  router.get("/localidades", (_req, res) => {
+    res.json({ localidades: service.localidades() });
+  });
 
   return router;
 }

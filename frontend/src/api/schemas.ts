@@ -388,6 +388,23 @@ export const publicCitiesResponseSchema = z.object({
   cities: z.array(z.object({ city: z.string(), count: z.number() })),
 })
 
+/**
+ * Catálogo de localidades donde opera la plataforma.
+ *
+ * Distinto de `cities`: eso son las localidades que hoy tienen propiedades
+ * publicadas, con su conteo, y sirve para filtrar. Esto es la lista completa y
+ * es la que llena los desplegables del alta de propiedad y del formulario de
+ * tasación, donde hay que poder elegir una localidad en la que todavía no
+ * publicó nadie.
+ *
+ * La lista no se escribe de este lado a propósito: el backend valida contra la
+ * suya y rechaza cualquier otra cosa, así que una copia acá que se desactualice
+ * ofrecería opciones que el servidor contesta con 422.
+ */
+export const publicLocalidadesResponseSchema = z.object({
+  localidades: z.array(z.string()),
+})
+
 /* ----------------------- web de la inmobiliaria ----------------------- */
 
 export const carouselImageSchema = z.object({
@@ -722,8 +739,11 @@ export const propertyFormSchema = z.object({
     .regex(/^\d+(\.\d{1,2})?$/, 'Precio inválido: usá formato decimal, ej. 185000.00'),
   currency: z.enum(['USD', 'ARS']),
   address: z.string().trim().max(500).optional().or(z.literal('')),
-  city: z.string().trim().max(120).optional().or(z.literal('')),
-  state: z.string().trim().max(120).optional().or(z.literal('')),
+  // Obligatoria y del catálogo del backend: sin localidad la propiedad no sale
+  // en el filtro del portal ni cuenta para el reparto de tasaciones.
+  city: z.string().trim().min(1, 'Elegí una localidad'),
+  // La provincia no se carga: sale de `PROVINCIA` en lib/localidades.ts, porque
+  // todas las localidades del catálogo son de Entre Ríos.
   areaM2: z
     .union([z.string(), z.number()])
     .transform((v) => (v === '' || v === null ? undefined : Number(v)))
@@ -771,3 +791,219 @@ export const domainFormSchema = z.object({
     .refine((v) => HOSTNAME.test(v), 'Dominio inválido. Ejemplo: midominio.com.ar'),
 })
 export type DomainForm = z.infer<typeof domainFormSchema>
+
+/* ------------------------------ calculadoras ------------------------------ */
+
+// Espejo de backend/src/modules/calculators/. Los índices son públicos y
+// nacionales: no hay tenant en ninguno de estos contratos.
+
+export const SERIES = ['icl', 'cer', 'uva', 'ipc', 'is', 'ipim'] as const
+export type Serie = (typeof SERIES)[number]
+
+const estadoSerieSchema = z.object({
+  desde: z.string(),
+  hasta: z.string(),
+  /** Null si nunca se pudo bajar la serie del organismo oficial. */
+  sincronizadoEn: z.string().nullable(),
+  /** Lo que dice el botón. Sale del catálogo del backend, no de una lista de acá. */
+  etiqueta: z.string(),
+  nombre: z.string(),
+  organismo: z.string(),
+  frecuencia: z.enum(['diaria', 'mensual']),
+})
+export type EstadoSerie = z.infer<typeof estadoSerieSchema>
+
+// Las seis se escriben una por una en vez de con z.record: así una respuesta a
+// la que le falte una serie falla en la validación en lugar de dejar la
+// botonera a medio dibujar.
+export const indicesResponseSchema = z.object({
+  icl: estadoSerieSchema,
+  cer: estadoSerieSchema,
+  uva: estadoSerieSchema,
+  ipc: estadoSerieSchema,
+  is: estadoSerieSchema,
+  ipim: estadoSerieSchema,
+})
+export type Indices = z.infer<typeof indicesResponseSchema>
+
+const tramoSchema = z.object({
+  numero: z.number(),
+  fecha: z.string(),
+  indice: z.number(),
+  /** Fracción, no porcentaje: 0.3047 son 30,47 %. */
+  aumento: z.number(),
+  valor: z.number(),
+})
+export type Tramo = z.infer<typeof tramoSchema>
+
+export const cronogramaResultSchema = z.object({
+  serie: z.enum(SERIES),
+  tramos: z.array(tramoSchema),
+  sincronizadoEn: z.string().nullable(),
+})
+export type CronogramaResult = z.infer<typeof cronogramaResultSchema>
+
+// El monto llega como string desde el input y sale como number para el body.
+const montoContrato = z
+  .string()
+  .trim()
+  .min(1, 'Ingresá el monto del contrato')
+  .regex(/^\d+(?:[.,]\d{1,2})?$/, 'Monto inválido: usá solo números, ej. 250000')
+  .transform((v) => Number(v.replace(',', '.')))
+  .refine((v) => v > 0, 'El monto tiene que ser mayor a cero')
+
+const fechaContrato = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Elegí una fecha')
+
+export const cronogramaFormSchema = z.object({
+  montoInicial: montoContrato,
+  fechaInicio: fechaContrato,
+  mesesPeriodo: z.coerce.number().int().min(1).max(12),
+  serie: z.enum(SERIES),
+})
+export type CronogramaForm = z.infer<typeof cronogramaFormSchema>
+
+/* ------------------------------- tasaciones ------------------------------- */
+
+// Espejo de backend/src/modules/appraisals/. La solicitud la manda un
+// propietario sin cuenta; la bandeja la lee la inmobiliaria asignada.
+
+export const APPRAISAL_PROPERTY_TYPES = [
+  'house', 'apartment', 'ph', 'duplex', 'commercial', 'office',
+  'warehouse', 'land', 'farm', 'country_house', 'ranch', 'other',
+] as const
+
+export const APPRAISAL_PURPOSES = ['sale', 'rent', 'sale_and_rent', 'other'] as const
+
+export const APPRAISAL_CONDITIONS = [
+  'excellent', 'very_good', 'good', 'fair', 'to_renovate',
+] as const
+
+export const APPRAISAL_REASONS = [
+  'sale', 'rent', 'inheritance', 'division', 'investment', 'moving', 'other',
+] as const
+
+export const APPRAISAL_TIMEFRAMES = [
+  'immediate', 'within_30_days', '1_to_3_months', '3_to_6_months', 'just_curious',
+] as const
+
+export const APPRAISAL_STATUSES = [
+  'unassigned', 'new', 'contacted', 'completed', 'discarded',
+] as const
+
+export type AppraisalStatus = (typeof APPRAISAL_STATUSES)[number]
+export type AppraisalPropertyType = (typeof APPRAISAL_PROPERTY_TYPES)[number]
+export type AppraisalPurpose = (typeof APPRAISAL_PURPOSES)[number]
+export type AppraisalCondition = (typeof APPRAISAL_CONDITIONS)[number]
+
+export const appraisalAgencySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  logoUrl: z.string().nullable(),
+})
+export type AppraisalAgency = z.infer<typeof appraisalAgencySchema>
+
+export const appraisalParticipantsResponseSchema = z.object({
+  agencies: z.array(appraisalAgencySchema),
+})
+
+export const appraisalCreatedResponseSchema = z.object({
+  ok: z.boolean(),
+  /** false = ninguna inmobiliaria participaba en esa localidad. */
+  assigned: z.boolean(),
+})
+export type AppraisalCreated = z.infer<typeof appraisalCreatedResponseSchema>
+
+export const appraisalSchema = z.object({
+  id: z.string(),
+  tenantId: z.string().nullable(),
+  name: z.string(),
+  phone: z.string(),
+  email: z.string(),
+  city: z.string(),
+  neighborhood: z.string().nullable(),
+  address: z.string(),
+  propertyType: z.enum(APPRAISAL_PROPERTY_TYPES),
+  purpose: z.enum(APPRAISAL_PURPOSES),
+  areaM2: z.string().nullable(),
+  rooms: z.number().nullable(),
+  bathrooms: z.number().nullable(),
+  condition: z.enum(APPRAISAL_CONDITIONS).nullable(),
+  comments: z.string().nullable(),
+  details: z.unknown().nullable(),
+  status: z.enum(APPRAISAL_STATUSES),
+  assignedAutomatically: z.boolean(),
+  assignedAt: z.string().nullable(),
+  createdAt: z.string(),
+})
+export type Appraisal = z.infer<typeof appraisalSchema>
+
+export const appraisalListResponseSchema = z.object({
+  items: z.array(appraisalSchema),
+  total: z.number(),
+})
+export type AppraisalListResponse = z.infer<typeof appraisalListResponseSchema>
+
+export const appraisalResponseSchema = z.object({ appraisal: appraisalSchema })
+
+export const appraisalUploadUrlResponseSchema = z.object({
+  draftId: z.string(),
+  mediaId: z.string(),
+  uploadUrl: z.string(),
+  contentType: z.string(),
+  expiresAt: z.string(),
+})
+export type AppraisalUploadUrl = z.infer<typeof appraisalUploadUrlResponseSchema>
+
+// Los <input> devuelven string siempre: un opcional vacío tiene que quedar en
+// undefined y no en 0 ni en NaN, o el backend recibiría un dato inventado.
+const numeroOpcional = (etiqueta: string) =>
+  z
+    .union([z.literal(''), z.string().regex(/^\d+(?:[.,]\d{1,2})?$/, `${etiqueta} inválido`)])
+    .optional()
+    .transform((v) => (v === '' || v === undefined ? undefined : Number(String(v).replace(',', '.'))))
+
+const enteroOpcional = (etiqueta: string) =>
+  z
+    .union([z.literal(''), z.string().regex(/^\d{1,3}$/, `${etiqueta} inválido`)])
+    .optional()
+    .transform((v) => (v === '' || v === undefined ? undefined : Number(v)))
+
+const textoOpcional = (max: number) =>
+  z.string().trim().max(max).optional().transform((v) => (v ? v : undefined))
+
+export const appraisalFormSchema = z.object({
+  name: z.string().trim().min(2, 'Ingresá tu nombre y apellido').max(255),
+  phone: z.string().trim().min(6, 'Ingresá un teléfono de contacto').max(50),
+  email: z.string().trim().email('Correo inválido').max(255),
+
+  city: z.string().trim().min(1, 'Elegí una localidad'),
+  neighborhood: textoOpcional(120),
+  address: z.string().trim().min(3, 'Ingresá la dirección').max(255),
+  propertyType: z.enum(APPRAISAL_PROPERTY_TYPES, {
+    errorMap: () => ({ message: 'Elegí un tipo de propiedad' }),
+  }),
+  purpose: z.enum(APPRAISAL_PURPOSES, {
+    errorMap: () => ({ message: 'Elegí el destino de la tasación' }),
+  }),
+
+  areaM2: numeroOpcional('La superficie'),
+  rooms: enteroOpcional('Los dormitorios'),
+  bathrooms: enteroOpcional('Los baños'),
+  condition: z.enum(APPRAISAL_CONDITIONS).optional().or(z.literal('')).transform((v) => (v ? v : undefined)),
+  comments: textoOpcional(2000),
+
+  tenantId: z.string().optional().transform((v) => (v ? v : undefined)),
+
+  // literal(true): un checkbox sin tildar no pasa.
+  declaredAccurate: z.literal(true, {
+    errorMap: () => ({ message: 'Confirmá que los datos son correctos' }),
+  }),
+  acceptedTerms: z.literal(true, {
+    errorMap: () => ({ message: 'Tenés que aceptar los términos y la política de privacidad' }),
+  }),
+})
+export type AppraisalForm = z.infer<typeof appraisalFormSchema>
