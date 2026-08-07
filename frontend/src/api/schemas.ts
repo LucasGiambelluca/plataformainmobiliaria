@@ -1035,3 +1035,46 @@ export const appraisalFormSchema = z.object({
   }),
 })
 export type AppraisalForm = z.infer<typeof appraisalFormSchema>
+
+// ── Credenciales de la pasarela (super admin) ──────────────────────
+
+export const paymentModeSchema = z.enum(['sandbox', 'production'])
+export type PaymentMode = z.infer<typeof paymentModeSchema>
+
+/** El backend nunca devuelve los secretos: solo si están y sus últimos 4. */
+const credentialStatusSchema = z.object({
+  configured: z.boolean(),
+  last4: z.string().nullable(),
+})
+
+export const paymentSettingsSchema = z.object({
+  activeMode: paymentModeSchema,
+  credentials: z.object({
+    sandbox: credentialStatusSchema,
+    production: credentialStatusSchema,
+  }),
+  // Sale del backend y no se arma acá: es la URL que el provider manda como
+  // notification_url, y si divergieran el super admin copiaría a MercadoPago
+  // una dirección que nunca recibe nada.
+  webhookUrl: z.string(),
+  updatedAt: z.string().nullable(),
+  updatedBy: z.string().nullable(),
+})
+export type PaymentSettings = z.infer<typeof paymentSettingsSchema>
+
+export const saveCredentialsResponseSchema = z.object({
+  verified: z.boolean(),
+  last4: z.string(),
+})
+
+export const activateModeResponseSchema = z.object({
+  activeMode: paymentModeSchema,
+  orphanedSubscriptions: z.number(),
+})
+export type ActivateModeResponse = z.infer<typeof activateModeResponseSchema>
+
+export const paymentCredentialsFormSchema = z.object({
+  accessToken: z.string().trim().min(10, 'El access token es demasiado corto'),
+  webhookSecret: z.string().trim().min(8, 'El webhook secret es demasiado corto'),
+})
+export type PaymentCredentialsForm = z.infer<typeof paymentCredentialsFormSchema>
