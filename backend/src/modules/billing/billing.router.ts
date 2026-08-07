@@ -7,7 +7,8 @@ import { authorize } from "@/shared/middleware/authorize";
 import { requireTenant } from "@/shared/middleware/requireTenant";
 import { validate } from "@/shared/middleware/validate";
 import { asyncHandler } from "@/shared/utils/asyncHandler";
-import { paymentProvider } from "@/shared/services/payments";
+import { createPaymentProviderResolver } from "@/shared/services/payments";
+import { paymentSettingsService } from "@/modules/paymentSettings/paymentSettings.router";
 import { createCheckoutSchema, type CreateCheckoutBody } from "./billing.schemas";
 import { BillingService } from "./billing.service";
 import { notifier } from "@/modules/notifications";
@@ -81,9 +82,18 @@ export function createBillingRouter(service: BillingService): Router {
  * Instancia compartida: la usa este router y también el módulo de
  * suscripciones, para cancelar en la pasarela además de en nuestra base.
  */
+// El resolver se arma acá y no en shared/services/payments porque la
+// dependencia va en un solo sentido: un módulo puede usar shared, shared no
+// puede conocer un módulo.
+const resolveProvider = createPaymentProviderResolver({
+  providerName: env.PAYMENT_PROVIDER,
+  loadCredentials: () => paymentSettingsService.activeCredentials(),
+  backendUrl: env.BACKEND_URL,
+});
+
 export const billingService = new BillingService(
   billingRepository,
-  paymentProvider,
+  resolveProvider,
   `${env.FRONTEND_URL}/panel/suscripcion`,
   notifier,
   auditService,

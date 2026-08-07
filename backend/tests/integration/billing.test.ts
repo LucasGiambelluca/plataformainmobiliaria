@@ -1,10 +1,6 @@
 import request from "supertest";
 import { createApp } from "@/app";
-import {
-  paymentProvider,
-  type FakePaymentProvider,
-  type PaymentEvent,
-} from "@/shared/services/payments";
+import { fakePaymentProvider, type PaymentEvent } from "@/shared/services/payments";
 import { prisma } from "./helpers/db";
 import { crearInmobiliariaCompleta, crearPlan, crearUsuario } from "./helpers/factories";
 import { comoUsuario, loguear } from "./helpers/auth";
@@ -73,7 +69,7 @@ describe("webhook de la pasarela", () => {
     dataId: string,
     evento: Partial<PaymentEvent> & { externalReference: string },
   ): void {
-    (paymentProvider as FakePaymentProvider).pretendEvent(dataId, {
+    fakePaymentProvider.pretendEvent(dataId, {
       externalPaymentId: `pago-${dataId}`,
       externalSubscriptionId: null,
       status: "approved",

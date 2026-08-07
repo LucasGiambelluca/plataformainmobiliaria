@@ -1,7 +1,7 @@
 import type { PaymentStatus, SubscriptionStatus } from "@prisma/client";
 import { BadRequestError, NotFoundError } from "@/shared/errors";
 import { logger } from "@/config/logger";
-import type { PaymentEvent, PaymentProvider } from "@/shared/services/payments";
+import type { PaymentEvent, PaymentProviderResolver } from "@/shared/services/payments";
 import { noopNotifier, type Notifier } from "@/modules/notifications";
 import { noopAuditor, type Auditor } from "@/modules/audit/audit.service";
 
@@ -71,7 +71,13 @@ const A_PAYMENT: Record<PaymentEvent["status"], PaymentStatus> = {
 export class BillingService {
   constructor(
     private readonly repo: BillingRepository,
-    private readonly provider: PaymentProvider,
+    /**
+     * Resolver y no instancia: las credenciales viven en base y se leen por
+     * operación. No se puede esconder esa lectura detrás de un proxy porque
+     * verifyWebhook es síncrono en la interfaz, y esa firma no se toca: es el
+     * control de seguridad más importante del módulo.
+     */
+    private readonly resolveProvider: PaymentProviderResolver,
     /** A dónde vuelve el usuario después de autorizar el pago. */
     private readonly returnUrl: string,
     private readonly notifier: Notifier = noopNotifier,
@@ -102,7 +108,8 @@ export class BillingService {
       throw new BadRequestError("Ya estás suscripto a ese plan");
     }
 
-    const checkout = await this.provider.createSubscriptionCheckout({
+    const provider = await this.resolveProvider();
+    const checkout = await provider.createSubscriptionCheckout({
       reference: subscription.id,
       planName: plan.name,
       amount: plan.priceAmount,
@@ -135,7 +142,10 @@ export class BillingService {
     topic: string | undefined;
     dataId: string | undefined;
   }): Promise<{ processed: boolean }> {
-    const firmaOk = this.provider.verifyWebhook({
+    // Un solo resolve para la verificación y la consulta: las dos tienen que
+    // hablar con la misma cuenta.
+    const provider = await this.resolveProvider();
+    const firmaOk = provider.verifyWebhook({
       signature: params.signature,
       requestId: params.requestId,
       dataId: params.dataId,
@@ -145,7 +155,7 @@ export class BillingService {
     }
     if (!params.topic || !params.dataId) return { processed: false };
 
-    const evento = await this.provider.fetchEvent({
+    const evento = await provider.fetchEvent({
       topic: params.topic,
       id: params.dataId,
     });
@@ -203,7 +213,8 @@ export class BillingService {
     const subscription = await this.repo.findSubscription(tenantId);
     if (!subscription?.externalRef) return;
 
-    await this.provider.cancelSubscription(subscription.externalRef);
+    const provider = await this.resolveProvider();
+    await provider.cancelSubscription(subscription.externalRef);
   }
 
   /** El movimiento de plata queda registrado; el actor es la pasarela, no un usuario. */

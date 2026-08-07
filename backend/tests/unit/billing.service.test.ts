@@ -53,7 +53,13 @@ function makeService(
   provider = new FakePaymentProvider(),
 ) {
   return {
-    service: new BillingService(repo, provider, "https://app.test/panel/suscripcion"),
+    // El service recibe un resolver, no la instancia: las credenciales viven
+    // en base y se leen por operación.
+    service: new BillingService(
+      repo,
+      async () => provider,
+      "https://app.test/panel/suscripcion",
+    ),
     repo,
     provider,
   };
