@@ -24,6 +24,10 @@ const actionLabels: Record<string, string> = {
   'payment.failed': 'Pago rechazado',
   'site.publish': 'Publicación del sitio',
   'site.unpublish': 'Sitio despublicado',
+  'domain.create': 'Alta de dominio',
+  'domain.verify': 'Verificación de dominio',
+  'domain.delete': 'Baja de dominio',
+  'impersonation.start': 'Acceso de soporte al panel',
 }
 
 const etiqueta = (action: string) => actionLabels[action] ?? action

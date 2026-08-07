@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Ban, Loader2, Pencil, Play, Plus, Search } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Ban, Eye, Loader2, Pencil, Play, Plus, Search } from 'lucide-react'
 import Button from '../../components/common/Button'
 import Input from '../../components/common/Input'
 import Select from '../../components/common/Select'
@@ -21,6 +22,7 @@ import {
   type TenantListItem,
 } from '../../api/schemas'
 import { ApiError } from '../../lib/apiError'
+import { useAuth } from '../../store/auth'
 
 const PAGE_SIZE = 20
 
@@ -68,6 +70,9 @@ export default function Tenants() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
+  const navigate = useNavigate()
+  const startImpersonation = useAuth((s) => s.startImpersonation)
+
   const debouncedSearch = useDebounced(search)
 
   const tenants = useResource(
@@ -97,6 +102,20 @@ export default function Tenants() {
     } finally {
       setBusyId(null)
     }
+  }
+
+  const verSuPanel = async (t: TenantListItem) => {
+    setActionError(null)
+    setBusyId(t.id)
+    try {
+      await startImpersonation(t.id)
+      navigate('/panel')
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'No se pudo abrir su panel')
+      setBusyId(null)
+    }
+    // Sin finally: si salió bien ya se navegó a otra pantalla y este componente
+    // se desmontó. Tocar su estado ahí sería actualizar algo que no existe.
   }
 
   const total = tenants.data?.total ?? 0
@@ -200,6 +219,14 @@ export default function Tenants() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => void verSuPanel(t)}
+                          disabled={busyId === t.id}
+                          className="rounded-md p-2 text-muted hover:bg-brand/10 hover:text-brand disabled:opacity-50"
+                          aria-label={`Ver el panel de ${t.name} como soporte`}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
                         <button
                           onClick={() => {
                             setEditing(t)
