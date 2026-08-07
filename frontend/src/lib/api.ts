@@ -8,6 +8,8 @@ import { authResponseSchema, type AuthResponse } from '../api/schemas'
 import { toApiError } from './apiError'
 import {
   getAccessToken,
+  isImpersonating,
+  notifyImpersonationEnded,
   notifySessionExpired,
   setAccessToken,
 } from './session'
@@ -78,6 +80,16 @@ api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
     const config = error.config as RetriableConfig | undefined
+
+    // Suplantando no se refresca. La cookie es la del super admin, así que
+    // renovar lo devolvería a su identidad en medio de una pantalla del panel,
+    // con el banner puesto y datos que ya no le corresponden. Se corta la
+    // sesión de soporte y se avisa.
+    if (error.response?.status === 401 && isImpersonating()) {
+      notifyImpersonationEnded()
+      throw toApiError(error)
+    }
+
     const isExpiredAccess =
       error.response?.status === 401 &&
       config !== undefined &&

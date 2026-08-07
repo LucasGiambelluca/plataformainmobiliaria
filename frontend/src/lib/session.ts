@@ -27,3 +27,32 @@ export function notifySessionExpired(): void {
   accessToken = null
   onExpired?.()
 }
+
+/**
+ * Bandera de suplantación.
+ *
+ * Vive acá y no en el store por el mismo ciclo de imports que documenta el
+ * encabezado de este archivo: `api.ts` la lee, el store la escribe, y ninguno
+ * de los dos importa al otro.
+ */
+let impersonating = false
+let onImpersonationEnded: (() => void) | null = null
+
+export function isImpersonating(): boolean {
+  return impersonating
+}
+
+export function setImpersonating(value: boolean): void {
+  impersonating = value
+}
+
+/** Registra el callback que corre cuando la sesión de soporte deja de valer. */
+export function setImpersonationEndedHandler(handler: (() => void) | null): void {
+  onImpersonationEnded = handler
+}
+
+export function notifyImpersonationEnded(): void {
+  accessToken = null
+  impersonating = false
+  onImpersonationEnded?.()
+}
