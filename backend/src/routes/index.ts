@@ -18,6 +18,7 @@ import {
   domainsRouter,
 } from "@/modules/domains/domains.router";
 import { caddyRouter } from "@/modules/domains/caddy.router";
+import { paymentSettingsRouter } from "@/modules/paymentSettings/paymentSettings.router";
 import {
   platformMetricsRouter,
   tenantMetricsRouter,
@@ -66,6 +67,8 @@ apiRouter.use("/internal/caddy", caddyRouter);
 // Auditoría, dominios y métricas globales: solo super admin.
 apiRouter.use("/admin/audit", auditRouter);
 apiRouter.use("/admin/domains", adminDomainsRouter);
+// Credenciales de la pasarela: solo super admin.
+apiRouter.use("/admin/payment-settings", paymentSettingsRouter);
 apiRouter.use("/admin/metrics", platformMetricsRouter);
 // Tasaciones que ninguna inmobiliaria pudo tomar.
 apiRouter.use("/admin/appraisals", adminAppraisalsRouter);

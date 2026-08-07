@@ -23,6 +23,8 @@ export const AUDIT_ACTIONS = [
   "domain.verify",
   "domain.delete",
   "impersonation.start",
+  "payment_settings.update",
+  "payment_settings.activate",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
