@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { encryptSecret } from "../src/shared/services/crypto/secretBox";
 
 const prisma = new PrismaClient();
 
@@ -42,6 +43,41 @@ const plans = [
   },
 ];
 
+/**
+ * Migración de las credenciales que estaban en el .env.
+ *
+ * Va acá y no en server.ts porque `npm run prisma:seed` ya es un paso
+ * documentado del despliegue y es idempotente por naturaleza, mientras que en
+ * el arranque sería código que se ejecuta en cada deploy durante años para una
+ * condición que se cumple una sola vez.
+ */
+async function seedPaymentSettings(): Promise<void> {
+  const existente = await prisma.paymentSettings.findUnique({
+    where: { id: "singleton" },
+  });
+  if (existente) {
+    console.log("• Credenciales de la pasarela ya configuradas, se omite");
+    return;
+  }
+
+  const token = process.env.PAYMENT_API_KEY;
+  const secret = process.env.PAYMENT_WEBHOOK_SECRET;
+  if (!token || !secret) {
+    console.log("• Sin PAYMENT_API_KEY en el entorno: se cargan desde /admin/pagos");
+    return;
+  }
+
+  await prisma.paymentSettings.create({
+    data: {
+      id: "singleton",
+      activeMode: "production",
+      productionAccessToken: encryptSecret(token),
+      productionWebhookSecret: encryptSecret(secret),
+    },
+  });
+  console.log("✔ Credenciales del .env migradas a la base como producción");
+}
+
 async function main(): Promise<void> {
   // Planes (idempotente por slug).
   for (const p of plans) {
@@ -83,6 +119,8 @@ async function main(): Promise<void> {
   } else {
     console.log("• Super admin ya existe, se omite");
   }
+
+  await seedPaymentSettings();
 }
 
 main()
