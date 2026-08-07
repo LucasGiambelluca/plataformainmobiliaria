@@ -38,6 +38,11 @@ enum PaymentProviderName {
   stripe
 }
 
+enum PaymentMode {
+  sandbox
+  production
+}
+
 enum UserRole {
   super_admin
   tenant_admin
@@ -557,4 +562,27 @@ model AppraisalMedia {
   @@index([draftId])
   @@index([appraisalId])
   @@map("appraisal_media")
+}
+
+/// Credenciales de la pasarela, cargadas desde el panel del super admin.
+///
+/// Fila única (id fijo): la plataforma cobra con una sola cuenta de
+/// MercadoPago, así que no hay tenant_id acá. Los dos juegos van como columnas
+/// de la misma fila y no como dos filas con un isActive, para que "cuál está
+/// activa" sea un dato y no un invariante que alguien tenga que sostener.
+///
+/// Los cuatro secretos se guardan cifrados: ver shared/services/crypto/secretBox.
+model PaymentSettings {
+  id                      String      @id @default("singleton")
+  activeMode              PaymentMode @default(sandbox) @map("active_mode")
+
+  sandboxAccessToken      String?     @map("sandbox_access_token")
+  sandboxWebhookSecret    String?     @map("sandbox_webhook_secret")
+  productionAccessToken   String?     @map("production_access_token")
+  productionWebhookSecret String?     @map("production_webhook_secret")
+
+  updatedAt               DateTime    @updatedAt @map("updated_at")
+  updatedById             String?     @map("updated_by_id")
+
+  @@map("payment_settings")
 }
