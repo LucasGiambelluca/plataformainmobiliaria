@@ -202,9 +202,12 @@ un ícono "Ver su panel".
 ## Fuera de alcance (deuda anotada)
 
 **No se deshabilitan los botones de acción de las ocho pantallas del panel.** En
-su lugar, el 403 del backend viaja con `IMPERSONATION_READ_ONLY` y el
-interceptor lo traduce a un mensaje claro: "Solo lectura: estás en modo
-soporte". Cubre las ocho pantallas sin tocar ninguna.
+su lugar, el 403 del backend ya trae el mensaje final —"Estás en modo soporte:
+la sesión es de solo lectura."— y `toApiError` lo pasa tal cual a `ApiError.message`,
+que es lo que las pantallas muestran. No hace falta traducir nada en el
+interceptor: alcanza con que el mensaje del backend esté bien escrito. El code
+`IMPERSONATION_READ_ONLY` queda igual, para que una pantalla que quiera
+distinguirlo de un 403 por rol pueda hacerlo.
 
 El roce es real: se hace clic en "Guardar" y recién ahí llega el aviso. Con el
 banner arriba se acepta para esta versión. Si molesta, el arreglo es un hook
@@ -237,10 +240,19 @@ También queda afuera, y no es olvido:
 **Frontend** (`frontend/tests/`)
 
 - `startImpersonation` deja el token en memoria y el estado en el store.
-- `stopImpersonation` vuelve al super admin.
+- `stopImpersonation` vuelve al super admin, y lo deja anónimo si la sesión real
+  también murió.
 - Un 401 durante la suplantación no dispara refresh: sale de la suplantación.
-- El header muestra "Volver al admin" y no "Salir" mientras se suplanta.
-- El banner aparece con el nombre de la inmobiliaria y desaparece al salir.
+- Fuera de la suplantación, un 401 sigue refrescando como siempre.
+
+**Verificación manual, no automática**
+
+El banner y el reemplazo del botón "Salir" por "Volver al admin" son
+comportamiento de componente, y el harness de Vitest corre en entorno `node` sin
+`@testing-library/react`: no hay forma de montar un componente hoy. Se verifican
+a mano en el navegador, con pasos escritos en el plan de implementación. Sumar
+RTL es un cambio de infraestructura de tests más grande que esta funcionalidad y
+queda para cuando haya varias pantallas que lo justifiquen.
 
 ## Archivos que se tocan
 
