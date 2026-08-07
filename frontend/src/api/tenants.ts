@@ -1,8 +1,10 @@
 import { getJson, patchJson, postJson } from '../lib/api'
 import {
+  impersonationResponseSchema,
   tenantListResponseSchema,
   tenantProvisionResponseSchema,
   tenantUpdateResponseSchema,
+  type ImpersonationResponse,
   type NewTenantForm,
   type TenantListResponse,
 } from './schemas'
@@ -43,4 +45,9 @@ export interface UpdateTenantInput {
 
 export function updateTenant(id: string, data: UpdateTenantInput) {
   return patchJson(`/admin/tenants/${id}`, tenantUpdateResponseSchema, data)
+}
+
+/** Abre una sesión de soporte de solo lectura sobre la inmobiliaria. */
+export function impersonateTenant(id: string): Promise<ImpersonationResponse> {
+  return postJson(`/admin/tenants/${id}/impersonate`, impersonationResponseSchema)
 }

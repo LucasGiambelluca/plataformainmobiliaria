@@ -155,6 +155,19 @@ export const tenantProvisionResponseSchema = z.object({
   }),
 })
 
+/**
+ * Sesión de soporte sobre una inmobiliaria. No trae refresh token: la cookie
+ * httpOnly sigue siendo la del super admin, y volver a ser él es pedirle al
+ * backend un token nuevo con esa cookie.
+ */
+export const impersonationResponseSchema = z.object({
+  accessToken: z.string(),
+  expiresAt: z.string(),
+  user: sessionUserSchema,
+  tenant: z.object({ id: z.string(), name: z.string(), slug: z.string() }),
+})
+export type ImpersonationResponse = z.infer<typeof impersonationResponseSchema>
+
 /* --------------------------- suscripción --------------------------- */
 
 const resourceUsageSchema = z.object({ used: z.number(), limit: z.number() })
