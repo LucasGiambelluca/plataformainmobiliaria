@@ -363,14 +363,37 @@ lanzar así y cargar las suscripciones a mano. Para pasar a producción:
 
 1. **Correo** — `EMAIL_PROVIDER=resend` con la API key y el dominio verificado.
    Sin SPF y DKIM configurados los correos van a spam.
-2. **Pagos** — `PAYMENT_PROVIDER=mercadopago` con las credenciales de
-   producción, y el webhook en el panel de MercadoPago apuntando a
-   `https://TU-DOMINIO/api/billing/webhook`. La clave secreta del webhook va en
-   `PAYMENT_WEBHOOK_SECRET`: sin ella el backend se niega a arrancar, porque un
-   webhook sin firma verificada deja que cualquiera se acredite un pago.
+2. **Pagos** — `PAYMENT_PROVIDER=mercadopago` y `CREDENTIALS_ENCRYPTION_KEY`
+   con 32 bytes en hex (`openssl rand -hex 32`). Las credenciales de
+   MercadoPago **no van en el `.env`**: se cargan desde `/admin/pagos` y se
+   guardan cifradas en la base. Sin la clave de cifrado el backend se niega a
+   arrancar, porque no podría descifrar lo que él mismo guardó.
 
 Después de cambiarlas:
 
 ```bash
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
+
+### Cargar las credenciales de MercadoPago
+
+Tres pasos, en este orden:
+
+1. Entrar a `https://TU-DOMINIO/admin/pagos` como super admin y pegar el
+   **access token** y el **webhook secret**. Se guardan cifrados; la pantalla
+   nunca los vuelve a mostrar, solo sus últimos cuatro caracteres. Guardar los
+   valida contra MercadoPago: un token mal pegado se rechaza en el acto.
+2. **Copiar la URL del webhook** que muestra esa misma pantalla y pegarla en el
+   panel de MercadoPago, en *Tus integraciones → Webhooks*. Es el paso que más
+   se olvida: sin él los pagos entran, nadie se entera, y las suscripciones
+   quedan pendientes para siempre.
+3. Activar el modo que corresponda. Se pueden tener cargados los dos juegos
+   —prueba y producción— y cambiar de uno a otro con un clic.
+
+**No hace falta reiniciar nada.** El proveedor de pagos se arma leyendo la base
+en cada operación, así que un cambio de credenciales toma efecto en el cobro
+siguiente.
+
+Ojo con cambiar de modo o de cuenta con suscripciones vivas: un `preapproval`
+nacido en una cuenta no se puede consultar ni cancelar con el token de otra. La
+pantalla avisa cuántas quedarían en esa situación antes de confirmar.
