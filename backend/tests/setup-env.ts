@@ -19,3 +19,8 @@ process.env.DNS_RESOLVER ??= "fake";
 // token está vacío, que es el default de env.ts. Sin esto, sus tests no podrían
 // distinguir "host no autorizado" de "token sin configurar".
 process.env.CADDY_ASK_TOKEN ??= "token-de-test-para-caddy";
+
+// Clave de cifrado de prueba. Los tests de secretBox la necesitan aunque
+// PAYMENT_PROVIDER sea fake, porque el módulo la lee al cifrar.
+process.env.CREDENTIALS_ENCRYPTION_KEY ??=
+  "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";

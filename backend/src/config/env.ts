@@ -77,6 +77,10 @@ const envSchema = z.object({
   PAYMENT_PROVIDER: z.enum(["mercadopago", "stripe", "fake"]).default("fake"),
   PAYMENT_API_KEY: z.string().optional().default(""),
   PAYMENT_WEBHOOK_SECRET: z.string().optional().default(""),
+  // Clave de cifrado de los secretos guardados en base (32 bytes en hex).
+  // A diferencia de las credenciales de la pasarela, esta NO cambia: se pone
+  // una vez. Es lo que hace que rotar el access token deje de ser un deploy.
+  CREDENTIALS_ENCRYPTION_KEY: z.string().optional().default(""),
   // URL pública del backend: la pasarela la necesita para el notification_url,
   // así que no puede ser localhost en producción.
   BACKEND_URL: z.string().url().default("http://localhost:3000"),
@@ -104,17 +108,18 @@ const envWithStorageRules = envSchema
     }
   })
   .superRefine((env, ctx) => {
-    // Sin webhook secret no se puede verificar la firma, y un webhook sin
-    // verificar es una puerta abierta a que cualquiera se acredite un pago.
+    // Las credenciales de la pasarela ya no viven acá: se cargan desde el
+    // panel del super admin y se guardan cifradas. Lo que sí tiene que estar
+    // es la clave con la que se descifran, porque sin ella el backend no puede
+    // leer lo que él mismo guardó.
     if (env.PAYMENT_PROVIDER !== "mercadopago") return;
-    for (const key of ["PAYMENT_API_KEY", "PAYMENT_WEBHOOK_SECRET"] as const) {
-      if (!env[key]) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: [key],
-          message: `Requerida cuando PAYMENT_PROVIDER=mercadopago`,
-        });
-      }
+    if (!/^[0-9a-fA-F]{64}$/.test(env.CREDENTIALS_ENCRYPTION_KEY)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["CREDENTIALS_ENCRYPTION_KEY"],
+        message:
+          "Requerida cuando PAYMENT_PROVIDER=mercadopago: 64 caracteres hex (32 bytes). Generala con: openssl rand -hex 32",
+      });
     }
   })
   .superRefine((env, ctx) => {
