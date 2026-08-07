@@ -1,6 +1,12 @@
 import bcrypt from "bcryptjs";
 import { Prisma, type UserRole } from "@prisma/client";
-import { AppError, ConflictError, NotFoundError } from "@/shared/errors";
+import {
+  AppError,
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "@/shared/errors";
+import { signImpersonationToken } from "@/shared/services/jwt.service";
 
 // Plan asignado en el alta self-serve (gratuito → suscripción activa directa).
 export const DEFAULT_PLAN_SLUG = "basico";
@@ -40,6 +46,19 @@ export interface TenantUpdateInput {
   planId?: string;
 }
 
+export interface ImpersonationResult {
+  accessToken: string;
+  expiresAt: Date;
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+    tenantId: string;
+    role: UserRole;
+  };
+  tenant: { id: string; name: string; slug: string };
+}
+
 export interface ListTenantsInput {
   search?: string;
   isActive?: boolean;
@@ -70,6 +89,9 @@ export interface TenantsRepository {
     pageSize: number;
   }): Promise<{ items: unknown[]; total: number }>;
   findTenantById(id: string): Promise<unknown | null>;
+  findActiveTenantAdmin(
+    tenantId: string,
+  ): Promise<{ id: string; email: string; name: string | null } | null>;
   updateTenant(id: string, data: Omit<TenantUpdateInput, "planId">): Promise<unknown>;
   updateSubscriptionPlan(tenantId: string, planId: string): Promise<void>;
 }
@@ -155,5 +177,46 @@ export class TenantsService {
       await this.repo.updateSubscriptionPlan(id, planId);
     }
     return this.repo.updateTenant(id, tenantData);
+  }
+
+  /**
+   * Abre una sesión de soporte sobre una inmobiliaria: devuelve un token con
+   * la identidad de su tenant_admin, marcado como solo lectura.
+   *
+   * No chequea que la inmobiliaria esté activa a propósito. Una suspendida es
+   * justo cuando más falta hace mirar su panel.
+   */
+  async impersonate(tenantId: string, actorId: string): Promise<ImpersonationResult> {
+    // getById tira NotFoundError si no existe; devuelve la fila cruda.
+    const tenant = (await this.getById(tenantId)) as {
+      id: string;
+      name: string;
+      slug: string;
+    };
+
+    const admin = await this.repo.findActiveTenantAdmin(tenantId);
+    if (!admin) {
+      throw new ValidationError(
+        "La inmobiliaria no tiene un administrador activo al que suplantar",
+      );
+    }
+
+    const { token, expiresAt } = signImpersonationToken(
+      { userId: admin.id, tenantId },
+      actorId,
+    );
+
+    return {
+      accessToken: token,
+      expiresAt,
+      user: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        tenantId,
+        role: "tenant_admin",
+      },
+      tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug },
+    };
   }
 }

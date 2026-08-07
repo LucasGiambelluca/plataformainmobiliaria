@@ -110,6 +110,17 @@ export const tenantsRepository: TenantsRepository = {
     });
   },
 
+  findActiveTenantAdmin(tenantId) {
+    // El más antiguo. Con varios administradores hace falta un criterio
+    // estable, y en una sesión de solo lectura todos ven exactamente lo mismo,
+    // así que cuál se elija no cambia nada mientras no cambie entre llamadas.
+    return prisma.user.findFirst({
+      where: { tenantId, role: "tenant_admin", isActive: true },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, email: true, name: true },
+    });
+  },
+
   updateTenant(id, data) {
     return prisma.tenant.update({ where: { id }, data });
   },
