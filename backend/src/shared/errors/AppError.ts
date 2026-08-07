@@ -58,6 +58,20 @@ export class ConflictError extends AppError {
   }
 }
 
+/**
+ * Escritura intentada desde una sesión de suplantación. Tiene code propio para
+ * que el frontend lo distinga de un 403 por rol y muestre el mensaje correcto.
+ */
+export class ReadOnlySessionError extends AppError {
+  constructor() {
+    super(
+      "Estás en modo soporte: la sesión es de solo lectura.",
+      403,
+      "IMPERSONATION_READ_ONLY",
+    );
+  }
+}
+
 export class LimitExceededError extends AppError {
   constructor(resource: string, message?: string) {
     super(
