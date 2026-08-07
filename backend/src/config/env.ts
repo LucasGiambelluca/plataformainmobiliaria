@@ -45,6 +45,10 @@ const envSchema = z.object({
     .string()
     .min(32, "JWT_REFRESH_SECRET debe tener al menos 32 caracteres"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+  // Duración de una sesión de suplantación. No se puede renovar: cuando vence,
+  // el super admin vuelve a su identidad. Por eso es más larga que el access
+  // token normal, que sí se refresca solo.
+  IMPERSONATION_EXPIRES_IN: z.string().default("30m"),
 
   // "fake" no sube nada: sirve para tests y para levantar el backend sin
   // storage configurado. Cualquier intento de firmar un upload avisa.

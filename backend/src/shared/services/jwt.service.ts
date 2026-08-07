@@ -20,6 +20,43 @@ export function signRefreshToken(userId: string): string {
   } as SignOptions);
 }
 
+export interface ImpersonationTarget {
+  userId: string;
+  tenantId: string;
+}
+
+/**
+ * Token con el que el super admin abre el panel de una inmobiliaria.
+ *
+ * Va aparte de `signAccessToken` a propósito: mientras el camino normal no
+ * tenga forma de escribir `act`, ninguna sesión común puede terminar marcada
+ * como suplantación por un descuido.
+ *
+ * No hay refresh token asociado. La cookie httpOnly sigue siendo la del super
+ * admin, así que recargar la página lo devuelve a su identidad y no existe
+ * forma de quedar atrapado en la ajena.
+ */
+export function signImpersonationToken(
+  target: ImpersonationTarget,
+  actorId: string,
+): { token: string; expiresAt: Date } {
+  const payload: JwtPayload = {
+    sub: target.userId,
+    tenant: target.tenantId,
+    role: "tenant_admin",
+    act: actorId,
+    ro: true,
+  };
+  const token = jwt.sign(payload, env.JWT_SECRET, {
+    expiresIn: env.IMPERSONATION_EXPIRES_IN,
+  } as SignOptions);
+
+  // La expiración se lee del propio JWT para que el dato que ve el frontend y
+  // el que hace cumplir el servidor nunca diverjan.
+  const { exp } = jwt.decode(token) as { exp: number };
+  return { token, expiresAt: new Date(exp * 1000) };
+}
+
 export function verifyAccessToken(token: string): JwtPayload {
   try {
     return jwt.verify(token, env.JWT_SECRET) as JwtPayload;
