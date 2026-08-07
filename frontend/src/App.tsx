@@ -26,6 +26,7 @@ import AdminLayout from './components/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Tenants from './pages/admin/Tenants'
 import Plans from './pages/admin/Plans'
+import PaymentSettings from './pages/admin/PaymentSettings'
 import AdminDomains from './pages/admin/AdminDomains'
 import Audit from './pages/admin/Audit'
 import { useAuth } from './store/auth'
@@ -98,6 +99,7 @@ export default function App() {
           <Route index element={<AdminDashboard />} />
           <Route path="inmobiliarias" element={<Tenants />} />
           <Route path="planes" element={<Plans />} />
+          <Route path="pagos" element={<PaymentSettings />} />
           <Route path="dominios" element={<AdminDomains />} />
           <Route path="auditoria" element={<Audit />} />
         </Route>
