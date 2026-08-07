@@ -6,6 +6,8 @@ coverage/
 .env.local
 # Secretos de producción: base, JWT, MinIO, pasarela. Nunca al repo.
 .env.production
+# Notas de acceso al VPS: IP, usuario y contraseña. Nunca al repo.
+Entre Rios Propeidades/
 *.log
 .DS_Store
 .idea/
