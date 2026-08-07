@@ -58,6 +58,18 @@ export const dnsCheckLimiter = rateLimit({
   message: json("Demasiadas verificaciones seguidas. Esperá unos minutos."),
 });
 
+// Suplantación de inmobiliaria: es una acción de soporte, no de volumen. El
+// cupo existe para que un token de super admin robado no barra la plataforma
+// entera abriendo el panel de cada inmobiliaria una atrás de la otra.
+export const impersonateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip,
+  message: json("Demasiadas sesiones de soporte seguidas."),
+});
+
 // Endpoints públicos (catálogo, consultas).
 export const publicLimiter = rateLimit({
   windowMs: 60 * 1000,

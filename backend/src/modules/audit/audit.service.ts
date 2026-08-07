@@ -22,6 +22,7 @@ export const AUDIT_ACTIONS = [
   "domain.create",
   "domain.verify",
   "domain.delete",
+  "impersonation.start",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -3,7 +3,8 @@ import { authenticate } from "@/shared/middleware/authenticate";
 import { authorize } from "@/shared/middleware/authorize";
 import { validate } from "@/shared/middleware/validate";
 import { asyncHandler } from "@/shared/utils/asyncHandler";
-import { ValidationError } from "@/shared/errors";
+import { UnauthorizedError, ValidationError } from "@/shared/errors";
+import { impersonateLimiter } from "@/shared/middleware/rateLimit";
 import {
   listTenantsQuerySchema,
   provisionSchema,
@@ -91,6 +92,38 @@ export function createTenantsRouter(
       });
 
       res.json({ tenant });
+    }),
+  );
+
+  // Sesión de soporte: abre el panel de la inmobiliaria en modo solo lectura.
+  router.post(
+    "/:id/impersonate",
+    impersonateLimiter,
+    asyncHandler(async (req, res) => {
+      // authenticate + authorize("super_admin") garantizan el usuario, pero el
+      // id se usa como identidad del suplantador y no puede quedar en null.
+      const actor = req.user;
+      if (!actor) throw new UnauthorizedError();
+
+      const result = await service.impersonate(req.params.id, actor.id);
+
+      // Va con el tenantId de la inmobiliaria para que aparezca en SU log de
+      // auditoría, y con el super admin real como userId: es el punto entero
+      // del registro.
+      await auditor.record({
+        tenantId: req.params.id,
+        userId: actor.id,
+        action: "impersonation.start",
+        entityType: "user",
+        entityId: result.user.id,
+        ipAddress: req.ip,
+        metadata: {
+          email: result.user.email,
+          expiresAt: result.expiresAt.toISOString(),
+        },
+      });
+
+      res.json(result);
     }),
   );
 

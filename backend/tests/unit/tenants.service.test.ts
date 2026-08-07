@@ -30,6 +30,7 @@ function makeRepo(overrides: Partial<TenantsRepository> = {}) {
     createTenantWithAdmin: jest.fn().mockResolvedValue({ tenant: TENANT, user: ADMIN }),
     listTenants: jest.fn().mockResolvedValue({ items: [TENANT], total: 1 }),
     findTenantById: jest.fn().mockResolvedValue(TENANT),
+    findActiveTenantAdmin: jest.fn().mockResolvedValue(ADMIN),
     updateTenant: jest.fn().mockResolvedValue({ ...TENANT, name: "Nueva" }),
     updateSubscriptionPlan: jest.fn().mockResolvedValue(undefined),
     ...overrides,
