@@ -1,4 +1,5 @@
 import { logger } from "@/config/logger";
+import { fetchConTimeout, TIMEOUT_MS } from "@/shared/http/fetch-con-timeout";
 
 export type TokenCheck = "ok" | "rejected" | "unreachable";
 
@@ -15,7 +16,11 @@ export type TokenCheck = "ok" | "rejected" | "unreachable";
  */
 export async function checkMercadoPagoToken(accessToken: string): Promise<TokenCheck> {
   try {
-    const res = await fetch("https://api.mercadopago.com/users/me", {
+    // Con corte de tiempo. El `catch` de abajo ya sabe qué hacer con un fallo de
+    // red —"unreachable", se guarda igual— pero sin corte no hay fallo: la
+    // promesa queda colgada y quien está guardando las credenciales espera
+    // para siempre, con la pantalla clavada.
+    const res = await fetchConTimeout("https://api.mercadopago.com/users/me", TIMEOUT_MS.pago, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 

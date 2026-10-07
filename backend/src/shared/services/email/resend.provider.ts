@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errors";
 import { logger } from "@/config/logger";
+import { fetchConTimeout, TIMEOUT_MS } from "@/shared/http/fetch-con-timeout";
 import type { EmailMessage, EmailProvider } from "./email.provider";
 
 const API = "https://api.resend.com/emails";
@@ -16,20 +17,28 @@ export class ResendProvider implements EmailProvider {
   constructor(private readonly config: ResendConfig) {}
 
   async send(message: EmailMessage): Promise<void> {
-    const res = await fetch(API, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
-        "Content-Type": "application/json",
+    // Con corte de tiempo: sin él, un Resend que acepta la conexión y no
+    // responde deja esta promesa colgada para siempre, y el `await` del
+    // notificador no termina nunca. Peor que fallar: acá el notificador se
+    // traga el error y sigue.
+    const res = await fetchConTimeout(
+      API,
+      TIMEOUT_MS.correo,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: this.config.from,
+          to: [message.to],
+          subject: message.subject,
+          html: message.html,
+          text: message.text,
+        }),
       },
-      body: JSON.stringify({
-        from: this.config.from,
-        to: [message.to],
-        subject: message.subject,
-        html: message.html,
-        text: message.text,
-      }),
-    });
+    );
 
     if (!res.ok) {
       const cuerpo = await res.text();

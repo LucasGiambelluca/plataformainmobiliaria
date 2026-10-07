@@ -1,5 +1,6 @@
 import { CATALOGO, type Fuente, type Serie } from "./catalogo";
 import type { IndexProvider, PuntoSerie } from "./index.provider";
+import { fetchConTimeout, TIMEOUT_MS } from "@/shared/http/fetch-con-timeout";
 
 /**
  * Series contra los organismos que las publican.
@@ -67,7 +68,11 @@ export class OficialIndexProvider implements IndexProvider {
 
     for (let pagina = 0; pagina < BCRA_MAX_PAGINAS; pagina++) {
       const url = offset === 0 ? base : `${base}?offset=${offset}`;
-      const res = await this.fetchFn(url);
+      // El corte va POR PETICIÓN, no por descarga: la serie del ICL pasa los
+      // 2000 puntos y son tres páginas, así que una sola señal para toda la
+      // bajada la mataría a mitad de camino. `BCRA_MAX_PAGINAS` es el límite
+      // superior de intentos, que es lo que impide el bucle infinito.
+      const res = await fetchConTimeout(url, TIMEOUT_MS.indice, {}, this.fetchFn);
 
       if (!res.ok) {
         throw new Error(`El BCRA respondió ${res.status} al pedir el ${etiqueta}`);
@@ -99,7 +104,7 @@ export class OficialIndexProvider implements IndexProvider {
   /** Serie mensual del INDEC publicada en datos.gob.ar. */
   private async datosGob(idSerie: string, etiqueta: string): Promise<PuntoSerie[]> {
     const url = `${DATOS_GOB_BASE}?ids=${idSerie}&limit=1000&format=json`;
-    const res = await this.fetchFn(url);
+    const res = await fetchConTimeout(url, TIMEOUT_MS.indice, {}, this.fetchFn);
 
     if (!res.ok) {
       throw new Error(`datos.gob.ar respondió ${res.status} al pedir el ${etiqueta}`);
