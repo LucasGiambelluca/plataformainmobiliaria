@@ -1,0 +1,32 @@
+# MinIO de M2Props. Binario suelto, sin contenedor, por el mismo motivo que el
+# backend: este VPS no tiene Docker.
+#
+# Escucha solo en loopback. La consola de administración (--console-address) NO
+# se abre al mundo: para verla hay que hacer túnel, igual que con el compose.
+#
+#   journalctl -u m2props-minio -f
+#   ssh -L 9001:127.0.0.1:9001 root@VPS
+
+[Unit]
+Description=MinIO (multimedia de M2Props)
+After=network.target
+Before=m2props-backend.service
+
+[Service]
+Type=simple
+User=m2props
+Group=m2props
+EnvironmentFile=/etc/m2props/minio.env
+ExecStart=/usr/local/bin/minio server /var/lib/m2props/minio --address 127.0.0.1:9000 --console-address 127.0.0.1:9001
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+# Único directorio que el proceso puede escribir.
+ReadWritePaths=/var/lib/m2props/minio
+
+[Install]
+WantedBy=multi-user.target

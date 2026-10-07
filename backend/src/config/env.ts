@@ -13,7 +13,24 @@ if (process.env.NODE_ENV !== "test") {
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
+  // Interfaz de escucha. El default es 0.0.0.0 porque en Docker el backend
+  // tiene que ser alcanzable desde los otros contenedores del compose; en un
+  // despliegue nativo lo bajan a 127.0.0.1, donde el proxy local es el único
+  // que llega.
+  HOST: z.string().default("0.0.0.0"),
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
+  // Subpath bajo el que se sirve la API, sin barras: "" en la raíz del host,
+  // "/m2props" cuando la app vive en un subpath de un dominio que ya tiene otro
+  // sitio en la raíz. Solo lo usa la cookie de refresh (auth.router.ts): su
+  // `path` tiene que coincidir con la ruta por la que realmente viaja la
+  // petición, o el navegador deja de mandarla y la sesión se cae al recargar.
+  APP_BASE_PATH: z
+    .string()
+    .default("")
+    .transform((v) => {
+      const limpio = v.trim().replace(/^\/+|\/+$/g, "");
+      return limpio ? `/${limpio}` : "";
+    }),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),

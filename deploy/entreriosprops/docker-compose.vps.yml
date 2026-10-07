@@ -1,0 +1,156 @@
+# ─────────────────────────────────────────────────────────────
+# Variante "borde ajeno": el VPS ya tiene un Caddy propio (contenedor
+# `stock-caddy`, proyecto /opt/stocksystem) que sirve otros seis sitios en
+# producción y es el dueño de los puertos 80 y 443. Por eso este compose NO
+# trae el servicio `caddy` de docker-compose.prod.yml.
+#
+# Cómo llega ese Caddy hasta acá: NO por puertos publicados, sino enganchando
+# frontend, backend y MinIO a su misma red Docker (`borde`, declarada como
+# external). Así el proxy los resuelve por nombre de contenedor y no hace falta
+# publicar NADA en el host — ni siquiera en 127.0.0.1 — ni recrear su
+# contenedor para agregarle un host-gateway.
+#
+# Postgres se queda solo en la red interna: no tiene por qué ser visible desde
+# los contenedores de los otros sitios.
+#
+#   docker compose --env-file .env.production -f deploy/entreriosprops/docker-compose.vps.yml up -d --build
+#
+# El bloque para su Caddyfile está en Caddyfile.snippet.
+# ─────────────────────────────────────────────────────────────
+
+# Nombre propio del proyecto: los volúmenes quedan como entreriosprops_pgdata y
+# no pueden pisar los de los despliegues que ya viven en este VPS.
+name: entreriosprops
+
+networks:
+  # Privada de este stack: acá vive la base.
+  interna:
+    driver: bridge
+  # La red del Caddy del host. `external` = este compose la usa pero no la
+  # administra: un `docker compose down` NO la borra ni toca sus contenedores.
+  borde:
+    external: true
+    name: stocksystem_stock-network
+
+services:
+  # ── SPA ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../../frontend
+      args:
+        # Mismo host que la web: la API no vive en api.<dominio>. Eso es lo que
+        # hace que la cookie httpOnly del refresh (sameSite lax) viaje sin CORS.
+        VITE_API_URL: /api
+        VITE_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:?falta PLATFORM_DOMAIN en .env.production}
+    container_name: entreriosprops_frontend
+    restart: unless-stopped
+    networks:
+      - borde
+
+  # ── API ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ../../backend
+    container_name: entreriosprops_backend
+    restart: unless-stopped
+    env_file:
+      - ../../.env.production
+    networks:
+      - interna
+      - borde
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # ── Migraciones: corre una vez y termina ───────────────────
+  # Usa la etapa `build` de la imagen porque es la única con el CLI de Prisma.
+  # También es la que corre los scripts sueltos (`scripts/seed-demo.ts`).
+  migrate:
+    build:
+      context: ../../backend
+      target: build
+    container_name: entreriosprops_migrate
+    command: npx prisma migrate deploy
+    env_file:
+      - ../../.env.production
+    networks:
+      - interna
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Base de datos ──────────────────────────────────────────
+  # Solo en la red interna: los contenedores de los otros sitios del VPS no
+  # tienen por qué poder abrirle una conexión.
+  postgres:
+    image: postgres:16
+    container_name: entreriosprops_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?falta POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?falta POSTGRES_DB}
+    networks:
+      - interna
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Multimedia ─────────────────────────────────────────────
+  # El navegador llega a las fotos por el mismo host de la web, en la ruta
+  # /inmobiliaria-media, que el Caddy del host reenvía acá. La consola de
+  # administración (9001) no se expone a ninguna red.
+  minio:
+    image: minio/minio:latest
+    container_name: entreriosprops_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?falta MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?falta MINIO_ROOT_PASSWORD}
+    networks:
+      - interna
+      - borde
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Crea el bucket y lo deja de lectura pública. Idempotente.
+  minio-init:
+    image: minio/mc:latest
+    container_name: entreriosprops_minio_init
+    networks:
+      - interna
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing local/$${S3_BUCKET} &&
+      mc anonymous set download local/$${S3_BUCKET}
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?falta MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?falta MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET:-inmobiliaria-media}
+
+volumes:
+  pgdata:
+  miniodata:

@@ -1,4 +1,5 @@
 import type { PublicPropertyDetail, PublicSite } from '../api/schemas'
+import { BASE_PATH } from './basePath'
 import { PROVINCIA } from './localidades'
 import { formatPrice, operationLabels, typeLabels } from './propertyLabels'
 
@@ -229,11 +230,16 @@ export function serializeJsonLd(data: unknown): string {
  */
 export function applySeo(meta: SeoMeta, doc: Document = document): void {
   const origin = doc.defaultView?.location.origin ?? ''
+  // El prefijo va adentro del "origen" porque es lo que hace falta en las dos
+  // URL absolutas que se arman acá. Con la app en la raíz no cambia nada; bajo
+  // un subpath, sin esto el canonical y el og:url declararían como canónica una
+  // ruta que en el host no existe.
+  const base = origin + BASE_PATH
   doc.title = composeTitle(meta.title, meta.siteName ?? PORTAL_NAME)
 
   doc.head.querySelectorAll(`[${MARCA}]`).forEach((el) => el.remove())
 
-  for (const tag of seoTags(meta, origin)) {
+  for (const tag of seoTags(meta, base)) {
     const el = doc.createElement('meta')
     el.setAttribute(tag.attr, tag.key)
     el.setAttribute('content', tag.content)
@@ -244,7 +250,7 @@ export function applySeo(meta: SeoMeta, doc: Document = document): void {
   if (meta.canonicalPath) {
     const link = doc.createElement('link')
     link.setAttribute('rel', 'canonical')
-    link.setAttribute('href', origin + meta.canonicalPath)
+    link.setAttribute('href', base + meta.canonicalPath)
     link.setAttribute(MARCA, '')
     doc.head.appendChild(link)
   }

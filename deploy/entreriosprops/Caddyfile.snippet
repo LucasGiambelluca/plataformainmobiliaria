@@ -1,0 +1,70 @@
+# --- ENTRE RIOS PROPIEDADES: plataforma inmobiliaria multitenant ---
+# Bloque para /opt/stocksystem/Caddyfile. Es un sitio aparte: no toca el bloque
+# de stocksystemspp.com ni el catch-all que manda a app:3001.
+#
+# Los upstreams son contenedores del proyecto `entreriosprops`, enganchados a
+# esta misma red Docker (stocksystem_stock-network). No hay puertos publicados
+# en el host: se resuelven por nombre de contenedor.
+#
+# Antes de recargar:  docker exec stock-caddy caddy validate --config /etc/caddy/Caddyfile
+# Recargar:           docker exec stock-caddy caddy reload --config /etc/caddy/Caddyfile
+entreriosprops.stocksystemspp.com {
+    encode gzip zstd
+
+    # La API va por el MISMO host que la web, no por api.<dominio>. Es lo que
+    # permite que la cookie httpOnly del refresh (sameSite lax) viaje sin CORS
+    # ni cookies de terceros.
+    handle /api/* {
+        reverse_proxy entreriosprops_backend:3000 {
+            transport http {
+                dial_timeout 10s
+                response_header_timeout 60s
+            }
+        }
+    }
+
+    handle /health {
+        reverse_proxy entreriosprops_backend:3000
+    }
+
+    # Los arma el backend con datos reales y dependen del host. Van ANTES del
+    # handle de los estaticos, que si no devuelve el index.html de la SPA.
+    handle /sitemap.xml {
+        reverse_proxy entreriosprops_backend:3000
+    }
+
+    handle /robots.txt {
+        reverse_proxy entreriosprops_backend:3000
+    }
+
+    # Multimedia servida por MinIO en el mismo origen, en vez de un cdn.<dominio>
+    # aparte: asi alcanza con un registro DNS y un certificado.
+    #
+    # OJO: el path NO se reescribe (handle, no handle_path) y el header Host
+    # tampoco (Caddy lo preserva por defecto). Las URLs de subida van firmadas
+    # con SigV4, que incluye el Host y la ruta completa en la firma: tocar
+    # cualquiera de los dos hace fallar todo PUT con SignatureDoesNotMatch.
+    handle /inmobiliaria-media/* {
+        reverse_proxy entreriosprops_minio:9000 {
+            transport http {
+                dial_timeout 10s
+                response_header_timeout 120s
+            }
+        }
+    }
+
+    # La SPA. Va ultimo: se queda con todo lo que no matcheo arriba.
+    handle {
+        reverse_proxy entreriosprops_frontend:80
+    }
+
+    header {
+        # Sin includeSubDomains: los otros subdominios de stocksystemspp.com son
+        # de otros sitios y no necesariamente tienen HTTPS.
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+}

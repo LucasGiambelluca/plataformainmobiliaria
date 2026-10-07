@@ -1,5 +1,5 @@
 import { Router, type Response } from "express";
-import { isProd } from "@/config/env";
+import { isProd, env } from "@/config/env";
 import { authenticate } from "@/shared/middleware/authenticate";
 import {
   authLimiter,
@@ -24,7 +24,12 @@ import { authRepository } from "./auth.repository";
 export const REFRESH_COOKIE = "refresh_token";
 
 // La cookie solo viaja a los endpoints de auth: menor superficie de CSRF.
-const COOKIE_PATH = "/api/auth";
+//
+// El prefijo sale de APP_BASE_PATH porque el `path` de una cookie se compara con
+// la ruta de la petición, no con la del sitio: si la API se sirve en
+// /m2props/api/auth y la cookie dice /api/auth, el navegador no la manda y la
+// sesión se cae en cada recarga. En la raíz del host queda "/api/auth".
+const COOKIE_PATH = `${env.APP_BASE_PATH}/api/auth`;
 
 function setRefreshCookie(res: Response, tokens: AuthTokens): void {
   res.cookie(REFRESH_COOKIE, tokens.refreshToken, {

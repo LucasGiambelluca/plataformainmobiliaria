@@ -50,11 +50,17 @@ function xml(value: string): string {
  * Origen público del pedido. Detrás de Caddy `req.protocol` lee
  * x-forwarded-proto (app.ts confía en el primer proxy); sin host, cae a
  * FRONTEND_URL, que es lo que se usa en desarrollo.
+ *
+ * Del APP_BASE_PATH se cuelga porque estas URL se leen fuera de la aplicación:
+ * en la raíz del host son la dirección de la página, y bajo un subpath
+ * ("/m2props") el prefijo es parte de la URL. Sin él, el sitemap declararía como
+ * canónicas rutas que en el host no existen.
  */
 function baseUrl(req: Request): string {
+  const prefijo = env.APP_BASE_PATH;
   const host = req.get("host");
-  if (!host) return env.FRONTEND_URL.replace(/\/$/, "");
-  return `${req.protocol}://${host}`;
+  if (!host) return env.FRONTEND_URL.replace(/\/$/, "") + prefijo;
+  return `${req.protocol}://${host}${prefijo}`;
 }
 
 export function createSeoRouter(
@@ -107,14 +113,20 @@ export function createSeoRouter(
   router.get("/robots.txt", (req, res) => {
     // Los paneles no se indexan: exigen login, así que el crawler solo
     // encontraría la pantalla de acceso. /api tampoco: son respuestas JSON.
+    //
+    // Las reglas se escriben relativas al prefijo, no a la raíz del host: un
+    // `Disallow: /panel/` en un despliegue bajo /m2props no bloquearía nada,
+    // porque el panel está en /m2props/panel. Y el `Allow` se limita al prefijo
+    // para no autorizar a indexar el resto del dominio, que es de otro sitio.
+    const p = env.APP_BASE_PATH;
     const lineas = [
       "User-agent: *",
-      "Allow: /",
-      "Disallow: /panel/",
-      "Disallow: /admin/",
-      "Disallow: /login",
-      "Disallow: /registro",
-      "Disallow: /api/",
+      `Allow: ${p}/`,
+      `Disallow: ${p}/panel/`,
+      `Disallow: ${p}/admin/`,
+      `Disallow: ${p}/login`,
+      `Disallow: ${p}/registro`,
+      `Disallow: ${p}/api/`,
       "",
       `Sitemap: ${baseUrl(req)}/sitemap.xml`,
       "",

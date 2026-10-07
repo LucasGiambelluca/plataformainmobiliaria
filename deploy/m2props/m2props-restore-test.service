@@ -1,0 +1,14 @@
+[Unit]
+Description=Prueba de restauración del backup de M2Props
+Documentation=file:/opt/m2props/deploy/m2props/README.md
+
+[Service]
+Type=oneshot
+# La prueba levanta un backend propio contra una base de descartar, así que
+# necesita los permisos de postgres y de los archivos, pero NADA de los del
+# servicio real: no toca m2props-backend ni la base de producción.
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/m2props /etc/systemd/system
+ExecStart=/opt/m2props/deploy/m2props/restaurar.sh %i --probar

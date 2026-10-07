@@ -11,7 +11,11 @@ dist
 tests
 coverage
 *.log
+# Los .ps1 y .cjs de scripts/ son ayudas de desarrollo en Windows y no tienen
+# nada que hacer en la imagen. Los .ts si: la etapa build los corre a mano
+# (siembra de demo, normalizacion de localidades) con npx tsx.
 scripts
+!scripts/*.ts
 .git
 .gitignore
 Dockerfile

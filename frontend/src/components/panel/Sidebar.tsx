@@ -1,5 +1,6 @@
 import { NavLink, Link } from 'react-router-dom'
 import { Home, X, type LucideIcon } from 'lucide-react'
+import { conBase } from '../../lib/basePath'
 
 export interface NavItem {
   to: string
@@ -45,7 +46,7 @@ export default function Sidebar({
               en todas las secciones. */}
           <Link to={brandHome}>
             <img
-              src="/brand/logo-blanco.png"
+              src={conBase('/brand/logo-blanco.png')}
               alt="ER Entreriosprop"
               className="h-8 w-auto"
             />

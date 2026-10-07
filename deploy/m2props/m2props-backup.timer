@@ -1,0 +1,15 @@
+[Unit]
+Description=Backup diario de M2Props
+
+[Timer]
+# 04:20 con 20 minutos de demora aleatoria, igual que el backup del otro
+# servicio del VPS: a esa hora no hay nadie usando la plataforma y la demora
+# evita que dos VPS del mismo proveedor awaken a la vez.
+OnCalendar=*-*-* 04:20:00
+RandomizedDelaySec=20m
+# Si la máquina estuvo apagada, corre apenas vuelve. Sin esto, un corte
+# largo se traduce en un día entero sin backup.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

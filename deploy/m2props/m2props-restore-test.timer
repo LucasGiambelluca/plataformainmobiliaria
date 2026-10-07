@@ -1,0 +1,19 @@
+[Unit]
+Description=Prueba mensual de restauración del backup de M2Props
+
+[Timer]
+# Mensual, y no diario, porque es una operación pesada: restaura una base
+# completa y levanta un backend contra ella. Todos los días sería tirar
+# recursos para contestar una sola pregunta ("¿el backup todavía sirve?"), que
+# además no cambia de un día a otro.
+#
+# El día está elegido a propósito (1º de mes, de madrugada) para que, si falla,
+# el logs esté ahí cuando alguien venga a mirar por qué no hay backup.
+OnCalendar=*-*-01 03:40:00
+RandomizedDelaySec=15m
+# Si la máquina estuvo caída el día del timer, se corre apenas vuelve: una
+# prueba de restore que se salte un mes es justo la que no sirve.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

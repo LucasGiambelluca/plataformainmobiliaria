@@ -1,0 +1,38 @@
+# API de M2Props. Node nativo, sin contenedor: el VPS no tiene Docker y el
+# owner de los puertos 80/443 es el nginx del host.
+#
+#   systemctl status m2props-backend
+#   journalctl -u m2props-backend -f
+#
+# Los secretos NO están acá: van en /etc/m2props/backend.env (root:root, 600),
+# que es lo único que este archivo lee.
+
+[Unit]
+Description=M2Props backend (API Express)
+After=network.target postgresql.service m2props-minio.service
+Wants=m2props-minio.service
+
+[Service]
+Type=simple
+User=m2props
+Group=m2props
+WorkingDirectory=/opt/m2props/backend
+EnvironmentFile=/etc/m2props/backend.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node dist/server.js
+
+# A diferencia del compose, acá MinIO es una dependencia real y no un contenedor
+# hermano: el backend firma URLs contra él. Si MinIO no levanta, el servicio
+# entra en loop de reinicio con un error legible en el log, que es mejor que
+# servir una web donde todas las fotos fallan.
+Restart=always
+RestartSec=5
+
+# Escucha en 127.0.0.1 (HOST en el env): el único que llega es el nginx local.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

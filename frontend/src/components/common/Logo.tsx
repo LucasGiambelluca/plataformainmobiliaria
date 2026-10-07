@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { conBase } from '../../lib/basePath'
 
 interface Props {
   /** Bajada opcional debajo del logo. */
@@ -24,7 +25,7 @@ export default function Logo({
   return (
     <Link to="/" className={`inline-flex flex-col gap-1 ${className}`}>
       <img
-        src={variant === 'white' ? '/brand/logo-blanco.png' : '/brand/logo-navy.png'}
+        src={conBase(variant === 'white' ? '/brand/logo-blanco.png' : '/brand/logo-navy.png')}
         alt="ER Entreriosprop"
         className={`w-auto ${size === 'sm' ? 'h-8' : 'h-12'}`}
       />

@@ -11,6 +11,7 @@ import { useSeo } from '../hooks/useSeo'
 import { getCatalog, getCities } from '../api/publicCatalog'
 import type { OperationType } from '../api/schemas'
 import { operationLabels, typeOptions } from '../lib/propertyLabels'
+import { conBase } from '../lib/basePath'
 
 // Home del portal según ui.pdf: hero con buscador, CTAs de garantía/seguro,
 // espacios publicitarios, carrusel de destacadas y grilla filtrable.
@@ -108,7 +109,7 @@ export default function Home() {
               se le agrega grayscale ni se le baja la opacidad: solo un velo
               navy para que el texto tenga contraste. */}
           <img
-            src="/brand/hero-llaves.jpg"
+            src={conBase('/brand/hero-llaves.jpg')}
             alt=""
             className="h-full w-full object-cover object-center"
           />

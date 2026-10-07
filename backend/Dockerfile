@@ -6,6 +6,12 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
+# Prisma trae binarios propios (schema engine y query engine) que linkean
+# contra libssl. La imagen alpine de node NO la incluye, y sin ella Prisma no
+# logra detectar la version de OpenSSL, cae al binario de openssl-1.1.x y
+# revienta con "Could not parse schema engine response". Verificado en el VPS.
+RUN apk add --no-cache openssl
+
 # Las dependencias van antes que el código: cambian mucho menos, así Docker
 # reutiliza la capa entre builds y no reinstala todo por tocar un archivo.
 COPY package.json package-lock.json ./
@@ -18,6 +24,10 @@ RUN npx prisma generate
 
 COPY tsconfig.json ./
 COPY src ./src
+# Los scripts sueltos (siembra de demo, normalización de localidades) viajan
+# solo a esta etapa: se corren a mano con `docker compose run migrate npx tsx
+# scripts/<x>.ts` y necesitan tsx, que es devDependency y no está en runtime.
+COPY scripts ./scripts
 RUN npm run build
 
 # Esta etapa también es la que corre las migraciones en el compose de
@@ -29,6 +39,12 @@ RUN npm run build
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Prisma trae binarios propios (schema engine y query engine) que linkean
+# contra libssl. La imagen alpine de node NO la incluye, y sin ella Prisma no
+# logra detectar la version de OpenSSL, cae al binario de openssl-1.1.x y
+# revienta con "Could not parse schema engine response". Verificado en el VPS.
+RUN apk add --no-cache openssl
 
 # Sin devDependencies: TypeScript, jest y supertest no tienen nada que hacer en
 # producción, y cada paquete de más es superficie de ataque.

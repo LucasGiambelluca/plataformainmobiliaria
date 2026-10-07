@@ -1,0 +1,15 @@
+[Unit]
+Description=Backup de M2Props (base, multimedia y secretos)
+Documentation=file:/opt/m2props/deploy/m2props/README.md
+
+[Service]
+Type=oneshot
+# Aislado: si el backup se cuelga, no se lleva por delante lo que esté corriendo.
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/backups/m2props
+# El backup lee de /etc/m2props y /var/lib/m2props, así que se le permite
+# lectura explícita en vez de abrirle todo el sistema.
+InaccessiblePaths=-/root
+ExecStart=/opt/m2props/deploy/m2props/backup.sh
