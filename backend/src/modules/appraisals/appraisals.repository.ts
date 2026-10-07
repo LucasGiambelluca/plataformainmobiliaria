@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/config/database";
+import { vigenciaWhere } from "@/modules/subscriptions/vigencia";
 import type {
   AppraisalRecord,
   AppraisalsRepository,
@@ -21,21 +22,21 @@ import type {
  */
 
 /**
- * Quién puede recibir tasaciones: inmobiliaria activa, con suscripción vigente
- * y con un plan que habilite la capacidad.
+ * Quién puede recibir tasaciones: inmobiliaria activa, con el plan pago al día
+ * (con la misma gracia que los cupos, ver `vigencia.ts`) y con un plan que
+ * habilite la capacidad.
  *
- * `trialing` entra junto con `active`: durante la prueba el plan está vigente y
- * negarle la función sería venderle algo que no puede usar.
+ * Es función y no constante porque "al día" depende de la hora de la consulta.
  */
-const participaEnTasaciones: Prisma.TenantWhereInput = {
+const participaEnTasaciones = (ahora: Date = new Date()): Prisma.TenantWhereInput => ({
   isActive: true,
   subscriptions: {
     some: {
-      status: { in: ["active", "trialing"] },
+      ...vigenciaWhere(ahora),
       plan: { hasOnlineAppraisals: true, isActive: true },
     },
   },
-};
+});
 
 const participantSelect = {
   id: true,
@@ -105,7 +106,7 @@ export class PrismaAppraisalsRepository implements AppraisalsRepository {
   async listParticipants(city?: string): Promise<ParticipantAgency[]> {
     const where: Prisma.TenantWhereInput = city
       ? {
-          ...participaEnTasaciones,
+          ...participaEnTasaciones(),
           properties: {
             some: {
               city: { equals: city, mode: "insensitive" },
@@ -113,7 +114,7 @@ export class PrismaAppraisalsRepository implements AppraisalsRepository {
             },
           },
         }
-      : participaEnTasaciones;
+      : participaEnTasaciones();
 
     const filas = await prisma.tenant.findMany({
       where,
@@ -127,7 +128,7 @@ export class PrismaAppraisalsRepository implements AppraisalsRepository {
   /** Null si no existe o si no participa: el llamador no distingue, a propósito. */
   async findParticipantById(tenantId: string): Promise<ParticipantAgency | null> {
     const fila = await prisma.tenant.findFirst({
-      where: { id: tenantId, ...participaEnTasaciones },
+      where: { id: tenantId, ...participaEnTasaciones() },
       select: participantSelect,
     });
 

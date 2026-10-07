@@ -3,6 +3,7 @@ import { createApp } from "@/app";
 import { prisma } from "./helpers/db";
 import {
   crearInmobiliariaCompleta,
+  crearPlan,
   crearPropiedad,
   crearUsuario,
 } from "./helpers/factories";
@@ -212,6 +213,58 @@ describe("límite de propiedades del plan", () => {
 
     expect(res.status).toBe(402);
     expect(await prisma.property.count({ where: { tenantId: tenant.id } })).toBe(2);
+  });
+
+  describe("plan pago vencido", () => {
+    const DIA = 24 * 60 * 60 * 1000;
+
+    /**
+     * Inmobiliaria en un plan pago de 10 propiedades, con 1 cargada, y un
+     * plan gratuito de 1. Lo único que cambia entre los casos es cuándo venció
+     * el período: eso decide qué cupo rige.
+     */
+    async function vencidaHace(dias: number) {
+      await crearPlan({ slug: "basico", priceAmount: "0", maxProperties: 1 });
+      const { tenant, subscription } = await crearInmobiliariaCompleta("morosa", {
+        maxProperties: 10,
+      });
+      await prisma.plan.update({
+        where: { id: subscription.planId },
+        data: { priceAmount: "29999" },
+      });
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: { status: "past_due", currentPeriodEnd: new Date(Date.now() - dias * DIA) },
+      });
+      await crearPropiedad(tenant.id);
+      return loguear(app, "admin@morosa.test");
+    }
+
+    it("pasada la gracia rigen los cupos del plan gratuito", async () => {
+      // C3 de AUDITORIA.md: antes, dejar de pagar no tenía consecuencia y la
+      // inmobiliaria conservaba los cupos del plan pago para siempre.
+      const token = await vencidaHace(10);
+
+      const res = await request(app)
+        .post("/api/properties")
+        .set(...comoUsuario(token))
+        .send(NUEVA);
+
+      expect(res.status).toBe(402);
+    });
+
+    it("dentro de la gracia sigue rigiendo el plan pago", async () => {
+      // Los reintentos de débito de MercadoPago tardan días: cortar el día
+      // del vencimiento castigaría a quien sí va a pagar.
+      const token = await vencidaHace(3);
+
+      const res = await request(app)
+        .post("/api/properties")
+        .set(...comoUsuario(token))
+        .send(NUEVA);
+
+      expect(res.status).toBe(201);
+    });
   });
 
   it("borrar una propiedad libera el cupo", async () => {

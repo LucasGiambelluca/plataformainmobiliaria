@@ -1,6 +1,7 @@
 import type { BillingInterval, SubscriptionStatus } from "@prisma/client";
 import { BadRequestError, NotFoundError } from "@/shared/errors";
 import type { LimitService, UsageSnapshot } from "./limit.service";
+import { estaAlDia } from "./vigencia";
 
 export interface SubscriptionWithPlan {
   id: string;
@@ -32,16 +33,24 @@ export class SubscriptionsService {
   constructor(
     private readonly repo: SubscriptionsRepository,
     private readonly limitService: LimitService,
+    private readonly ahora: () => Date = () => new Date(),
   ) {}
 
   // GET /api/subscription: estado + uso vs límites (§9.3).
+  //
+  // `alDia` dice si rige el plan pago o los límites del gratuito (ver
+  // vigencia.ts): el panel lo necesita para explicar por qué los cupos que
+  // muestra `usage` no son los del plan que figura arriba.
   async getStatus(tenantId: string): Promise<{
-    subscription: SubscriptionWithPlan;
+    subscription: SubscriptionWithPlan & { alDia: boolean };
     usage: UsageSnapshot;
   }> {
     const subscription = await this.findOrThrow(tenantId);
     const usage = await this.limitService.getUsage(tenantId);
-    return { subscription, usage };
+    return {
+      subscription: { ...subscription, alDia: estaAlDia(subscription, this.ahora()) },
+      usage,
+    };
   }
 
   // Cancela al fin de período (no corta el servicio inmediatamente).

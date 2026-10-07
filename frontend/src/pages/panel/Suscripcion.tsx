@@ -117,6 +117,14 @@ export default function Suscripcion() {
             </p>
           )}
 
+          {!resource.data.subscription.alDia && (
+            <p role="alert" className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              Tu suscripción venció sin que se acredite el pago: tenés los límites del plan
+              gratuito hasta que se regularice. Lo que ya publicaste sigue visible. Para
+              reactivar el plan, volvé a contratarlo abajo.
+            </p>
+          )}
+
           <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
             <div className="rounded-lg border border-line bg-surface p-6 shadow-card">
               <div className="flex items-center justify-between">
@@ -194,6 +202,13 @@ export default function Suscripcion() {
               {planes.data?.map((plan) => {
                 const actual = plan.id === resource.data?.subscription.plan.id
                 const gratuito = Number(plan.priceAmount) === 0
+                // El plan actual se vuelve a contratar si el débito se cayó: es
+                // la única forma de reautorizarlo después de un rechazo o una baja.
+                const reactivable =
+                  actual &&
+                  !gratuito &&
+                  (!resource.data?.subscription.alDia ||
+                    resource.data?.subscription.status !== 'active')
                 return (
                   <div
                     key={plan.id}
@@ -237,19 +252,21 @@ export default function Suscripcion() {
                       </li>
                     </ul>
                     <Button
-                      variant={actual ? 'secondary' : 'primary'}
+                      variant={actual && !reactivable ? 'secondary' : 'primary'}
                       className="mt-5 w-full"
-                      disabled={actual || gratuito || contratando === plan.id}
+                      disabled={(actual && !reactivable) || gratuito || contratando === plan.id}
                       onClick={() => void contratar(plan.id)}
                     >
                       {contratando === plan.id && (
                         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                       )}
-                      {actual
-                        ? 'Plan actual'
-                        : gratuito
-                          ? 'Plan de entrada'
-                          : 'Contratar'}
+                      {reactivable
+                        ? 'Reactivar'
+                        : actual
+                          ? 'Plan actual'
+                          : gratuito
+                            ? 'Plan de entrada'
+                            : 'Contratar'}
                     </Button>
                   </div>
                 )

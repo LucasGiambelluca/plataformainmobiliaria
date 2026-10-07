@@ -54,10 +54,25 @@ const limitService = {
 
 describe("SubscriptionsService", () => {
   describe("getStatus", () => {
+    // Reloj fijo: "al día" depende de la fecha, y PAID_SUB vence el 2026-08-01.
+    const dentroDelPeriodo = () => new Date("2026-07-15");
+
     it("devuelve suscripción + plan + uso vs límites", async () => {
-      const service = new SubscriptionsService(makeRepo(), limitService);
+      const service = new SubscriptionsService(makeRepo(), limitService, dentroDelPeriodo);
       const result = await service.getStatus(TENANT_ID);
-      expect(result).toEqual({ subscription: PAID_SUB, usage: USAGE });
+      expect(result).toEqual({ subscription: { ...PAID_SUB, alDia: true }, usage: USAGE });
+    });
+
+    it("vencida y pasada la gracia → alDia false", async () => {
+      // Es lo que el panel usa para explicar por qué los cupos son los del
+      // plan gratuito aunque el plan contratado diga Pro.
+      const service = new SubscriptionsService(
+        makeRepo({ findCurrentByTenant: jest.fn().mockResolvedValue({ ...PAID_SUB, status: "past_due" }) }),
+        limitService,
+        () => new Date("2026-08-11"),
+      );
+      const result = await service.getStatus(TENANT_ID);
+      expect(result.subscription.alDia).toBe(false);
     });
 
     it("sin suscripción → NotFoundError", async () => {

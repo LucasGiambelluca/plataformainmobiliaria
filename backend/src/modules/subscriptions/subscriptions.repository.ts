@@ -1,4 +1,6 @@
 import { prisma } from "@/config/database";
+import { logger } from "@/config/logger";
+import { estaAlDia } from "./vigencia";
 import type { UsageRepository } from "./limit.service";
 import type { SubscriptionsRepository, SubscriptionWithPlan } from "./subscriptions.service";
 import type { PlansRepository } from "./plans.service";
@@ -47,23 +49,42 @@ export const subscriptionsRepository: SubscriptionsRepository = {
   },
 };
 
+const limitesSelect = {
+  maxProperties: true,
+  maxUsers: true,
+  maxStorageMb: true,
+  maxDomains: true,
+} as const;
+
 export const usageRepository: UsageRepository = {
   async getPlanLimits(tenantId) {
     const sub = await prisma.subscription.findFirst({
       where: { tenantId },
       orderBy: { createdAt: "desc" },
       select: {
-        plan: {
-          select: {
-            maxProperties: true,
-            maxUsers: true,
-            maxStorageMb: true,
-            maxDomains: true,
-          },
-        },
+        status: true,
+        currentPeriodEnd: true,
+        plan: { select: { priceAmount: true, ...limitesSelect } },
       },
     });
-    return sub?.plan ?? null;
+    if (!sub) return null;
+
+    const { priceAmount, ...limites } = sub.plan;
+    if (estaAlDia({ ...sub, plan: { priceAmount: String(priceAmount) } })) return limites;
+
+    // Vencida y pasada la gracia: rigen los cupos del plan gratuito. No se
+    // escribe el cambio de plan; pagar de nuevo lo restituye solo.
+    const gratuito = await prisma.plan.findFirst({
+      where: { priceAmount: 0, isActive: true },
+      orderBy: { createdAt: "asc" },
+      select: limitesSelect,
+    });
+    if (!gratuito) {
+      // Un dato de configuración faltante no puede dejar el panel sin cupos.
+      logger.error({ tenantId }, "Suscripción vencida y no hay plan gratuito activo: se mantienen los límites del plan");
+      return limites;
+    }
+    return gratuito;
   },
 
   countActiveUsers(tenantId) {

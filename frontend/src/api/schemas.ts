@@ -179,6 +179,11 @@ export const subscriptionStatusResponseSchema = z.object({
     currentPeriodStart: z.string().nullable(),
     currentPeriodEnd: z.string().nullable(),
     cancelAtPeriodEnd: z.boolean(),
+    /**
+     * Si rige el plan pago. Vencido y pasada la gracia, el backend aplica los
+     * cupos del plan gratuito aunque `plan` siga diciendo el contratado.
+     */
+    alDia: z.boolean(),
     plan: planSchema.omit({ isActive: true }),
   }),
   usage: z.object({

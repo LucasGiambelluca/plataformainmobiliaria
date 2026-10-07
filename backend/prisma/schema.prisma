@@ -164,6 +164,12 @@ model Subscription {
   currentPeriodEnd   DateTime?          @map("current_period_end")
   cancelAtPeriodEnd  Boolean            @default(false) @map("cancel_at_period_end")
   externalRef        String?            @map("external_ref")
+  // Débito automático del checkout abierto y todavía no pagado. `externalRef`
+  // es el débito VIGENTE. Van separados porque un cambio de plan tiene dos
+  // débitos vivos a la vez hasta que el nuevo cobra: con una sola columna el
+  // checkout pisaba la referencia del vigente, que quedaba debitando sin que
+  // nadie pudiera cancelarlo.
+  pendingExternalRef String?            @map("pending_external_ref")
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
 
@@ -176,14 +182,24 @@ model Subscription {
 }
 
 model Payment {
-  id                String              @id @default(uuid()) @db.Uuid
-  subscriptionId    String              @map("subscription_id") @db.Uuid
-  tenantId          String              @map("tenant_id") @db.Uuid
-  amount            Decimal             @db.Decimal(12, 2)
-  currency          String              @default("ARS") @db.VarChar(3)
-  status            PaymentStatus       @default(pending)
-  provider          PaymentProviderName
-  externalPaymentId String?             @map("external_payment_id")
+  id             String              @id @default(uuid()) @db.Uuid
+  subscriptionId String              @map("subscription_id") @db.Uuid
+  tenantId       String              @map("tenant_id") @db.Uuid
+  amount         Decimal             @db.Decimal(12, 2)
+  currency       String              @default("ARS") @db.VarChar(3)
+  status         PaymentStatus       @default(pending)
+  provider       PaymentProviderName
+  /// Id del cobro en la pasarela. UNIQUE, y nullable a propósito: PostgreSQL
+  /// admite varios NULL en un índice único, así que los pagos que todavía no
+  /// pasaron por la pasarela conviven sin estorbarse.
+  ///
+  /// El chequeo previo del repositorio avisa temprano, pero no cierra la
+  /// carrera: Mercado Pago reintenta el webhook sin esperar a que termine el
+  /// anterior, así que dos entregas concurrentes pasan las dos el `findFirst`.
+  /// Esta restricción es la que hace que solo una gane; la otra recibe un P2002
+  /// y se trata como lo que es, la misma entrega de nuevo. Mismo criterio que
+  /// `User.email`.
+  externalPaymentId String?             @unique @map("external_payment_id")
   paidAt            DateTime?           @map("paid_at")
   createdAt         DateTime            @default(now()) @map("created_at")
 

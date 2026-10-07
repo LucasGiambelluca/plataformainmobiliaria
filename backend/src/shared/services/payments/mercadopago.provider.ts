@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { AppError } from "@/shared/errors";
 import { logger } from "@/config/logger";
+import { fetchConTimeout, TIMEOUT_MS } from "@/shared/http/fetch-con-timeout";
 import type {
   CheckoutSession,
   PaymentEvent,
@@ -32,6 +33,8 @@ const ESTADOS: Record<string, PaymentEventStatus> = {
   charged_back: "refunded",
 };
 
+const textoONull = (v: unknown): string | null => (typeof v === "string" ? v : null);
+
 export class MercadoPagoProvider implements PaymentProvider {
   readonly name = "mercadopago";
 
@@ -50,6 +53,9 @@ export class MercadoPagoProvider implements PaymentProvider {
       external_reference: params.reference,
       payer_email: params.payerEmail,
       back_url: params.returnUrl,
+      // Variante sin `card_token_id`: el cliente carga la tarjeta en la página
+      // de MercadoPago, y el débito queda pendiente hasta que la autoriza.
+      status: "pending",
       notification_url: `${this.config.backendUrl}/api/billing/webhook`,
       auto_recurring: {
         frequency: 1,
@@ -115,14 +121,38 @@ export class MercadoPagoProvider implements PaymentProvider {
       const p = await this.request(`/v1/payments/${id}`, { method: "GET" });
       return {
         externalPaymentId: String(p.id),
-        externalSubscriptionId:
-          typeof p.metadata?.preapproval_id === "string" ? p.metadata.preapproval_id : null,
+        // A qué débito automático pertenece el pago. Según cómo lo genere
+        // MercadoPago viene en un lugar o en el otro.
+        externalSubscriptionId: textoONull(
+          p.metadata?.preapproval_id ?? p.point_of_interaction?.transaction_data?.subscription_id,
+        ),
         status: ESTADOS[String(p.status)] ?? "pending",
         amount: p.transaction_amount != null ? String(p.transaction_amount) : null,
         currency: typeof p.currency_id === "string" ? p.currency_id : null,
         paidAt: p.date_approved ? new Date(String(p.date_approved)) : null,
         externalReference:
           typeof p.external_reference === "string" ? p.external_reference : null,
+      };
+    }
+
+    // Así llegan los débitos de los meses 2 en adelante. Sin esta rama caían en
+    // "tema no manejado": se cobraba y no se registraba nada (C1 de AUDITORIA.md).
+    if (topic === "subscription_authorized_payment") {
+      const a = await this.request(`/authorized_payments/${id}`, { method: "GET" });
+      const pago = a.payment;
+      // Programado y sin intento de cobro todavía: no hay nada que registrar.
+      if (pago?.id == null) return null;
+      const status = ESTADOS[String(pago.status)] ?? "pending";
+      return {
+        // El id del PAGO y no el del authorized_payment: es el mismo que trae
+        // el topic `payment`, así que si llegan los dos se deduplican solos.
+        externalPaymentId: String(pago.id),
+        externalSubscriptionId: textoONull(a.preapproval_id),
+        status,
+        amount: a.transaction_amount != null ? String(a.transaction_amount) : null,
+        currency: textoONull(a.currency_id),
+        paidAt: status === "approved" && a.debit_date ? new Date(String(a.debit_date)) : null,
+        externalReference: textoONull(a.external_reference),
       };
     }
 
@@ -155,14 +185,22 @@ export class MercadoPagoProvider implements PaymentProvider {
     path: string,
     options: { method: string; body?: unknown },
   ): Promise<Record<string, any>> {
-    const res = await fetch(`${API}${path}`, {
-      method: options.method,
-      headers: {
-        Authorization: `Bearer ${this.config.accessToken}`,
-        "Content-Type": "application/json",
+    // Con corte de tiempo, y acá importa más que en los otros lugares: esta es
+    // la llamada que el webhook hace para preguntar el estado REAL del cobro. Si
+    // quedara colgada, la respuesta al webhook nunca sale, la pasarela reintenta
+    // para siempre y la transacción de la base — que la espera — queda abierta.
+    const res = await fetchConTimeout(
+      `${API}${path}`,
+      TIMEOUT_MS.pago,
+      {
+        method: options.method,
+        headers: {
+          Authorization: `Bearer ${this.config.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        ...(options.body ? { body: JSON.stringify(options.body) } : {}),
       },
-      ...(options.body ? { body: JSON.stringify(options.body) } : {}),
-    });
+    );
 
     const texto = await res.text();
     if (!res.ok) {
