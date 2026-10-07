@@ -185,6 +185,11 @@ export default function Suscripcion() {
                   used={resource.data.usage.domains.used}
                   limit={resource.data.usage.domains.limit}
                 />
+                <UsageBar
+                  label="Propiedades destacadas"
+                  used={resource.data.usage.featured.used}
+                  limit={resource.data.usage.featured.limit}
+                />
               </div>
             </div>
           </div>
@@ -249,6 +254,12 @@ export default function Suscripcion() {
                         {plan.maxDomains === 0
                           ? 'Sin dominio propio'
                           : `${plan.maxDomains} ${plan.maxDomains === 1 ? 'dominio propio' : 'dominios propios'}`}
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-brand" />
+                        {plan.maxFeatured === 0
+                          ? 'Sin destacadas'
+                          : `${plan.maxFeatured} ${plan.maxFeatured === 1 ? 'destacada' : 'destacadas'}`}
                       </li>
                     </ul>
                     <Button

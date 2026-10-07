@@ -93,6 +93,7 @@ export const planSchema = z.object({
   maxUsers: z.number(),
   maxStorageMb: z.number(),
   maxDomains: z.number(),
+  maxFeatured: z.number(),
   isActive: z.boolean(),
 })
 export type Plan = z.infer<typeof planSchema>
@@ -191,6 +192,7 @@ export const subscriptionStatusResponseSchema = z.object({
     properties: resourceUsageSchema,
     storageMb: resourceUsageSchema,
     domains: resourceUsageSchema,
+    featured: resourceUsageSchema,
   }),
 })
 export type SubscriptionStatusResponse = z.infer<typeof subscriptionStatusResponseSchema>
@@ -395,6 +397,7 @@ export const publicPlansResponseSchema = z.object({
       maxUsers: z.number(),
       maxStorageMb: z.number(),
       maxDomains: z.number(),
+      maxFeatured: z.number(),
     }),
   ),
 })
@@ -792,6 +795,11 @@ export const planFormSchema = z.object({
     .number()
     .int('El máximo de dominios debe ser un número entero')
     .nonnegative('El máximo de dominios no puede ser negativo'),
+  // 0 es válido: el plan de entrada no destaca.
+  maxFeatured: z.coerce
+    .number()
+    .int('El máximo de destacadas debe ser un número entero')
+    .nonnegative('El máximo de destacadas no puede ser negativo'),
 })
 export type PlanForm = z.infer<typeof planFormSchema>
 

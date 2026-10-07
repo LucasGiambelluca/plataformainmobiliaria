@@ -2,7 +2,7 @@ import { LimitService, type UsageRepository } from "@/modules/subscriptions/limi
 import { LimitExceededError } from "@/shared/errors";
 
 const TENANT_ID = "33333333-3333-3333-3333-333333333333";
-const LIMITS = { maxProperties: 10, maxUsers: 2, maxStorageMb: 500, maxDomains: 1 };
+const LIMITS = { maxProperties: 10, maxUsers: 2, maxStorageMb: 500, maxDomains: 1, maxFeatured: 2 };
 
 function makeRepo(overrides: Partial<UsageRepository> = {}) {
   const repo: UsageRepository = {
@@ -11,6 +11,7 @@ function makeRepo(overrides: Partial<UsageRepository> = {}) {
     countProperties: jest.fn().mockResolvedValue(3),
     sumStorageBytes: jest.fn().mockResolvedValue(BigInt(100 * 1024 * 1024)),
     countDomains: jest.fn().mockResolvedValue(0),
+    countFeatured: jest.fn().mockResolvedValue(0),
     ...overrides,
   };
   return repo;
@@ -26,6 +27,7 @@ describe("LimitService", () => {
         properties: { used: 3, limit: 10 },
         storageMb: { used: 100, limit: 500 },
         domains: { used: 0, limit: 1 },
+        featured: { used: 0, limit: 2 },
       });
     });
 
@@ -59,6 +61,31 @@ describe("LimitService", () => {
         makeRepo({ countProperties: jest.fn().mockResolvedValue(10) }),
       );
       await expect(service.assertCanAddProperty(TENANT_ID)).rejects.toBeInstanceOf(
+        LimitExceededError,
+      );
+    });
+  });
+
+  describe("assertCanFeatureProperty", () => {
+    it("con cupo → no tira", async () => {
+      const service = new LimitService(makeRepo({ countFeatured: jest.fn().mockResolvedValue(1) }));
+      await expect(service.assertCanFeatureProperty(TENANT_ID)).resolves.toBeUndefined();
+    });
+
+    it("en el tope → LimitExceededError", async () => {
+      // H6 de AUDITORIA.md: sin cupo, un plan Básico destacaba toda la cartera
+      // y ocupaba el lugar que paga el plan superior.
+      const service = new LimitService(makeRepo({ countFeatured: jest.fn().mockResolvedValue(2) }));
+      await expect(service.assertCanFeatureProperty(TENANT_ID)).rejects.toBeInstanceOf(
+        LimitExceededError,
+      );
+    });
+
+    it("plan sin destacadas (maxFeatured 0) → rechaza la primera", async () => {
+      const service = new LimitService(
+        makeRepo({ getPlanLimits: jest.fn().mockResolvedValue({ ...LIMITS, maxFeatured: 0 }) }),
+      );
+      await expect(service.assertCanFeatureProperty(TENANT_ID)).rejects.toBeInstanceOf(
         LimitExceededError,
       );
     });

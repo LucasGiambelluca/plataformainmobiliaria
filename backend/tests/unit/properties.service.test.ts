@@ -58,6 +58,7 @@ function makeRepo(overrides: Partial<PropertiesRepository> = {}) {
 function makeLimits(overrides: Partial<LimitService> = {}) {
   return {
     assertCanAddProperty: jest.fn().mockResolvedValue(undefined),
+    assertCanFeatureProperty: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   } as unknown as LimitService;
 }
@@ -176,6 +177,47 @@ describe("PropertiesService", () => {
       await expect(
         service.changeStatus(PROPERTY_ID, TENANT_ID, "featured"),
       ).resolves.toBeDefined();
+    });
+
+    it("destacar sin cupo en el plan se rechaza y no escribe", async () => {
+      const repo = conEstado("published");
+      const limits = makeLimits({
+        assertCanFeatureProperty: jest
+          .fn()
+          .mockRejectedValue(new LimitExceededError("propiedades destacadas")),
+      });
+      const { service } = makeService(repo, limits);
+
+      await expect(
+        service.changeStatus(PROPERTY_ID, TENANT_ID, "featured"),
+      ).rejects.toBeInstanceOf(LimitExceededError);
+      expect(repo.updateProperty).not.toHaveBeenCalled();
+    });
+
+    it("el cupo también se controla al destacar por update", async () => {
+      // Hay dos caminos para cambiar el estado: si uno no controla, el cupo no existe.
+      const repo = conEstado("published");
+      const limits = makeLimits({
+        assertCanFeatureProperty: jest
+          .fn()
+          .mockRejectedValue(new LimitExceededError("propiedades destacadas")),
+      });
+      const { service } = makeService(repo, limits);
+
+      await expect(
+        service.update(PROPERTY_ID, TENANT_ID, { status: "featured" }),
+      ).rejects.toBeInstanceOf(LimitExceededError);
+      expect(repo.updateProperty).not.toHaveBeenCalled();
+    });
+
+    it("sacar de destacada no pide cupo", async () => {
+      const repo = conEstado("featured");
+      const limits = makeLimits();
+      const { service } = makeService(repo, limits);
+
+      await service.changeStatus(PROPERTY_ID, TENANT_ID, "published");
+
+      expect(limits.assertCanFeatureProperty).not.toHaveBeenCalled();
     });
 
     it("draft → paused rechazado", async () => {

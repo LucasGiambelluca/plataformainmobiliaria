@@ -16,6 +16,7 @@ const planSelect = {
   maxUsers: true,
   maxStorageMb: true,
   maxDomains: true,
+  maxFeatured: true,
 } as const;
 
 // Decimal de Prisma → string (la API nunca expone floats para plata).
@@ -54,6 +55,7 @@ const limitesSelect = {
   maxUsers: true,
   maxStorageMb: true,
   maxDomains: true,
+  maxFeatured: true,
 } as const;
 
 export const usageRepository: UsageRepository = {
@@ -97,6 +99,10 @@ export const usageRepository: UsageRepository = {
 
   countDomains(tenantId) {
     return prisma.tenantDomain.count({ where: { tenantId } });
+  },
+
+  countFeatured(tenantId) {
+    return prisma.property.count({ where: { tenantId, status: "featured" } });
   },
 
   async sumStorageBytes(tenantId) {

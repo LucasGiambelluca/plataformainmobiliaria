@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal } from 'lucide-react'
 import PropertyCard from '../components/properties/PropertyCard'
 import Select from '../components/common/Select'
+import Pagination from '../components/common/Pagination'
 import { EmptyState, ErrorState } from '../components/common/AsyncState'
 import { PropertyGridSkeleton } from '../components/common/Skeleton'
 import { useResource } from '../hooks/useResource'
@@ -13,6 +14,8 @@ import type { OperationType, PropertyType } from '../api/schemas'
 import { operationLabels, typeLabels, typeOptions } from '../lib/propertyLabels'
 
 const operaciones: OperationType[] = ['sale', 'rent', 'temporary_rental']
+
+const PAGE_SIZE = 24
 
 const sortOptions = [
   { value: 'relevance', label: 'Más relevantes' },
@@ -30,12 +33,26 @@ export default function SearchResults() {
   const q = params.get('q') ?? ''
   // Llega desde el desplegable de Inmobiliarias del header.
   const agency = params.get('agency') ?? ''
+  // La página va en la URL y no en el estado: así el botón atrás vuelve a la
+  // página donde estabas y un enlace compartido abre la misma.
+  const page = Math.max(1, Number(params.get('page')) || 1)
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params)
     if (value) next.set(key, value)
     else next.delete(key)
+    // Cambiar un filtro cambia el resultado: seguir en la página 4 de algo
+    // que ahora tiene 1 dejaría la grilla vacía.
+    next.delete('page')
     setParams(next)
+  }
+
+  const irAPagina = (n: number) => {
+    const next = new URLSearchParams(params)
+    if (n > 1) next.set('page', String(n))
+    else next.delete('page')
+    setParams(next)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // El filtro de ubicación se escribe letra por letra: no conviene pedir en cada tecla.
@@ -68,9 +85,10 @@ export default function SearchResults() {
         propertyType: type || undefined,
         agency: agency || undefined,
         sort: sort as 'relevance',
-        pageSize: 24,
+        page,
+        pageSize: PAGE_SIZE,
       }),
-    [qDebounced, op, type, agency, sort],
+    [qDebounced, op, type, agency, sort, page],
   )
 
   const total = catalogo.data?.total ?? 0
@@ -150,7 +168,11 @@ export default function SearchResults() {
               <Select
                 options={sortOptions}
                 value={sort}
-                onChange={(e) => setSort(e.target.value)}
+                onChange={(e) => {
+                  setSort(e.target.value)
+                  // Otro orden es otro resultado: se vuelve a la primera página.
+                  irAPagina(1)
+                }}
               />
             </div>
           </div>
@@ -171,6 +193,14 @@ export default function SearchResults() {
               ))}
             </div>
           )}
+
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            loading={catalogo.loading}
+            onChange={irAPagina}
+          />
         </section>
       </div>
     </div>

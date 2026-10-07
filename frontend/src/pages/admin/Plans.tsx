@@ -9,6 +9,7 @@ import {
   Pencil,
   Plus,
   Power,
+  Star,
   Users,
 } from 'lucide-react'
 import Button from '../../components/common/Button'
@@ -120,6 +121,12 @@ export default function Plans() {
                     ? 'Sin dominio propio'
                     : `${p.maxDomains} ${p.maxDomains === 1 ? 'dominio propio' : 'dominios propios'}`}
                 </li>
+                <li className="flex items-center gap-2">
+                  <Star className="h-4 w-4 text-brand" />
+                  {p.maxFeatured === 0
+                    ? 'Sin destacadas'
+                    : `${p.maxFeatured} ${p.maxFeatured === 1 ? 'destacada' : 'destacadas'}`}
+                </li>
               </ul>
 
               <div className="mt-5 flex gap-2">
@@ -195,8 +202,9 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           maxUsers: plan.maxUsers,
           maxStorageMb: plan.maxStorageMb,
           maxDomains: plan.maxDomains,
+          maxFeatured: plan.maxFeatured,
         }
-      : { maxProperties: 30, maxUsers: 2, maxStorageMb: 5120, maxDomains: 1 },
+      : { maxProperties: 30, maxUsers: 2, maxStorageMb: 5120, maxDomains: 1, maxFeatured: 0 },
   })
 
   const onSubmit = handleSubmit(async (values) => {
@@ -267,6 +275,15 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           placeholder="0 = sin dominio propio"
           error={errors.maxDomains?.message}
           {...register('maxDomains')}
+        />
+        <Input
+          label="Máx. propiedades destacadas"
+          type="number"
+          min={0}
+          // Destacar ocupa el primer lugar del catálogo y el home.
+          placeholder="0 = no puede destacar"
+          error={errors.maxFeatured?.message}
+          {...register('maxFeatured')}
         />
 
         <div className="flex justify-end gap-3 pt-2">

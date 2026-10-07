@@ -17,6 +17,8 @@ export const createPlanSchema = z.object({
   maxStorageMb: z.number().int().positive(),
   // Puede ser 0: un plan de entrada válido no incluye dominio propio.
   maxDomains: z.number().int().nonnegative(),
+  // Puede ser 0: el plan de entrada no destaca.
+  maxFeatured: z.number().int().nonnegative().optional(),
 });
 
 export type CreatePlanBody = z.infer<typeof createPlanSchema>;
@@ -32,6 +34,7 @@ export const updatePlanSchema = z
     maxUsers: z.number().int().positive().optional(),
     maxStorageMb: z.number().int().positive().optional(),
     maxDomains: z.number().int().nonnegative().optional(),
+    maxFeatured: z.number().int().nonnegative().optional(),
     isActive: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {

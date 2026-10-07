@@ -7,6 +7,7 @@ export interface PlanLimits {
   maxUsers: number;
   maxStorageMb: number;
   maxDomains: number;
+  maxFeatured: number;
 }
 
 export interface ResourceUsage {
@@ -19,6 +20,7 @@ export interface UsageSnapshot {
   properties: ResourceUsage;
   storageMb: ResourceUsage;
   domains: ResourceUsage;
+  featured: ResourceUsage;
 }
 
 export interface UsageRepository {
@@ -28,6 +30,7 @@ export interface UsageRepository {
   countProperties(tenantId: string): Promise<number>;
   sumStorageBytes(tenantId: string): Promise<bigint>;
   countDomains(tenantId: string): Promise<number>;
+  countFeatured(tenantId: string): Promise<number>;
 }
 
 /**
@@ -46,12 +49,13 @@ export class LimitService {
   }
 
   async getUsage(tenantId: string): Promise<UsageSnapshot> {
-    const [limits, users, properties, storageBytes, domains] = await Promise.all([
+    const [limits, users, properties, storageBytes, domains, featured] = await Promise.all([
       this.getLimits(tenantId),
       this.repo.countActiveUsers(tenantId),
       this.repo.countProperties(tenantId),
       this.repo.sumStorageBytes(tenantId),
       this.repo.countDomains(tenantId),
+      this.repo.countFeatured(tenantId),
     ]);
     return {
       users: { used: users, limit: limits.maxUsers },
@@ -61,6 +65,7 @@ export class LimitService {
         limit: limits.maxStorageMb,
       },
       domains: { used: domains, limit: limits.maxDomains },
+      featured: { used: featured, limit: limits.maxFeatured },
     };
   }
 
@@ -84,6 +89,17 @@ export class LimitService {
     const limits = await this.getLimits(tenantId);
     const used = await this.repo.countDomains(tenantId);
     if (used >= limits.maxDomains) throw new LimitExceededError("dominios");
+  }
+
+  /**
+   * Destacar ocupa el primer lugar del catálogo y el home: es lo que paga un
+   * plan superior, así que tiene cupo. Se mide sobre las destacadas actuales,
+   * no sobre las que se destacaron alguna vez.
+   */
+  async assertCanFeatureProperty(tenantId: string): Promise<void> {
+    const limits = await this.getLimits(tenantId);
+    const used = await this.repo.countFeatured(tenantId);
+    if (used >= limits.maxFeatured) throw new LimitExceededError("propiedades destacadas");
   }
 
   async assertCanAddStorage(tenantId: string, additionalBytes: number): Promise<void> {

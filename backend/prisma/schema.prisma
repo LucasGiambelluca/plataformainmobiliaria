@@ -109,6 +109,10 @@ model Plan {
   maxUsers            Int             @map("max_users")
   maxStorageMb        Int             @map("max_storage_mb")
   maxDomains          Int             @default(1) @map("max_domains")
+  /// Cuántas propiedades puede tener destacadas a la vez. Destacar ocupa el
+  /// primer lugar del orden por relevancia y el home: es lo que paga un plan
+  /// superior. Puede ser 0.
+  maxFeatured         Int             @default(0) @map("max_featured")
   /// Habilita recibir solicitudes de tasación online. Es una capacidad, no un
   /// cupo: por eso es booleana y no un número como el resto.
   hasOnlineAppraisals Boolean         @default(false) @map("has_online_appraisals")

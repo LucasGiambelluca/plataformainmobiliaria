@@ -17,6 +17,8 @@ const plans = [
     maxUsers: 2,
     maxStorageMb: 500,
     maxDomains: 0,
+    // Destacar es lo que paga un plan superior: el gratuito no destaca.
+    maxFeatured: 0,
     hasOnlineAppraisals: false,
   },
   {
@@ -27,6 +29,7 @@ const plans = [
     maxUsers: 10,
     maxStorageMb: 5000,
     maxDomains: 1,
+    maxFeatured: 5,
     hasOnlineAppraisals: false,
   },
   {
@@ -37,6 +40,7 @@ const plans = [
     maxUsers: 50,
     maxStorageMb: 50000,
     maxDomains: 5,
+    maxFeatured: 20,
     // Las tasaciones online son del plan premium: es la capacidad que lo
     // distingue además de los cupos.
     hasOnlineAppraisals: true,
@@ -90,6 +94,7 @@ async function main(): Promise<void> {
         maxUsers: p.maxUsers,
         maxStorageMb: p.maxStorageMb,
         maxDomains: p.maxDomains,
+        maxFeatured: p.maxFeatured,
         hasOnlineAppraisals: p.hasOnlineAppraisals,
       },
       create: { ...p, priceCurrency: "ARS", billingInterval: "monthly" },

@@ -10,6 +10,7 @@ import {
   Phone,
 } from 'lucide-react'
 import PropertyCard from '../components/properties/PropertyCard'
+import Pagination from '../components/common/Pagination'
 import { EmptyState, ErrorState } from '../components/common/AsyncState'
 import { AgencySiteSkeleton, PropertyGridSkeleton } from '../components/common/Skeleton'
 import { WhatsAppIcon } from '../components/common/BrandIcons'
@@ -35,10 +36,13 @@ import type { OperationType } from '../api/schemas'
  * el portal. Los colores se inyectan como CSS variables acotadas a este
  * subárbol, así el resto de la app no queda tematizado al navegar.
  */
+const PAGE_SIZE = 24
+
 export default function AgencySite() {
   const { slug } = useParams()
   const [slide, setSlide] = useState(0)
   const [filtro, setFiltro] = useState<OperationType | 'all'>('all')
+  const [page, setPage] = useState(1)
 
   const sitio = useResource(
     () => (slug ? getPublicSite(slug) : getCurrentSite()),
@@ -50,14 +54,27 @@ export default function AgencySite() {
 
   const propiedades = useResource(
     () =>
-      getCatalog({
-        agency: agencySlug,
-        operationType: filtro === 'all' ? undefined : filtro,
-        onlyFeatured: sitio.data?.site.showFeaturedOnly || undefined,
-        pageSize: 24,
-      }),
-    [agencySlug, filtro, sitio.data?.site.showFeaturedOnly],
+      // Por host, hasta que llega el sitio no se sabe de quién es la web. Pedir
+      // el catálogo sin `agency` traía el de TODAS las inmobiliarias y se veía
+      // un instante en el dominio de un cliente. Se espera: cuando llega el
+      // slug cambian las deps y se pide de verdad.
+      agencySlug
+        ? getCatalog({
+            agency: agencySlug,
+            operationType: filtro === 'all' ? undefined : filtro,
+            onlyFeatured: sitio.data?.site.showFeaturedOnly || undefined,
+            page,
+            pageSize: PAGE_SIZE,
+          })
+        : new Promise<never>(() => {}),
+    [agencySlug, filtro, sitio.data?.site.showFeaturedOnly, page],
   )
+
+  const irAPagina = (n: number) => {
+    setPage(n)
+    // Al listado y no al tope: el carrusel ocupa toda la primera pantalla.
+    document.getElementById('propiedades')?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   const portal = portalHref()
 
@@ -232,7 +249,7 @@ export default function AgencySite() {
       )}
 
       {/* Propiedades */}
-      <section className="mx-auto max-w-7xl px-4 pb-16">
+      <section id="propiedades" className="mx-auto max-w-7xl scroll-mt-4 px-4 pb-16">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h2 className="border-l-4 border-accent pl-3 font-serif text-2xl text-ink">
             {site.showFeaturedOnly ? 'Propiedades destacadas' : 'Nuestras propiedades'}
@@ -248,7 +265,10 @@ export default function AgencySite() {
             ).map((f) => (
               <button
                 key={f.key}
-                onClick={() => setFiltro(f.key)}
+                onClick={() => {
+                  setFiltro(f.key)
+                  setPage(1)
+                }}
                 className={`rounded-pill px-4 py-1.5 text-sm transition-colors ${
                   filtro === f.key
                     ? 'bg-brand text-white'
@@ -281,6 +301,14 @@ export default function AgencySite() {
             ))}
           </div>
         )}
+
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={propiedades.data?.total ?? 0}
+          loading={propiedades.loading}
+          onChange={irAPagina}
+        />
       </section>
 
       <footer className="border-t border-line bg-surface">

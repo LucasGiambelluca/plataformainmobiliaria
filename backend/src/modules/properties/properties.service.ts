@@ -190,6 +190,7 @@ export class PropertiesService {
 
     if (input.status && input.status !== current.status) {
       this.assertTransition(current.status, input.status);
+      if (input.status === "featured") await this.limitService.assertCanFeatureProperty(tenantId);
     }
 
     const { features, ...data } = input;
@@ -212,6 +213,7 @@ export class PropertiesService {
     if (current.status === status) return current;
 
     this.assertTransition(current.status, status);
+    if (status === "featured") await this.limitService.assertCanFeatureProperty(tenantId);
     return this.repo.updateProperty(id, tenantId, { status }, undefined);
   }
 
