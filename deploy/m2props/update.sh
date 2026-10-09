@@ -125,10 +125,13 @@ case "$BASE_PATH" in
   /) API_PATH=/api ;;
   *) API_PATH="$BASE_PATH/api" ;;
 esac
+# Provisorio (2026-10-09): el sitio público muestra solo el header. Para volver
+# al sitio completo: SOLO_HEADER=false bash deploy/m2props/update.sh
 sudo -u m2props env \
   VITE_BASE_PATH="$BASE_PATH" \
   VITE_API_URL="$API_PATH" \
   VITE_PLATFORM_DOMAIN=hernandezyasociados.com.ar \
+  VITE_SOLO_HEADER="${SOLO_HEADER:-true}" \
   npm run build
 
 # ── 5b. Guard del bundle ─────────────────────────────────────
