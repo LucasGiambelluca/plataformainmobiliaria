@@ -3,9 +3,30 @@
 @tailwind utilities;
 
 /*
-  Design tokens. Paleta tomada del diseño oficial del cliente (ui.pdf y los
-  recursos que pasó la diseñadora): navy + dorado con tipografía serif en
-  títulos y navegación. El navy está muestreado del logo ER original.
+  Lora self-hosted: es el archivo que entregó el cliente con la marca M2Prop
+  (licencia OFL en assets/fonts/Lora-OFL.txt). La de Google Fonts es otra
+  versión y corre las medidas un par de píxeles contra el diseño. Las rutas son
+  relativas para que Vite las empaquete con hash y respeten el `base`.
+*/
+@font-face {
+  font-family: 'Lora';
+  src: url('./assets/fonts/Lora-Variable.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Lora';
+  src: url('./assets/fonts/Lora-Italic-Variable.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/*
+  Design tokens. Marca M2Prop (M2Prop.pdf, 2026-10): naranja + negro sobre un
+  crema cálido, con Lora en títulos y navegación. El naranja y el crema están
+  muestreados del PDF, no aproximados: #FF5001 y #F7F6F0.
 
   ── IMPORTANTE: el formato es "R G B", no hexadecimal ──
   Tailwind necesita los canales sueltos para poder inyectar alfa en los
@@ -18,14 +39,16 @@
   escribirlos como canales: `--brand: 15 50 88`.
 */
 :root {
-  --brand: 15 50 88;         /* #0F3258 navy — marca principal, topbar, títulos */
-  --brand-dark: 10 36 64;    /* #0A2440 navy oscuro — hover / fondos sólidos */
-  --brand-light: 53 89 138;  /* #35598A navy claro — acentos sobre oscuro */
-  --accent: 186 166 122;     /* #BAA67A dorado — botones, tabs, highlights */
-  --accent-dark: 154 135 89; /* #9A8759 dorado activo / hover */
-  --accent-deep: 127 111 73; /* #7F6F49 dorado profundo — botón Buscar */
-  --topbar: 15 50 88;        /* franja superior de redes */
-  --hero-overlay: 7 52 93;   /* #07345D velo azul sobre la foto del hero */
+  --brand: 26 26 26;         /* #1A1A1A negro del "Prop" — marca principal, títulos */
+  --brand-dark: 0 0 0;       /* #000000 — hover / fondos sólidos */
+  --brand-light: 64 64 64;   /* #404040 — acentos sobre oscuro */
+  --accent: 255 80 1;        /* #FF5001 naranja del "m2" — botones, chevrons, highlights */
+  --accent-dark: 214 66 0;   /* #D64200 naranja activo / hover */
+  --accent-deep: 255 80 1;   /* #FF5001 botón Buscar (en el diseño es el mismo naranja) */
+  --topbar: 26 26 26;        /* sidebar de los paneles */
+  --hero-overlay: 0 0 0;     /* velo sobre fotos */
+  --cream: 247 246 240;      /* #F7F6F0 fondo del header y el hero */
+  --chip: 226 230 230;       /* #E2E6E6 chip de operación seleccionado */
   --ad: 181 172 172;         /* placeholder de espacios publicitarios */
 
   --bg: 255 255 255;         /* fondo global */

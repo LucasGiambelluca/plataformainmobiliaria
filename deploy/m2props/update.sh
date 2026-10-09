@@ -16,7 +16,10 @@ WEB_DIR=/var/www/m2props
 DATA_DIR=/var/lib/m2props/minio
 CONF_DIR=/etc/m2props
 SITE_USER=m2props
-BASE_PATH=/m2props
+# La URL pública. Pasó de /m2props a /m2prop el 2026-10-09; los nombres de
+# servicio, usuario y directorios siguen siendo m2props a propósito: renombrarlos
+# no cambia nada que vea nadie y obliga a migrar systemd, backups y permisos.
+BASE_PATH=/m2prop
 # Sin esquema: se usa para armar la URL del mensaje final, y las variables de
 # entorno ya lo traen.
 ORIGIN=hernandezyasociados.com.ar
@@ -53,6 +56,16 @@ sudo -u m2props npm run build
 # consistente. Recién con las migraciones aplicadas se reinicia.
 log "Migraciones"
 set -a; . "$CONF_DIR/backend.env"; set +a
+
+# El backend arma la cookie de sesión y el sitemap con APP_BASE_PATH, y el
+# bundle con BASE_PATH. Si no coinciden, la web carga pero la sesión se cae en
+# cada recarga. Se corta acá, antes de tocar nada.
+if [ "${APP_BASE_PATH:-}" != "$BASE_PATH" ]; then
+  echo "ERROR: APP_BASE_PATH en $CONF_DIR/backend.env es '${APP_BASE_PATH:-}' y tiene que ser '$BASE_PATH'."
+  echo "       Corregir APP_BASE_PATH=$BASE_PATH y BACKEND_URL=https://$ORIGIN$BASE_PATH y volver a correr."
+  exit 1
+fi
+
 sudo -u m2props -E npx prisma migrate deploy
 
 # ── 3. Bucket de MinIO ───────────────────────────────────────
@@ -104,8 +117,8 @@ log "Frontend"
 cd "$APP_DIR/frontend"
 sudo -u m2props npm ci --no-audit --no-fund --cache "$NPM_CACHE"
 # OJO con la barra de $BASE_PATH: ya la tiene. "/$BASE_PATH/api" daba
-# "//m2props/api", que el browser resuelve como URL protocol-relative y manda a
-# https://m2props/api — un host que no existe. El síntoma es que la web carga
+# "//m2prop/api", que el browser resuelve como URL protocol-relative y manda a
+# https://m2prop/api — un host que no existe. El síntoma es que la web carga
 # entera y solo el login falla con "no se pudo conectar", porque la petición
 # nunca sale de la máquina.
 case "$BASE_PATH" in
@@ -158,8 +171,29 @@ mv "$STAGE" "$WEB_DIR"
 rm -rf "${WEB_DIR}.old"
 
 # ── 6. nginx ─────────────────────────────────────────────────
-# Al final y no antes: hasta acá el bundle nuevo no estaba en disco, y recargar
-# antes habría SERVIDO un index.html que apunta a assets que todavía no existen.
+# Recién acá y no antes: hasta este punto el bundle nuevo no estaba en disco, y
+# recargar antes habría SERVIDO un index.html que apunta a assets que todavía no
+# existen.
+#
+# Las rutas de nginx se copian en cada update y no solo en install.sh: si no,
+# un cambio de rutas en el repo (como el paso de /m2props a /m2prop) queda en
+# git y nunca llega al servidor. Se guarda el anterior y se restaura si no
+# valida, para no dejar un snippet roto esperando al próximo reload.
+log "nginx"
+SNIP=/etc/nginx/snippets/m2props.conf
+cp -a "$SNIP" "$SNIP.prev"
+install -m 644 "$APP_DIR/deploy/m2props/nginx.conf" "$SNIP"
+if ! nginx -t; then
+  mv "$SNIP.prev" "$SNIP"
+  echo "ERROR: el nginx.conf nuevo no valida; quedó el anterior."
+  exit 1
+fi
+rm -f "$SNIP.prev"
+systemctl reload nginx
+
+# ── 7. Assets públicos ───────────────────────────────────────
+# Después del reload: si cambiaron las rutas de nginx, la comprobación tiene que
+# pedir las URL como quedan, no como estaban.
 # Las imágenes de public/ (el logo, el hero) se referencian desde el código, no
 # desde el index.html, así que el base de Vite no las alcanza: van envueltas con
 # conBase(). No se puede verificar con un grep sobre el bundle, porque el
@@ -185,9 +219,5 @@ if [ "$FALLAS" -gt 0 ]; then
   echo "       Suelen ser rutas absolutas en el código: usá conBase()."
   exit 1
 fi
-
-log "nginx"
-nginx -t
-systemctl reload nginx
 
 log "Listo. https://$ORIGIN$BASE_PATH/"

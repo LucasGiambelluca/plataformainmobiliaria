@@ -230,7 +230,7 @@ describe('applySeo', () => {
       jsonLd: { '@type': 'RealEstateListing' },
     })
 
-    expect(document.title).toBe('Casa — Entre Rios Propiedades')
+    expect(document.title).toBe('Casa — M2Prop')
     expect(
       document.head.querySelector('link[rel="canonical"]')?.getAttribute('href'),
     ).toBe(`${window.location.origin}/propiedad/p1`)

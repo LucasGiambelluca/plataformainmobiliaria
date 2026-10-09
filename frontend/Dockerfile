@@ -32,7 +32,7 @@ ARG VITE_PLATFORM_DOMAIN=
 ENV VITE_PLATFORM_DOMAIN=$VITE_PLATFORM_DOMAIN
 
 # Subpath bajo el que se sirve la app, sin barra final: vacío en la raíz del
-# host, "/m2props" cuando vive en un subpath de un dominio que ya tiene otro
+# host, "/m2prop" cuando vive en un subpath de un dominio que ya tiene otro
 # sitio. Mueve el `base` de Vite, el `basename` del router y las URL absolutas
 # del SEO, todo desde el mismo lugar.
 ARG VITE_BASE_PATH=

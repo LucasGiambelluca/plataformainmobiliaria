@@ -17,6 +17,13 @@ const operaciones: OperationType[] = ['sale', 'rent', 'temporary_rental']
 
 const PAGE_SIZE = 24
 
+/** Un parámetro numérico de la URL, o undefined si falta o no es un número. */
+function numero(v: string | null): number | undefined {
+  if (v === null || v === '') return undefined
+  const n = Number(v)
+  return Number.isFinite(n) && n >= 0 ? n : undefined
+}
+
 const sortOptions = [
   { value: 'relevance', label: 'Más relevantes' },
   { value: 'price_asc', label: 'Menor precio' },
@@ -36,6 +43,26 @@ export default function SearchResults() {
   // La página va en la URL y no en el estado: así el botón atrás vuelve a la
   // página donde estabas y un enlace compartido abre la misma.
   const page = Math.max(1, Number(params.get('page')) || 1)
+
+  // Los filtros finos llegan desde la barra del hero de la home. Se leen de la
+  // URL tal cual: un enlace compartido tiene que abrir la misma búsqueda.
+  const extras = {
+    minRooms: numero(params.get('minRooms')),
+    minBathrooms: numero(params.get('minBathrooms')),
+    minParking: numero(params.get('minParking')),
+    minPrice: numero(params.get('minPrice')),
+    maxPrice: numero(params.get('maxPrice')),
+    maxAge: numero(params.get('maxAge')),
+    feature: params.get('feature') || undefined,
+  }
+  const hayExtras = Object.values(extras).some((v) => v !== undefined)
+
+  const quitarExtras = () => {
+    const next = new URLSearchParams(params)
+    for (const k of Object.keys(extras)) next.delete(k)
+    next.delete('page')
+    setParams(next)
+  }
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params)
@@ -58,7 +85,7 @@ export default function SearchResults() {
   // El filtro de ubicación se escribe letra por letra: no conviene pedir en cada tecla.
   const qDebounced = useDebounced(q)
 
-  const hayFiltros = Boolean(op || type || q || agency)
+  const hayFiltros = Boolean(op || type || q || agency || hayExtras)
 
   useSeo({
     title: [
@@ -84,11 +111,13 @@ export default function SearchResults() {
         operationType: op || undefined,
         propertyType: type || undefined,
         agency: agency || undefined,
+        ...extras,
         sort: sort as 'relevance',
         page,
         pageSize: PAGE_SIZE,
       }),
-    [qDebounced, op, type, agency, sort, page],
+    // Por valor y no por identidad: `extras` es un objeto nuevo en cada render.
+    [qDebounced, op, type, agency, sort, page, JSON.stringify(extras)],
   )
 
   const total = catalogo.data?.total ?? 0
@@ -104,6 +133,15 @@ export default function SearchResults() {
           </h2>
 
           <div className="mt-5 space-y-5">
+            {hayExtras && (
+              <button
+                onClick={quitarExtras}
+                className="w-full rounded-md border border-brand px-3 py-2 text-xs font-medium text-brand transition-colors hover:bg-brand hover:text-white"
+              >
+                Quitar filtros de ambientes, precio y características
+              </button>
+            )}
+
             {agency && (
               <button
                 onClick={() => setParam('agency', '')}

@@ -70,7 +70,7 @@ describe("public router (catálogo abierto)", () => {
     const { app, repo } = makeApp();
 
     await request(app).get(
-      "/api/public/properties?operationType=rent&city=Paran%C3%A1&minPrice=1000&minRooms=2&sort=price_asc",
+      "/api/public/properties?operationType=rent&city=Paran%C3%A1&minPrice=1000&minRooms=2&minBathrooms=2&minParking=1&maxAge=10&feature=Pileta&sort=price_asc",
     );
 
     const [input] = (repo.listProperties as jest.Mock).mock.calls[0];
@@ -79,6 +79,10 @@ describe("public router (catálogo abierto)", () => {
       city: "Paraná",
       minPrice: 1000,
       minRooms: 2,
+      minBathrooms: 2,
+      minParking: 1,
+      maxAge: 10,
+      feature: "Pileta",
       sort: "price_asc",
     });
   });

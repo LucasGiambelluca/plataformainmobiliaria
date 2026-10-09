@@ -1,4 +1,4 @@
-# M2Props — despliegue en un VPS con nginx y sin Docker
+# M2Prop — despliegue en un VPS con nginx y sin Docker
 
 Variante del despliegue para un VPS que **no** es el del compose: no hay Docker
 ni Caddy, hay nginx sirviendo otros sitios, un PostgreSQL nativo que ya usa otra
@@ -9,21 +9,27 @@ dominio que en la raíz tiene el sitio estático de otro cliente.
    https://hernandezyasociados.com.ar/
    ├── /                     → /var/www/hernandez-landing   (sitio del cliente, intacto)
    ├── /inmobiliaria-media/  → 127.0.0.1:9000               (MinIO, sin reescribir)
-   └── /m2props/             → esta plataforma
+   └── /m2prop/             → esta plataforma
        ├── /                 → /var/www/m2props             (SPA)
        ├── /api/             → 127.0.0.1:3010              (backend)
        └── /sitemap.xml, /robots.txt → 127.0.0.1:3010
 ```
 
+La URL pública es **`/m2prop`** desde el 2026-10-09 (antes `/m2props`). Lo
+viejo responde 308 a lo nuevo conservando camino y query, así que los enlaces
+compartidos siguen andando. Los nombres internos —servicios systemd, usuario,
+`/opt/m2props`, `/etc/m2props`, la base— siguen con `m2props` a propósito:
+nadie los ve, y renombrarlos obligaba a migrar systemd, backups y permisos.
+
 ## La multimedia es la excepción: va en la raíz
 
-Todo lo demás vive bajo `/m2props`, menos las fotos. No es una inconsistencia
+Todo lo demás vive bajo `/m2prop`, menos las fotos. No es una inconsistencia
 sino una restricción de S3, y conviene tenerla escrita porque no se deduce:
 
 con direccionamiento por path —que es lo que necesita cualquier S3-compatible—
 la URL se arma como `/<bucket>/<clave>`, y MinIO interpreta **el primer segmento
 de la ruta** como el nombre del bucket. Si el endpoint llevara el prefijo, la
-ruta firmada quedaría `/m2props/inmobiliaria-media/<clave>` y MinIO buscaría un
+ruta firmada quedaría `/m2prop/inmobiliaria-media/<clave>` y MinIO buscaría un
 bucket llamado `m2props`.
 
 No se arregla reescribiendo en el proxy: la reescritura cambia la ruta sobre la
@@ -129,7 +135,7 @@ uno cree.
 - **`S3_ENDPOINT` es el origen público pelado, sin el prefijo de la app.** Las
   URLs de subida van firmadas con SigV4, que firma host y ruta. Si el backend
   firma contra loopback, el navegador nunca manda una petición que MinIO pueda
-  validar; y si el endpoint lleva `/m2props`, MinIO toma ese prefijo como nombre
+  validar; y si el endpoint lleva `/m2prop`, MinIO toma ese prefijo como nombre
   de bucket. Ver la sección de arriba.
 - **Una base y un rol propios** en el clúster de Postgres que ya corre, para que
   esta app no pueda tocar los datos de la otra.
@@ -138,12 +144,12 @@ uno cree.
 
 - **Las webs de inmobiliaria no funcionan por subdominio.** `*.hernandezyasociados.com.ar`
   ya lo sirve el Next.js del `desplegador`, y ganaría él. Se acceden por ruta:
-  `/m2props/inmobiliaria/:slug`.
+  `/m2prop/inmobiliaria/:slug`.
 - **Los dominios propios tampoco.** Sin Caddy con on-demand TLS no hay emisión
   automática de certificados, y `DNS_RESOLVER=fake` evita que el panel prometa
   una verificación que el nginx no puede sostener. Para habilitarlos hay que
   sumar el subdominio del portal a `PLATFORM_DOMAIN` con su propio A.
-- **`/robots.txt` y `/sitemap.xml` viven bajo `/m2props`.** En la raíz del dominio
+- **`/robots.txt` y `/sitemap.xml` viven bajo `/m2prop`.** En la raíz del dominio
   ya están los del sitio estático del cliente, que no se tocan.
 - **La cookie de refresh es `Secure`.** Con `NODE_ENV=production` no hay manera de
   probarlo por HTTP: cualquier prueba de sesión tiene que ir por https.

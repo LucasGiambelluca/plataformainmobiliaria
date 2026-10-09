@@ -24,7 +24,7 @@ export default function ComoPublicar() {
         <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 md:grid-cols-2">
           <div className="text-white">
             <h1 className="text-4xl font-bold leading-tight tracking-base md:text-5xl">
-              Somos Entre Rios Propiedades
+              Somos M2Prop
             </h1>
             <p className="mt-4 max-w-md text-xl font-medium text-white/95">
               El portal exclusivo de publicación inmobiliaria.

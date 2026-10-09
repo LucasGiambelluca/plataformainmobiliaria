@@ -27,6 +27,8 @@ export default {
         topbar: 'rgb(var(--topbar) / <alpha-value>)',
         'hero-overlay': 'rgb(var(--hero-overlay) / <alpha-value>)',
         ad: 'rgb(var(--ad) / <alpha-value>)',
+        cream: 'rgb(var(--cream) / <alpha-value>)',
+        chip: 'rgb(var(--chip) / <alpha-value>)',
         ink: 'rgb(var(--text) / <alpha-value>)',
         muted: 'rgb(var(--text-secondary) / <alpha-value>)',
         line: 'rgb(var(--border) / <alpha-value>)',

@@ -341,7 +341,7 @@ export default function AgencySite() {
           {/* Enlace absoluto y no <Link>: en el dominio propio de la
               inmobiliaria, "/" es su propia home, no la del portal. */}
           <a href={portal} className="text-brand hover:underline">
-            Entre Rios Propiedades
+            M2Prop
           </a>
         </div>
       </footer>

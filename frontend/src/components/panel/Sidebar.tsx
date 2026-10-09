@@ -46,8 +46,8 @@ export default function Sidebar({
               en todas las secciones. */}
           <Link to={brandHome}>
             <img
-              src={conBase('/brand/logo-blanco.png')}
-              alt="ER Entreriosprop"
+              src={conBase('/brand/m2prop-blanco.png')}
+              alt="M2Prop"
               className="h-8 w-auto"
             />
           </Link>

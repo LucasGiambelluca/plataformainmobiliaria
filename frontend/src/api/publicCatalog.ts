@@ -20,6 +20,12 @@ export interface CatalogParams {
   minPrice?: number
   maxPrice?: number
   minRooms?: number
+  minBathrooms?: number
+  minParking?: number
+  /** Antigüedad máxima en años; 0 es "a estrenar". */
+  maxAge?: number
+  /** Característica cargada en la propiedad ("Pileta", "Quincho"...). */
+  feature?: string
   agency?: string
   /** Solo destacadas (carrusel de la home). */
   onlyFeatured?: boolean

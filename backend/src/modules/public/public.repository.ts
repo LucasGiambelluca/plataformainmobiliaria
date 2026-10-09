@@ -98,6 +98,15 @@ export const publicRepository: PublicRepository = {
       ...(input.propertyType && { propertyType: input.propertyType }),
       ...(input.city && { city: { contains: input.city, mode: "insensitive" } }),
       ...(input.minRooms !== undefined && { rooms: { gte: input.minRooms } }),
+      ...(input.minBathrooms !== undefined && { bathrooms: { gte: input.minBathrooms } }),
+      ...(input.minParking !== undefined && { parking: { gte: input.minParking } }),
+      // Sin año cargado la propiedad no entra: no se puede afirmar que cumple.
+      ...(input.maxAge !== undefined && {
+        yearBuilt: { gte: new Date().getFullYear() - input.maxAge },
+      }),
+      ...(input.feature && {
+        features: { some: { feature: { contains: input.feature, mode: "insensitive" } } },
+      }),
       ...(input.agency && { tenant: { isActive: true, slug: input.agency } }),
       ...(input.minPrice !== undefined || input.maxPrice !== undefined
         ? {

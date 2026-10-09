@@ -3,7 +3,7 @@
  *
  * El caso normal es la raíz del dominio y `BASE_PATH` queda vacío: nada cambia.
  * El caso que justifica el módulo es otro despliegue, donde la app se sirve
- * bajo un subpath (`hernandezyasociados.com.ar/m2props`) porque el host ya
+ * bajo un subpath (`hernandezyasociados.com.ar/m2prop`) porque el host ya
  * tiene otro sitio en la raíz. Ahí hay tres cosas que se rompen si nadie las
  * ajusta, y las tres leen de acá:
  *

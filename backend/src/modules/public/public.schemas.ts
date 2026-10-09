@@ -17,6 +17,14 @@ export const publicCatalogQuerySchema = z.object({
   minPrice: z.coerce.number().nonnegative().optional(),
   maxPrice: z.coerce.number().nonnegative().optional(),
   minRooms: z.coerce.number().int().nonnegative().max(100).optional(),
+  minBathrooms: z.coerce.number().int().nonnegative().max(100).optional(),
+  minParking: z.coerce.number().int().nonnegative().max(100).optional(),
+  // Años de antigüedad como máximo; 0 es "a estrenar". Se traduce a year_built
+  // en el repositorio, que es lo que guarda la propiedad.
+  maxAge: z.coerce.number().int().nonnegative().max(200).optional(),
+  // Una característica cargada en la propiedad ("Pileta", "Quincho"...). Las
+  // características son texto libre, así que se busca por contenido.
+  feature: z.string().trim().min(1).max(100).optional(),
   agency: z.string().trim().min(1).max(100).optional(),
   // Solo destacadas, para el carrusel de la home. Es un subconjunto de lo
   // visible, no una forma de pedir otros estados.

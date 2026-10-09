@@ -20,7 +20,7 @@ const envSchema = z.object({
   HOST: z.string().default("0.0.0.0"),
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
   // Subpath bajo el que se sirve la API, sin barras: "" en la raíz del host,
-  // "/m2props" cuando la app vive en un subpath de un dominio que ya tiene otro
+  // "/m2prop" cuando la app vive en un subpath de un dominio que ya tiene otro
   // sitio en la raíz. Solo lo usa la cookie de refresh (auth.router.ts): su
   // `path` tiene que coincidir con la ruta por la que realmente viaja la
   // petición, o el navegador deja de mandarla y la sesión se cae al recargar.

@@ -14,7 +14,7 @@ import { formatPrice, operationLabels, typeLabels } from './propertyLabels'
  */
 
 /** Marca del portal. En la web de una inmobiliaria el sufijo es su nombre. */
-export const PORTAL_NAME = 'Entre Rios Propiedades'
+export const PORTAL_NAME = 'M2Prop'
 
 const MAX_DESCRIPTION = 155
 
@@ -34,7 +34,7 @@ export interface SeoMeta {
   jsonLd?: Record<string, unknown> | Record<string, unknown>[] | null
 }
 
-/** "Casa en Paraná — Entre Rios Propiedades", sin repetir el sufijo si ya está. */
+/** "Casa en Paraná — M2Prop", sin repetir el sufijo si ya está. */
 export function composeTitle(title: string | undefined, siteName: string): string {
   const limpio = title?.trim()
   if (!limpio) return siteName

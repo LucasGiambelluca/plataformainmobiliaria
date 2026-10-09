@@ -56,6 +56,25 @@ describe("publicRepository — filtro de visibilidad", () => {
     expect(args.where.operationType).toBe("rent");
   });
 
+  it("baños, cocheras, antigüedad y característica restringen sin pisar la visibilidad", async () => {
+    await publicRepository.listProperties({
+      ...baseInput,
+      minBathrooms: 2,
+      minParking: 1,
+      maxAge: 10,
+      feature: "pileta",
+    });
+
+    const [args] = property.findMany.mock.calls[0];
+    esperarVisibilidad(args.where);
+    expect(args.where.bathrooms).toEqual({ gte: 2 });
+    expect(args.where.parking).toEqual({ gte: 1 });
+    expect(args.where.yearBuilt).toEqual({ gte: new Date().getFullYear() - 10 });
+    expect(args.where.features).toEqual({
+      some: { feature: { contains: "pileta", mode: "insensitive" } },
+    });
+  });
+
   it("filtrar por inmobiliaria no habilita ver una suspendida", async () => {
     // `agency` reescribe la cláusula tenant: tiene que seguir exigiendo isActive.
     await publicRepository.listProperties({ ...baseInput, agency: "demo" });

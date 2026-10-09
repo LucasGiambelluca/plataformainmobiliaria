@@ -53,7 +53,7 @@ function xml(value: string): string {
  *
  * Del APP_BASE_PATH se cuelga porque estas URL se leen fuera de la aplicación:
  * en la raíz del host son la dirección de la página, y bajo un subpath
- * ("/m2props") el prefijo es parte de la URL. Sin él, el sitemap declararía como
+ * ("/m2prop") el prefijo es parte de la URL. Sin él, el sitemap declararía como
  * canónicas rutas que en el host no existen.
  */
 function baseUrl(req: Request): string {
@@ -115,8 +115,8 @@ export function createSeoRouter(
     // encontraría la pantalla de acceso. /api tampoco: son respuestas JSON.
     //
     // Las reglas se escriben relativas al prefijo, no a la raíz del host: un
-    // `Disallow: /panel/` en un despliegue bajo /m2props no bloquearía nada,
-    // porque el panel está en /m2props/panel. Y el `Allow` se limita al prefijo
+    // `Disallow: /panel/` en un despliegue bajo /m2prop no bloquearía nada,
+    // porque el panel está en /m2prop/panel. Y el `Allow` se limita al prefijo
     // para no autorizar a indexar el resto del dominio, que es de otro sitio.
     const p = env.APP_BASE_PATH;
     const lineas = [

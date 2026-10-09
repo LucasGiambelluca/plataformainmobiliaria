@@ -94,6 +94,10 @@ export interface CatalogInput {
   minPrice?: number;
   maxPrice?: number;
   minRooms?: number;
+  minBathrooms?: number;
+  minParking?: number;
+  maxAge?: number;
+  feature?: string;
   agency?: string;
   onlyFeatured?: boolean;
   page?: number;
